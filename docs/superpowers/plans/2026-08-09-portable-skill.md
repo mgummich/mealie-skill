@@ -44,7 +44,7 @@
 **Interfaces:**
 - Produces: Verzeichnis `skill/` mit `SKILL.md`, `references/*.md` (6 Dateien), `workflow.md`, `scripts/mealie_ctx.py`. Alle späteren Tasks lesen von dort.
 
-- [ ] **Step 1: Verschieben**
+- [x] **Step 1: Verschieben**
 
 ```bash
 git mv antigravity/skills/mealie skill
@@ -54,7 +54,7 @@ rmdir antigravity/skills antigravity/workflows antigravity
 
 (`rmdir` schlägt fehl, wenn noch etwas darin liegt — das wäre ein Fehler, dann anschauen.)
 
-- [ ] **Step 2: CTX-Pfad in optimize.py anpassen**
+- [x] **Step 2: CTX-Pfad in optimize.py anpassen**
 
 In `standalone/optimize.py` ersetzen:
 
@@ -75,7 +75,7 @@ Ebenfalls im Modul-Docstring die Zeile
 ändern zu
 `Kontext und Ausfuehrung laufen ueber skill/scripts/mealie_ctx.py;`.
 
-- [ ] **Step 3: Prüfen**
+- [x] **Step 3: Prüfen**
 
 ```bash
 python3 skill/scripts/mealie_ctx.py --help >/dev/null && echo ok
@@ -88,7 +88,7 @@ print('ok')"
 
 Erwartet: zweimal `ok`. (`optimize.py --help` braucht `ANTHROPIC_API_KEY` wegen Modul-Level-`AH` — nicht testen, bekannte Eigenheit.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -106,7 +106,7 @@ git commit -m "refactor: move skill source to skill/ as single source of truth"
 **Interfaces:**
 - Produces: Markerpaare `<!-- nur-agent -->` … `<!-- standalone: TEXT -->`, die Task 3 auswertet. Genau 3 Paare im gesamten Baum.
 
-- [ ] **Step 1: recipes.md, Phase-1-Werkzeugzeile**
+- [x] **Step 1: recipes.md, Phase-1-Werkzeugzeile**
 
 Aktueller Text (Zeilen 3–5):
 
@@ -126,7 +126,7 @@ Neu:
 <!-- standalone: (Kontext steht bereits im Prompt.) -->
 ```
 
-- [ ] **Step 2: recipes.md, Phase-2-Schlusszeile**
+- [x] **Step 2: recipes.md, Phase-2-Schlusszeile**
 
 Aktuelle Zeile 22:
 
@@ -142,7 +142,7 @@ Neu:
 <!-- standalone: ACTIONS-Block ausgeben, dann STOPP. -->
 ```
 
-- [ ] **Step 3: foods.md, Einheiten-Absatz**
+- [x] **Step 3: foods.md, Einheiten-Absatz**
 
 Aktuelle Zeilen 39–41:
 
@@ -162,7 +162,7 @@ Werkzeug meldet dort nur Plural, Aliase und Abkürzung als Lücke.
 <!-- standalone: `useAbbreviation`. Kein Label. -->
 ```
 
-- [ ] **Step 4: Prüfen**
+- [x] **Step 4: Prüfen**
 
 ```bash
 grep -c "nur-agent" skill/references/*.md
@@ -170,7 +170,7 @@ grep -c "nur-agent" skill/references/*.md
 
 Erwartet: `foods.md:1`, `recipes.md:2`, alle anderen `0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add skill/references
@@ -188,7 +188,7 @@ git commit -m "feat: mark agent-only regions with standalone replacements"
 **Interfaces:**
 - Produces: `render_agent(text) -> str` (entfernt Markerzeilen, Inhalt bleibt), `render_standalone(text) -> str` (ersetzt Regionen, streicht Werkzeugzeilen), `rewrite(text, mapping) -> str` (Single-Pass-Ersetzung, längster Schlüssel zuerst), `MAPPINGS: dict[str, dict[str, str]]`. Task 4–6 bauen darauf auf.
 
-- [ ] **Step 1: Failing Tests schreiben**
+- [x] **Step 1: Failing Tests schreiben**
 
 `test_build.py`:
 
@@ -228,12 +228,12 @@ assert (build.rewrite("references/foods.md", build.MAPPINGS["agents-md"])
 print("ok")
 ```
 
-- [ ] **Step 2: Fehlschlag verifizieren**
+- [x] **Step 2: Fehlschlag verifizieren**
 
 Run: `python3 test_build.py`
 Expected: `ModuleNotFoundError: No module named 'build'`
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 `build.py`:
 
@@ -338,12 +338,12 @@ def rewrite(text, mapping):
 
 (CLI und Zielbauten kommen in Task 5/6; die Datei ist bis dahin nur Modul.)
 
-- [ ] **Step 4: Tests laufen lassen**
+- [x] **Step 4: Tests laufen lassen**
 
 Run: `python3 test_build.py`
 Expected: `ok`
 
-- [ ] **Step 5: Zusatzprüfung gegen die echten Alt-Prompts**
+- [x] **Step 5: Zusatzprüfung gegen die echten Alt-Prompts**
 
 Die alten handabgeleiteten Prompts liegen noch — das Rendering muss sie
 reproduzieren:
@@ -372,7 +372,7 @@ ob die Abweichung eine vergessene Markerstelle ist (dann Task 2 ergänzen)
 oder Whitespace-Rauschen der Handableitung (dann ist das Rendering korrekt
 und die Abweichung dokumentieren, nicht wegbiegen).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add build.py test_build.py
@@ -392,7 +392,7 @@ git commit -m "feat: add rendering core (agent/standalone views, path rewrite)"
 - Consumes: `build.render_standalone` aus Task 3.
 - Produces: `system_block(mode)` unverändert in Signatur und Rückgabeform (Liste mit einem Cache-Block).
 
-- [ ] **Step 1: optimize.py umbauen**
+- [x] **Step 1: optimize.py umbauen**
 
 `PROMPTS`-Dict ersetzen:
 
@@ -431,7 +431,7 @@ def system_block(mode):
              "cache_control": {"type": "ephemeral"}}]
 ```
 
-- [ ] **Step 2: Alt-Prompts löschen**
+- [x] **Step 2: Alt-Prompts löschen**
 
 ```bash
 git rm standalone/prompts/recipe.txt standalone/prompts/foods.txt \
@@ -439,7 +439,7 @@ git rm standalone/prompts/recipe.txt standalone/prompts/foods.txt \
        standalone/prompts/maintenance.txt
 ```
 
-- [ ] **Step 3: Prüfen (ohne API-Key, Modul-Level-AH umgehen)**
+- [x] **Step 3: Prüfen (ohne API-Key, Modul-Level-AH umgehen)**
 
 ```bash
 ANTHROPIC_API_KEY=dummy python3 - <<'EOF'
@@ -455,7 +455,7 @@ EOF
 
 Erwartet: `ok`. (>4000 Zeichen ≈ sicher über der 1024-Token-Cache-Grenze.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -475,7 +475,7 @@ git commit -m "feat: derive standalone prompts at runtime from skill references"
 - Consumes: `render_agent`, `render_standalone`, `rewrite`, `MAPPINGS`, `MODES`.
 - Produces: `build_target(target, out) -> str` (baut `out/<target>/…`, gibt den Zielpfad zurück), `agents_md_block() -> str` (Router-Block ohne Marker), CLI `python3 build.py [--target T] [--out DIR]`.
 
-- [ ] **Step 1: Zielbauten implementieren**
+- [x] **Step 1: Zielbauten implementieren**
 
 In `build.py` ergänzen:
 
@@ -604,7 +604,7 @@ if __name__ == "__main__":
 (`install` kommt in Task 6 — bis dahin einen Platzhalter setzen:
 `def install(target, into, force): sys.exit("--install kommt in Task 6")`.)
 
-- [ ] **Step 2: Bauen und Ergebnis prüfen**
+- [x] **Step 2: Bauen und Ergebnis prüfen**
 
 ```bash
 python3 build.py
@@ -651,16 +651,16 @@ Cursor-Command und AGENTS.md mit umgeschriebenen Pfaden; Antigravity-SKILL.md
 identisch zur Quelle bis auf entfernte Markerzeilen (diff zeigt nur die
 Markerzeilen).
 
-- [ ] **Step 3: `.gitignore` ergänzen**
+- [x] **Step 3: `.gitignore` ergänzen**
 
 `dist/` und `__pycache__/` als Zeilen anhängen.
 
-- [ ] **Step 4: Tests laufen lassen**
+- [x] **Step 4: Tests laufen lassen**
 
 Run: `python3 test_build.py`
 Expected: `ok`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add build.py test_build.py .gitignore
@@ -679,7 +679,7 @@ git commit -m "feat: render all four targets into dist/"
 - Consumes: `build_target`, `agents_md_block`.
 - Produces: `merge_agents_md(existing: str | None, block: str) -> str`; CLI `--install ZIEL [--into PROJEKT] [--force]`.
 
-- [ ] **Step 1: Failing Tests ergänzen**
+- [x] **Step 1: Failing Tests ergänzen**
 
 In `test_build.py` vor `print("ok")`:
 
@@ -702,7 +702,7 @@ assert angehaengt.rstrip().endswith("<!-- mealie:end -->")
 Run: `python3 test_build.py`
 Expected: `AttributeError: … merge_agents_md`
 
-- [ ] **Step 2: Implementieren**
+- [x] **Step 2: Implementieren**
 
 Platzhalter-`install` ersetzen durch:
 
@@ -781,12 +781,12 @@ def _install_tree(pairs, force):
         print("installiert:", dst)
 ```
 
-- [ ] **Step 3: Tests laufen lassen**
+- [x] **Step 3: Tests laufen lassen**
 
 Run: `python3 test_build.py`
 Expected: `ok`
 
-- [ ] **Step 4: Installation gegen ein Wegwerf-Projekt prüfen**
+- [x] **Step 4: Installation gegen ein Wegwerf-Projekt prüfen**
 
 ```bash
 T=$(mktemp -d)
@@ -804,7 +804,7 @@ Erwartet: zweiter agents-md-Lauf idempotent (AGENTS.md enthält den Block
 einmal), zweiter cursor-Lauf bricht mit „existiert bereits" ab, cursor ohne
 `--into` bricht mit Erklärung ab.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add build.py test_build.py
@@ -822,7 +822,7 @@ git commit -m "feat: add install targets with force guard and AGENTS.md merge"
 
 **Interfaces:** keine — reine Doku.
 
-- [ ] **Step 1: CLAUDE.md**
+- [x] **Step 1: CLAUDE.md**
 
 Architekturblock (Zeilen 7–21) ersetzen durch:
 
@@ -856,7 +856,7 @@ den Referenzen tragen `<!-- nur-agent -->`/`<!-- standalone: … -->`-Marker
 für Text, der je Kontext verschieden sein muss.
 ```
 
-- [ ] **Step 2: README.md**
+- [x] **Step 2: README.md**
 
 Abschnitt „Antigravity" (Zeilen 51–66) ersetzen durch einen Abschnitt
 „Installation" mit:
@@ -882,7 +882,7 @@ darunter behalten. Im Abschnitt „Aufbau" (Zeilen 93–104) das Layout auf das
 neue Schema aus CLAUDE.md umstellen. Im Standalone-Abschnitt nichts ändern
 (Bedienung identisch).
 
-- [ ] **Step 3: HANDOFF.md**
+- [x] **Step 3: HANDOFF.md**
 
 Abschnitt „Prompts neu ableiten" (Zeilen 115–121) ersetzen durch:
 
@@ -895,7 +895,7 @@ nichts nachzuziehen — nur prüfen, dass der kombinierte Block über 1024
 Tokens bleibt (Test in `test_build.py` bzw. Längen-Check in optimize.py).
 ```
 
-- [ ] **Step 4: Querverweise prüfen**
+- [x] **Step 4: Querverweise prüfen**
 
 ```bash
 grep -rn "antigravity/" CLAUDE.md README.md HANDOFF.md && echo PRUEFEN || echo ok
@@ -904,7 +904,7 @@ grep -rn "prompts/recipe.txt\|prompts/foods.txt" . --include='*.md' && echo PRUE
 
 Erwartet: zweimal `ok` (Treffer nur, wenn ein Pfad vergessen wurde).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add CLAUDE.md README.md HANDOFF.md
