@@ -37,8 +37,10 @@ bestehende Werte nie überschreiben.
   und die englische Bezeichnung.
 
 Bei Einheiten stattdessen `name`, `pluralName`, `abbreviation`,
+<!-- nur-agent -->
 `useAbbreviation`. Einheiten haben kein Label und keine Beschreibung; das
 Werkzeug meldet dort nur Plural, Aliase und Abkürzung als Lücke.
+<!-- standalone: `useAbbreviation`. Kein Label. -->
 
 ## Phase 2b - Dubletten zusammenführen
 
