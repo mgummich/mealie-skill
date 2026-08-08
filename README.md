@@ -48,12 +48,21 @@ Was 404 liefert, im `EP`-Dictionary von `mealie_ctx.py` anpassen
 Ebenfalls einmal verifizieren, weil je nach Version `PUT` oder `POST`:
 `/api/foods/merge` und `/api/units/merge`.
 
-## Antigravity
+## Installation
 
-    cp -r antigravity/skills/mealie      <workspace>/.agents/skills/
-    cp antigravity/workflows/mealie.md   <workspace>/.agents/workflows/
+    python3 build.py --install claude-code           # global, ~/.claude/
+    python3 build.py --install antigravity           # global, ~/.gemini/config/
+    python3 build.py --install claude-code --into <projekt>
+    python3 build.py --install cursor --into <projekt>
+    python3 build.py --install agents-md --into <projekt>   # Codex, Zed, …
 
-Global stattdessen nach `~/.gemini/config/skills/`.
+`cursor` und `agents-md` sind projektbezogen und verlangen `--into`.
+Vorhandene Dateien werden nie still überschrieben (`--force`); eine
+bestehende `AGENTS.md` wird nur im markierten Block aktualisiert.
+
+Ohne `--install` rendert `python3 build.py` alle Ziele nach `dist/`.
+
+In Antigravity und Claude Code danach:
 
     /mealie rezept mein-rezept
     /mealie lebensmittel
@@ -92,16 +101,17 @@ sowie `commons.wikimedia.org`, `pexels.com`, `unsplash.com` freigeben.
 
 ## Aufbau
 
+    skill/                  einzige Quelle der Wahrheit
+      SKILL.md              schlanker Router
+      references/*.md       Details, nur bei Bedarf gelesen
+      workflow.md           Ablauf für /mealie
+      scripts/mealie_ctx.py alle API-Zugriffe
     standalone/
-      prompts/common.txt      Grundsätze + ACTIONS-Format
-      prompts/*.txt           Regeln je Modus
-      optimize.py             Modellaufruf, Freigabe, Batch
-    antigravity/
-      skills/mealie/
-        SKILL.md              schlanker Router
-        references/*.md       Details, nur bei Bedarf gelesen
-        scripts/mealie_ctx.py alle API-Zugriffe
-      workflows/mealie.md
+      prompts/common.txt    Grundsätze + ACTIONS-Format (handgepflegt)
+      optimize.py           Modellaufruf, Freigabe, Batch
+    build.py                rendert dist/ für die vier Ziele, installiert
+                            mit --install
+    test_build.py           python3 test_build.py
 
 ## Ausgabestil: caveman
 

@@ -6,19 +6,22 @@ Standalone-Skript für die Anthropic API.
 
 ## Architektur
 
-    antigravity/skills/mealie/
+    skill/                  einzige Quelle der Wahrheit
       SKILL.md              Router: Modus wählen, gemeinsame Regeln
       references/*.md       Details je Modus, nur bei Bedarf gelesen
+      workflow.md           Ablauf für /mealie
       scripts/mealie_ctx.py ALLE API-Zugriffe, kein Modellaufruf
-    antigravity/workflows/mealie.md
     standalone/
-      prompts/common.txt    Grundsätze + ACTIONS-Format
-      prompts/<modus>.txt   aus references/ abgeleitet
+      prompts/common.txt    Grundsätze + ACTIONS-Format (handgepflegt)
       optimize.py           Modellaufruf, Freigabe, Batch
+    build.py                rendert dist/ für claude-code, antigravity,
+                            cursor, agents-md; installiert mit --install
+    test_build.py           python3 test_build.py
 
 `mealie_ctx.py` ist die einzige Stelle mit HTTP-Zugriff auf Mealie.
-`optimize.py` ruft es als Subprozess auf. Neue Funktionalität gehört ins
-Skript, nicht in die Prompts.
+`optimize.py` ruft es als Subprozess auf und leitet die Modusprompts zur
+Laufzeit aus `skill/references/` ab (`build.render_standalone`). Neue
+Funktionalität gehört ins Skript, nicht in die Prompts.
 
 ## Nicht verhandelbar
 
@@ -39,9 +42,10 @@ Notizen und Kochbuchtexte immer in vollständiger deutscher Prosa, auch wenn
 der Ausgabestil komprimiert ist (caveman). Diese Regel steht in `SKILL.md`
 und in `references/actions.md` — beide anpassen, wenn sie sich ändert.
 
-**Regeln stehen an einer Stelle.** `standalone/prompts/*.txt` sind aus
-`references/*.md` abgeleitet. Änderst du eine Regel, ändere die Referenz und
-leite neu ab (siehe HANDOFF.md, Abschnitt „Prompts neu ableiten").
+**Regeln stehen an einer Stelle.** `skill/` ist die Quelle; `dist/` und die
+Standalone-Prompts werden gerendert, nie von Hand gepflegt. Drei Stellen in
+den Referenzen tragen `<!-- nur-agent -->`/`<!-- standalone: … -->`-Marker
+für Text, der je Kontext verschieden sein muss.
 
 ## Konventionen
 

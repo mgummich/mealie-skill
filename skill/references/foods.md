@@ -6,6 +6,7 @@ Merge-Endpunkt. Zwei Aufgaben, nie im selben Plan:
 
 ## Phase 1 - Analyse
 
+    audit foods          # oder: audit units
 
 Gib wieder: Anzahl gesamt, Verteilung der Lücken, ungenutzte Einträge,
 Dublettengruppen mit Rezeptzahlen. Frage dann, womit begonnen werden soll.
@@ -17,6 +18,7 @@ Paare, die die Heuristik übersieht.
 
 ## Phase 2a - Lücken füllen
 
+    ctx foods --limit 25
 
 Plan als Tabelle `Food | fehlt | Ergänzung`. Nur fehlende Felder ergänzen,
 bestehende Werte nie überschreiben.
@@ -35,10 +37,14 @@ bestehende Werte nie überschreiben.
   und die englische Bezeichnung.
 
 Bei Einheiten stattdessen `name`, `pluralName`, `abbreviation`,
-`useAbbreviation`. Kein Label.
+<!-- nur-agent -->
+`useAbbreviation`. Einheiten haben kein Label und keine Beschreibung; das
+Werkzeug meldet dort nur Plural, Aliase und Abkürzung als Lücke.
+<!-- standalone: `useAbbreviation`. Kein Label. -->
 
 ## Phase 2b - Dubletten zusammenführen
 
+    ctx foods --group "Tomate"
 
 Zielobjekt ist das Food mit den meisten Rezeptverwendungen; bei Gleichstand
 das inhaltlich bessere (Beschreibung, Label, Plural gesetzt). Stimmt dessen
@@ -72,6 +78,7 @@ vorschlagen und begründen.
 
 ## Phase 3 - Ausführung
 
+    apply actions.json
 
 Report: AKTUALISIERT (Objekt - welche Felder) · ZUSAMMENGEFÜHRT
 (von -> nach, Anzahl umgeschriebener Rezepte) · ALIASE ERGÄNZT · OFFEN

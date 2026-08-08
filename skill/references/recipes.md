@@ -2,7 +2,9 @@
 
 ## Phase 1 - Analyse
 
+<!-- nur-agent -->
     ctx recipe <slug>
+<!-- standalone: (Kontext steht bereits im Prompt.) -->
 
 Ausgabe: Tabelle `Feld | Status` mit Status aus {leer, ok, sprache,
 ungeparst, unplausibel}. Fehlt eine Zutat im FOODS-Block, gezielt nachschlagen
@@ -19,7 +21,9 @@ mit `ctx recipe <slug> --search "<begriff>"`.
     G RÜCKFRAGEN
     H RISIKEN   was überschrieben wird
 
+<!-- nur-agent -->
 `actions.json` schreiben, mit `--dry-run` prüfen, Freigabe erfragen, anhalten.
+<!-- standalone: ACTIONS-Block ausgeben, dann STOPP. -->
 
 ## Phase 3 - Ausführung
 
