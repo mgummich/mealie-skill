@@ -112,13 +112,12 @@ gelöscht, auch wenn nur ein Tag umbenannt wurde. Bei großen Beständen teuer.
    kontrollieren.
 7. Erst danach Merges, und auch dann mit einem einzigen Paar.
 
-## Prompts neu ableiten
+## Prompts
 
-`standalone/prompts/*.txt` stammen aus `antigravity/skills/mealie/references/`.
-Nach Regeländerungen neu erzeugen: Referenz kopieren, Skriptaufrufzeilen
-entfernen (die gelten nur in Antigravity), `common.txt` bleibt handgepflegt.
-Danach prüfen, dass jeder kombinierte Block über 1024 Tokens liegt, sonst
-greift das Prompt-Caching nicht.
+`standalone/prompts/<modus>.txt` gibt es nicht mehr; `optimize.py` leitet die
+Modusregeln zur Laufzeit aus `skill/references/` ab. Nach Regeländerungen
+nichts nachzuziehen — nur prüfen, dass der kombinierte Block über 1024
+Tokens bleibt (Test in `test_build.py` bzw. Längen-Check in optimize.py).
 
 ## Offene Fragen an den Nutzer
 
