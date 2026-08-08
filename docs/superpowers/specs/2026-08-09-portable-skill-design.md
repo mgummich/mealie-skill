@@ -20,8 +20,26 @@ zweite Konsument, `standalone/`, hat eine eigene Kopie der Regeln in
 vergessen werden kann.
 
 Der Unterschied zwischen einer Referenz und dem daraus abgeleiteten Prompt ist
-mechanisch: Es fallen die Zeilen weg, die `mealie_ctx.py` aufrufen, weil sie
-nur im Antigravity-Kontext gelten.
+überwiegend mechanisch: Es fallen die Zeilen weg, die `mealie_ctx.py`
+aufrufen, weil sie nur im Agent-Kontext gelten. An drei Stellen ist er es
+nicht — dort braucht der Standalone-Prompt anderen Text, nicht nur weniger
+(z. B. „ACTIONS-Block ausgeben, dann STOPP" statt „`actions.json` schreiben,
+mit `--dry-run` prüfen"). Diese Stellen markiert die Quelle mit einem
+Regionspaar aus HTML-Kommentaren:
+
+    <!-- nur-agent -->
+    `actions.json` schreiben, mit `--dry-run` prüfen, Freigabe erfragen,
+    anhalten.
+    <!-- standalone: ACTIONS-Block ausgeben, dann STOPP. -->
+
+Regel: Für die Agent-Ziele bleiben die eingeschlossenen Zeilen stehen, die
+Markerzeilen werden entfernt. Für Standalone wird die gesamte Region durch
+den Text im `standalone:`-Kommentar ersetzt. Ein `<!-- nur-agent -->` ohne
+schließenden `standalone:`-Kommentar ist ein Fehler und bricht den Build ab.
+
+Der mechanische Teil bleibt daneben bestehen: Eingerückte Codezeilen, deren
+erstes Wort ein Unterbefehl von `mealie_ctx.py` ist (`index`, `audit`, `ctx`,
+`usage`, `apply`), entfallen im Standalone-Prompt ohne Markierung.
 
 ## Layout
 
@@ -58,8 +76,12 @@ handgepflegt: Es ist eigenständig formuliert, keine Ableitung.
 |---|---|---|
 | `claude-code` | `.claude/skills/mealie/` + `.claude/commands/mealie.md` | keine; `workflow.md` wird Slash-Command |
 | `antigravity` | `.agents/skills/mealie/` + `.agents/workflows/mealie.md` | keine |
-| `cursor` | `.cursor/rules/mealie.mdc` + `mealie-<modus>.mdc` + `mealie/scripts/` | Frontmatter, Pfadangaben |
+| `cursor` | `.cursor/rules/mealie.mdc` + `mealie-<modus>.mdc` + `.cursor/commands/mealie.md` + `mealie/scripts/` | Frontmatter, Pfadangaben |
 | `agents-md` | `AGENTS.md` + `mealie/references/` + `mealie/scripts/` | Router einbetten, Pfade umbiegen |
+
+Cursor erhält den Workflow als eigenen Slash-Command unter
+`.cursor/commands/mealie.md`; für das AGENTS.md-Ziel gibt es kein
+Command-Konzept, dort übernimmt der eingebettete Router die Modusfrage.
 
 ### Cursor
 
@@ -101,11 +123,22 @@ weil das die beiden Ziele ohne Umformung sind.
 
     python build.py                          alles nach dist/
     python build.py --target cursor          nur ein Ziel
-    python build.py --install claude-code    nach ~/.claude/skills/
+    python build.py --install claude-code    global nach ~/.claude/
     python build.py --install cursor --into ../myapp
 
 Ohne `--install` schreibt der Build ausschließlich nach `dist/`. Fremde
 Verzeichnisse werden nur auf ausdrückliche Anforderung angefasst.
+
+Installationsziele: `claude-code` und `antigravity` installieren ohne
+`--into` global (`~/.claude/skills/` bzw. `~/.gemini/config/skills/`), mit
+`--into <projekt>` auf Projektebene (`.claude/skills/`, `.agents/skills/`).
+`cursor` und `agents-md` haben kein globales Gegenstück und verlangen
+`--into` immer; die Fehlermeldung erklärt das.
+
+Der Build versorgt dieses Repo nicht selbst (kein Dogfooding-Ziel): Hier wird
+am Werkzeug gearbeitet, nicht mit ihm, und eine installierte Kopie im Repo
+wäre wieder ein eingechecktes Abgeleitetes. Wer den Skill nutzen will,
+installiert global.
 
 ## Schutz vorhandener Dateien
 
@@ -135,8 +168,11 @@ Abhängigkeiten. Sie deckt die drei Stellen mit echter Logik ab:
 
 1. Strippen der Werkzeugzeilen: Aus einer Referenz mit `audit foods`-Zeile
    wird ein Text ohne diese Zeile, der Rest bleibt zeichengleich.
-2. Umschreiben der Pfadangaben je Ziel.
-3. Idempotenz des AGENTS.md-Blocks: zweimaliges Einfügen ergibt dieselbe
+2. Regionsmarker: Agent-Rendering behält die eingeschlossenen Zeilen ohne
+   Marker, Standalone-Rendering ersetzt die Region durch den Kommentartext;
+   ein unpaariger Marker bricht ab.
+3. Umschreiben der Pfadangaben je Ziel.
+4. Idempotenz des AGENTS.md-Blocks: zweimaliges Einfügen ergibt dieselbe
    Datei; Inhalt außerhalb der Marker überlebt.
 
 Kopiervorgänge brauchen keinen Test.
