@@ -13,7 +13,7 @@ Mealie ueber die Anthropic API pflegen.
   --dry-run   nur Plan zeigen, nichts schreiben
   --yes       ohne Rueckfrage ausfuehren
 
-Kontext und Ausfuehrung laufen ueber mealie_ctx.py aus dem Antigravity-Skill;
+Kontext und Ausfuehrung laufen ueber skill/scripts/mealie_ctx.py;
 dieses Skript ergaenzt Modellaufruf, Freigabe und Batch-Schleife.
 
 Env: MEALIE_URL, MEALIE_TOKEN, ANTHROPIC_API_KEY
@@ -29,7 +29,7 @@ import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CTX = os.environ.get("MEALIE_CTX", os.path.join(
-    HERE, "..", "antigravity", "skills", "mealie", "scripts", "mealie_ctx.py"))
+    HERE, "..", "skill", "scripts", "mealie_ctx.py"))
 AH = {
     "x-api-key": os.environ["ANTHROPIC_API_KEY"],
     "anthropic-version": "2023-06-01",
