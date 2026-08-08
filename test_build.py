@@ -30,4 +30,18 @@ assert build.rewrite("references/foods.md", m) == ".cursor/rules/mealie-foods.md
 assert (build.rewrite("references/foods.md", build.MAPPINGS["agents-md"])
         == "mealie/references/foods.md")
 
+# 5. AGENTS.md-Merge: idempotent, fremder Inhalt ueberlebt.
+block = "Router v1\n"
+neu = build.merge_agents_md(None, block)
+assert neu == "<!-- mealie:begin -->\nRouter v1\n<!-- mealie:end -->\n"
+assert build.merge_agents_md(neu, block) == neu          # idempotent
+mit_umfeld = "# Projekt\n\n" + neu + "\nFusszeile\n"
+v2 = build.merge_agents_md(mit_umfeld, "Router v2\n")
+assert "Router v2" in v2 and "Router v1" not in v2
+assert v2.startswith("# Projekt\n") and v2.rstrip().endswith("Fusszeile")
+ohne_marker = "# Projekt\n"
+angehaengt = build.merge_agents_md(ohne_marker, block)
+assert angehaengt.startswith("# Projekt\n")
+assert angehaengt.rstrip().endswith("<!-- mealie:end -->")
+
 print("ok")

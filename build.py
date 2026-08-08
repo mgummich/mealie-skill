@@ -204,8 +204,78 @@ def agents_md_block():
     return rewrite(render_agent(body), MAPPINGS["agents-md"]).rstrip() + "\n"
 
 
+MARK_BEGIN, MARK_END = "<!-- mealie:begin -->", "<!-- mealie:end -->"
+
+
+def merge_agents_md(existing, block):
+    """Markerblock einsetzen/ersetzen; alles ausserhalb bleibt unberuehrt."""
+    wrapped = MARK_BEGIN + "\n" + block.rstrip() + "\n" + MARK_END
+    if existing is None:
+        return wrapped + "\n"
+    if MARK_BEGIN in existing:
+        return re.sub(
+            re.escape(MARK_BEGIN) + r".*?" + re.escape(MARK_END),
+            lambda m: wrapped, existing, count=1, flags=re.S)
+    return existing.rstrip() + "\n\n" + wrapped + "\n"
+
+
 def install(target, into, force):
-    sys.exit("--install kommt in Task 6")
+    if target in ("cursor", "agents-md") and not into:
+        sys.exit(target + " ist projektbezogen, es gibt keinen globalen Ort "
+                 "dafuer — Zielprojekt mit --into angeben.")
+    built = build_target(target, os.path.join(HERE, "dist"))
+
+    if into:
+        dest = os.path.abspath(into)
+    elif target == "claude-code":
+        dest = os.path.expanduser("~")          # Baum beginnt mit .claude/
+    else:                                       # antigravity global
+        dest = None
+
+    if target == "antigravity" and dest is None:
+        src = os.path.join(built, ".agents", "skills", "mealie")
+        dst = os.path.expanduser("~/.gemini/config/skills/mealie")
+        _install_tree([(src, dst)], force)
+        print("Hinweis: Workflow ist projektbezogen; fuer ein Projekt "
+              "--into verwenden.")
+        return
+
+    pairs, agents_md = [], None
+    for dirpath, _, files in os.walk(built):
+        for f in files:
+            src = os.path.join(dirpath, f)
+            rel = os.path.relpath(src, built)
+            if rel == "AGENTS.md":
+                agents_md = src
+            else:
+                pairs.append((src, os.path.join(dest, rel)))
+    _install_tree(pairs, force)
+    if agents_md:
+        out = os.path.join(dest, "AGENTS.md")
+        old = (open(out, encoding="utf-8").read()
+               if os.path.exists(out) else None)
+        with open(agents_md, encoding="utf-8") as f:
+            raw = f.read()
+        block = raw[raw.index(MARK_BEGIN) + len(MARK_BEGIN):
+                    raw.index(MARK_END)].strip("\n") + "\n"
+        _write(out, merge_agents_md(old, block))
+        print("aktualisiert:" if old else "angelegt:", out)
+
+
+def _install_tree(pairs, force):
+    vorhanden = [dst for _, dst in pairs if os.path.exists(dst)]
+    if vorhanden and not force:
+        sys.exit("existiert bereits (mit --force ueberschreiben):\n  "
+                 + "\n  ".join(sorted(vorhanden)))
+    for src, dst in pairs:
+        if os.path.isdir(src):
+            if os.path.isdir(dst):
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
+        else:
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+        print("installiert:", dst)
 
 
 def main():
