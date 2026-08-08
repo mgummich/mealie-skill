@@ -17,6 +17,21 @@
 - `dist/` wird nie committet; keine abgeleiteten Dateien im Repo.
 - Commits einzeln je Task, Messages auf Englisch (bestehender Stil).
 
+### Entscheidungen aus dem Grilling (2026-08-09)
+
+- Cursor-`description`s werden zur Buildzeit aus der Router-Tabelle in
+  `SKILL.md` geparst (`mode_descriptions()`), nicht hartkodiert. Fehlt ein
+  Modus in der Tabelle, bricht der Build ab. `MODES` schrumpft auf
+  `(Referenzdatei, Slug)`-Paare.
+- `description` in erzeugter `.mdc`-Frontmatter immer in Anführungszeichen
+  (Doppelpunkte im Text, YAML-Sicherheit). Umlaute kommen mit dem Parsen
+  automatisch aus der Quelle.
+- `.gitignore` bekommt zusätzlich `__pycache__/` (optimize.py importiert
+  build und erzeugt Bytecode im Repo-Root).
+- `sys.exit` in den Renderfunktionen bleibt; `standalone/` darf vom
+  Repo-Checkout abhängen; Antigravity-global installiert nur den Skill und
+  druckt den Workflow-Hinweis.
+
 ---
 
 ### Task 1: Quelle nach `skill/` umziehen
@@ -249,20 +264,15 @@ RE_AGENT = re.compile(r"^\s*<!-- nur-agent -->\s*$")
 RE_STANDALONE = re.compile(r"^\s*<!-- standalone: (.*?) -->\s*$")
 TOOL_WORDS = ("index", "audit", "ctx", "usage", "apply")
 
-# (Referenzdatei, Slug fuer Cursor-Regeln, Beschreibung aus der Router-Tabelle)
+# (Referenzdatei, Slug fuer Cursor-Regeln); Beschreibungen liefert
+# mode_descriptions() zur Buildzeit aus der Router-Tabelle in SKILL.md.
 MODES = [
-    ("recipes.md", "recipes",
-     "Mealie-Rezept aufraeumen: Zutaten parsen, leere Felder fuellen"),
-    ("foods.md", "foods",
-     "Mealie-Lebensmittel und -Einheiten: Luecken, Dubletten"),
-    ("organizers.md", "organizers",
-     "Mealie-Kategorien, -Tags, -Utensilien konsolidieren"),
-    ("cookbooks.md", "cookbooks",
-     "Mealie-Kochbuch anlegen oder ueberarbeiten"),
-    ("maintenance.md", "maintenance",
-     "Mealie-Wartung: doppelte Rezepte, tote Links, Diaet-Tags"),
-    ("actions.md", "actions",
-     "ACTIONS-Format fuer Mealie-Plaene (alle Modi)"),
+    ("recipes.md", "recipes"),
+    ("foods.md", "foods"),
+    ("organizers.md", "organizers"),
+    ("cookbooks.md", "cookbooks"),
+    ("maintenance.md", "maintenance"),
+    ("actions.md", "actions"),
 ]
 
 _CTX_LONG = ".agents/skills/mealie/scripts/mealie_ctx.py"
@@ -273,7 +283,7 @@ MAPPINGS = {
         _CTX_LONG: "mealie/scripts/mealie_ctx.py",
         "scripts/mealie_ctx.py": "mealie/scripts/mealie_ctx.py",
         **{"references/" + ref: ".cursor/rules/mealie-" + slug + ".mdc"
-           for ref, slug, _ in MODES},
+           for ref, slug in MODES},
     },
     "agents-md": {
         _CTX_LONG: "mealie/scripts/mealie_ctx.py",
@@ -490,7 +500,7 @@ def _split_frontmatter(text):
 
 
 def _copy_refs(dst_dir, mapping):
-    for ref, _, _ in MODES:
+    for ref, _ in MODES:
         _write(os.path.join(dst_dir, ref),
                rewrite(render_agent(_read("references", ref)), mapping))
 
@@ -523,13 +533,14 @@ def build_target(target, out):
     elif target == "cursor":
         fm, body = _split_frontmatter(_read("SKILL.md"))
         desc = re.search(r"^description: (.+)$", fm, re.M).group(1)
+        descs = mode_descriptions()
         _write(os.path.join(root, ".cursor", "rules", "mealie.mdc"),
-               "---\ndescription: " + desc + "\nalwaysApply: false\n---\n"
+               _mdc_frontmatter(desc)
                + rewrite(render_agent(body), mapping))
-        for ref, slug, desc in MODES:
+        for ref, slug in MODES:
             _write(os.path.join(root, ".cursor", "rules",
                                 "mealie-" + slug + ".mdc"),
-                   "---\ndescription: " + desc + "\nalwaysApply: false\n---\n"
+                   _mdc_frontmatter(descs[ref])
                    + rewrite(render_agent(_read("references", ref)), mapping))
         _, wf_body = _split_frontmatter(_read("workflow.md"))
         _write(os.path.join(root, ".cursor", "commands", "mealie.md"),
@@ -546,6 +557,20 @@ def build_target(target, out):
     else:
         sys.exit("unbekanntes Ziel: " + target)
     return root
+
+
+def _mdc_frontmatter(desc):
+    return ('---\ndescription: "' + desc.replace('"', r'\"')
+            + '"\nalwaysApply: false\n---\n')
+
+
+def mode_descriptions():
+    """Beschreibung je Referenzdatei aus der Router-Tabelle in SKILL.md.
+
+    Regex an die reale Tabellenform anpassen; fehlt ein Modus aus MODES,
+    bricht der Build mit Fehlermeldung ab.
+    """
+    ...
 
 
 def agents_md_block():
@@ -628,7 +653,7 @@ Markerzeilen).
 
 - [ ] **Step 3: `.gitignore` ergänzen**
 
-`dist/` als Zeile anhängen.
+`dist/` und `__pycache__/` als Zeilen anhängen.
 
 - [ ] **Step 4: Tests laufen lassen**
 
