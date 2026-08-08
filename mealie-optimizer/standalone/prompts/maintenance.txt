@@ -1,0 +1,81 @@
+# Wartung
+
+Drei Prüfungen, die sich gut in einem Durchgang machen lassen, aber je einen
+eigenen Plan bekommen.
+
+## Doppelte Rezepte
+
+
+Zwei Verdachtsquellen:
+
+- **Namensdubletten** - gleiche Normalform ("Linsencurry" / "Linsen Curry").
+  Meist echte Doppelimporte.
+- **Zutatenähnlichkeit** - Jaccard-Wert über den Food-IDs ab 0.6. Findet
+  Doppelimporte mit abweichendem Titel, aber auch legitime Varianten.
+
+Ein hoher Wert ist kein Beweis. Vergleiche vor jedem Vorschlag die Rezepte
+selbst mit `ctx recipe <slug>` und schau auf: Schrittzahl, Portionen,
+Quell-URL, Bild, Vollständigkeit.
+
+Empfehlung im Plan:
+
+    Paar: linsencurry <-> linsen-curry (0.67)
+      BEHALTEN  linsencurry – 8 Schritte, Bild, Quelle, Notizen
+      LÖSCHEN   linsen-curry – 3 Schritte, kein Bild, gleiche Quelle
+      ODER      beide behalten: unterschiedliche Schärfe, Variante
+
+Das Skript löscht keine Rezepte - dafür gibt es bewusst keine Operation.
+Lege dem Nutzer die Paare vor und lass ihn in der Oberfläche löschen. Was
+sich automatisieren lässt: das schwächere Rezept per `patch_recipe` als
+Variante kennzeichnen oder Inhalte ins bessere übernehmen.
+
+Legitime Varianten nicht als Dublette behandeln: gleiche Basis mit
+abweichender Zubereitung (Ofen/Pfanne), Portionsgrößen, vegane Fassung.
+
+## Tote Bilder und Quell-URLs
+
+    audit links --check-urls    # Quell-URLs auf Erreichbarkeit prüfen
+
+`--check-urls` schickt einen HEAD-Request pro Rezept - bei großem Bestand
+dauert das und erzeugt Last auf fremden Servern. Einmalig laufen lassen, das
+Ergebnis notieren, nicht routinemäßig wiederholen.
+
+Bei toter Quell-URL:
+
+1. Prüfen, ob die Seite umgezogen ist (Domain plus Rezeptname suchen).
+   Gefunden: `patch_recipe` mit neuer `orgURL`.
+2. Sonst nach einer Archivfassung suchen und diese eintragen.
+3. Nichts gefunden: `orgURL` leeren und im Report vermerken. Das Rezept
+   selbst bleibt - der Inhalt ist ja da.
+
+Rezepte ohne Bild lassen sich im Rezeptmodus mitversorgen; siehe
+`references/recipes.md`, Abschnitt Bild.
+
+## Diät-Tags aus Zutaten ableiten
+
+
+Liefert je Rezept die Zutatenliste und die bereits vergebenen Tags.
+
+Ableitbar sind nur **Ausschlusskriterien**, und auch die nur, wenn die
+Zutaten vollständig geparst sind. Ungeparste Zutaten bedeuten: nicht
+beurteilbar, überspringen und im Report ausweisen.
+
+- **vegetarisch** - kein Fleisch, kein Fisch, keine Meeresfrüchte
+- **vegan** - zusätzlich keine Milchprodukte, Eier, kein Honig
+- **glutenfrei** - kein Weizen, Dinkel, Roggen, Gerste, Hafer (außer
+  glutenfrei deklariert), kein Bier, Sojasauce, Couscous, Bulgur, Seitan
+- **laktosefrei** - keine Milch, Sahne, Butter, Frischkäse; Hartkäse und
+  Butterschmalz sind grenzwertig, nicht automatisch vergeben
+
+Stolpersteine, die zu falschen Tags führen: Fischsauce und Anchovis in
+asiatischen Pasten, Worcestershiresauce, Gelatine in Desserts, Schmalz in
+Gebäck, Parmesan mit tierischem Lab bei "vegetarisch", Sojasauce bei
+"glutenfrei", Brühe unbekannter Art.
+
+Im Zweifel **nicht taggen**. Ein fehlendes Tag ist ein kleines Ärgernis,
+ein falsches "glutenfrei" ein gesundheitliches Risiko. Führe unsichere Fälle
+unter RÜCKFRAGEN auf, mit der Zutat, die den Ausschlag gibt.
+
+Plan als Tabelle `Rezept | vorhandene Tags | neu | Begründung`.
+Die Begründung nennt die entscheidende Zutat, nicht die ganze Liste.
+Ausführung über `retag_recipe` mit `add`.

@@ -1,0 +1,81 @@
+# Kategorien, Tags, Utensilien
+
+Anders als bei Foods gibt es **keinen Merge-Endpunkt**. Eine Dublette
+aufzulösen heißt: alle betroffenen Rezepte umhängen (`retag_recipe`), dann
+das leer gewordene Objekt löschen (`delete_organizer`). Die Reihenfolge ist
+im ACTIONS-Format erzwungen.
+
+## Phase 1 - Analyse
+
+
+Die Ausgabe zeigt je Objekt die Rezeptzahl sowie vier Auffälligkeiten:
+
+- **Dublettenverdacht** - Schreib- und Pluralvarianten, deutsch/englisch
+- **ungenutzt** - null Rezepte, Karteileichen
+- **selten** - ein bis zwei Rezepte, meist zu spezifisch oder Tippfehler
+- **größte** - die am häufigsten vergebenen; zu grobe Sammelbecken erkennt
+  man hier
+
+Gib das zusammengefasst wieder und schlage eine Reihenfolge vor. Sinnvoll ist
+fast immer: erst Dubletten, dann Seltene, dann Ungenutzte.
+
+## Kategorien vs. Tags
+
+Der häufigste Ist-Zustand ist eine vermischte Taxonomie. Prüfe das und
+sprich es an:
+
+- **Kategorien** sind funktional und exklusiv: Was ist das für ein Gang?
+  Hauptgericht, Vorspeise, Dessert, Beilage, Frühstück, Getränk, Backwaren.
+  1-2 pro Rezept. Mehr als etwa zehn Kategorien insgesamt heißt fast immer,
+  dass Tags in die Kategorien gerutscht sind.
+- **Tags** sind alles andere und beliebig kombinierbar: Küche (italienisch),
+  Diät (vegetarisch, glutenfrei), Methode (ofen, one-pot, grill), Anlass
+  (meal-prep, schnell, gäste), Saison (sommer).
+- **Utensilien** sind nur Spezialgeräte: Standmixer, Springform 26 cm,
+  Thermometer, Mörser, Eismaschine. Keine Töpfe, Pfannen, Messer, Schüsseln,
+  Bretter.
+
+Steht etwas in der falschen Sortierung ("vegetarisch" als Kategorie), ist der
+saubere Weg: Tag anlegen oder verwenden, Rezepte per `retag_recipe` in beiden
+Feldern umhängen, alte Kategorie löschen.
+
+## Phase 2 - Plan, dann anhalten
+
+    ctx tags --group "Ofen"     # Rezepte dieser Gruppe
+
+Plan je Gruppe:
+
+    Gruppe: ofen
+      BEHALTEN  ofen (a1b2…) – 23 Rezepte
+      AUFLÖSEN  Ofen (c3d4…) – 4 Rezepte   -> umhängen, dann löschen
+      AUFLÖSEN  backofen (e5f6…) – 1 Rezept -> umhängen, dann löschen
+      BETROFFEN 5 Rezepte: kuerbissuppe, lasagne, …
+
+Führe die betroffenen Slugs auf - `retag_recipe` braucht sie ohnehin einzeln,
+und der Nutzer soll sehen, was angefasst wird.
+
+Umhängen ist reversibel (man kann neu taggen), das Löschen des Objekts nicht.
+Kennzeichne beides.
+
+Umbenennen statt auflösen, wenn nur die Schreibweise stört und keine zweite
+Variante existiert: `update_organizer` ändert den Namen, alle Rezepte behalten
+ihre Zuordnung. Das ist der schonendere Weg - prüfe ihn zuerst.
+
+Achte auf Groß-/Kleinschreibung: Tags kleingeschrieben, Kategorien und
+Utensilien in normaler Schreibweise. Ein Lauf, der nur die Schreibweise
+vereinheitlicht, ist ein guter erster Plan.
+
+## Ungenutzte und seltene
+
+Ungenutzte Objekte können ohne Rezeptänderung gelöscht werden - trotzdem
+vorschlagen, nicht ungefragt tun. Seltene sind selten eine Löschung wert:
+meist gehören sie zu einem größeren Objekt oder es fehlt schlicht die
+Vergabe an weiteren Rezepten. Frage, was gewünscht ist.
+
+## Phase 3 - Ausführung
+
+
+Report: UMBENANNT · UMGEHÄNGT (Rezept - von -> nach) · GELÖSCHT (Objekt,
+war leer) · OFFEN (bewusst behalten, mit Begründung).
+
+Pakete klein halten: höchstens fünf Gruppen pro Lauf.

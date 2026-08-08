@@ -1,0 +1,115 @@
+# Rezeptmodus
+
+## Phase 1 - Analyse
+
+    ctx recipe <slug>
+
+Ausgabe: Tabelle `Feld | Status` mit Status aus {leer, ok, sprache,
+ungeparst, unplausibel}. Fehlt eine Zutat im FOODS-Block, gezielt nachschlagen
+mit `ctx recipe <slug> --search "<begriff>"`.
+
+## Phase 2 - Plan, dann anhalten
+
+    A FELDER    Feld | Ist | Soll
+    B ZUTATEN   Rohtext -> qty|unit|food|note + [BESTEHEND] / [ALIAS: x->y] / [NEU]
+    C NEU       je Objekt alle Felder, die angelegt würden
+    D SCHRITTE  Abschnitte + Anzahl Schritte, Hinweis auf Übersetzungen
+    E BILD      Quelle + URL
+    F NOTIZEN   Titel
+    G RÜCKFRAGEN
+    H RISIKEN   was überschrieben wird
+
+`actions.json` schreiben, mit `--dry-run` prüfen, Freigabe erfragen, anhalten.
+
+## Phase 3 - Ausführung
+
+    apply actions.json --slug <slug>
+
+Report: GEÄNDERT (Feld - was/warum) · ANGELEGT (Typ - Name - ID) ·
+WIEDERVERWENDET (gefunden über Name/Alias) · UMGERECHNET (alt -> neu) ·
+GESCHÄTZT · BILD (Quelle + Lizenz) · PRÜFEN (Zutat ohne Schrittbezug,
+unplausible Werte, Widersprüche) · OFFEN (leer geblieben, mit Grund)
+
+# Inhaltliche Regeln
+
+## Zutaten
+
+Erst im gelieferten FOODS-Block suchen: exakter Name -> Alias ->
+Singular/Plural/Schreibvariante -> deutsche Entsprechung eines fremd-
+sprachigen Begriffs (scallion -> Frühlingszwiebel, cilantro -> Koriandergrün).
+Erst danach neu anlegen.
+
+Struktur: `quantity` (Zahl), `unit`, `food`, `note`.
+`food` ist die reine Zutat ohne Zubereitungshinweis; `note` nimmt
+"fein gewürfelt", "zimmerwarm", "abgetropft", "nach Geschmack" auf.
+"1 Dose (400 g) Tomaten" wird zu `400 | g | Tomate | aus der Dose`.
+
+Metrisch. Imperiales umrechnen und im Report ausweisen: cup Mehl 125 g,
+cup Zucker 200 g, cup Flüssigkeit 240 ml, stick Butter 113 g, oz 28 g,
+lb 454 g, °C = (°F-32)*5/9 auf 5 gerundet. Dichten beachten, nicht pauschal
+umrechnen.
+
+Einheiten aus dem Bestand; neue nur mit `name`, `pluralName`, `abbreviation`.
+Bei mehrteiligen Rezepten Zutaten-Abschnitte über `title` gliedern.
+
+## Neue Foods
+
+`name` (Singular, allgemeinsprachlich), `pluralName`, `description`
+(2-4 Sätze wikiartig: was es ist, Herkunft/Sorte, kulinarische Verwendung,
+Lagerung oder gängiger Ersatz - sachlich, keine Ich-Form, keine Werbesprache,
+keine Mengenangaben), `labelId`, `aliases` (Synonyme plus englische
+Bezeichnung, damit künftiges Parsing greift).
+
+Fehlt ein passendes Label, eines anlegen (Name + Hex-Farbe), orientiert an
+Supermarkt-Abteilungen: Obst & Gemüse, Fleisch & Fisch, Molkereiprodukte,
+Trockenwaren & Backen, Konserven & Gläser, Gewürze & Kräuter, Öle & Essige,
+Tiefkühl, Getränke, Sonstiges.
+
+## Schritte
+
+Deutsch, Imperativ, ein Schritt = eine zusammenhängende Handlung, keine
+eigene Nummerierung im Text. Abschnitte (`title` am ersten Schritt des
+Abschnitts) passend zu den Zutaten-Abschnitten: Vorbereitung, Teig, Füllung,
+Backen, Fertigstellen. Erst ab etwa fünf Schritten Abschnitte bilden.
+Temperaturen in °C mit Betriebsart, Zeiten mit Erkennungsmerkmal
+("bis die Zwiebeln glasig sind, ca. 5 Min."). Zutatenbezeichnungen konsistent
+zur Zutatenliste.
+
+## Notizen
+
+Maximal vier, je mit Titel: Aufbewahrung und Haltbarkeit, Einfrieren und
+Auftauen, Vorbereiten am Vortag, Substitutionen (auch vegan/glutenfrei),
+typische Fehlerquellen, passende Beilagen. Nur Belegbares.
+
+## Bild
+
+Ist `orgURL` vorhanden, die Seite im Browser öffnen und das Hauptbild
+ermitteln (og:image oder Bild im Rezept-Schema). Sonst nach einem frei
+nutzbaren Bild des Gerichts suchen, bevorzugt CC0/CC-BY (Wikimedia Commons,
+Pexels, Unsplash). Nichts Passendes gefunden oder Lizenz unklar: kein Bild,
+Vermerk im Report. Nie das Bild eines anderen Gerichts. Quelle und Lizenz
+immer nennen.
+
+## Organizer
+
+Immer erst den gelieferten Bestand prüfen, auch auf Schreibvarianten und
+Sprachversionen. `recipeCategory`: 1-2, funktional (Hauptgericht, Dessert,
+Beilage, Frühstück). `tags`: 3-8, kleingeschrieben - Küche, Diät (nur wenn
+aus den Zutaten belegbar), Methode, Anlass; keine Dopplung der Kategorie.
+`tools`: nur Spezialgeräte (Standmixer, Springform 26 cm, Thermometer,
+Mörser), keine Töpfe, Pfannen, Messer, Schüsseln.
+
+## Weitere Felder
+
+`name` prägnant, max. 60 Zeichen. `description` 1-2 Sätze zu Gericht,
+Geschmacksprofil, Anlass - kein Titel-Echo. `recipeYield`/`recipeServings`
+aus den Mengen ableiten. `prepTime`/`performTime`/`totalTime` als ISO-8601
+("PT25M"), Ruhezeiten fließen in `totalTime` ein. `nutrition` pro Portion,
+nur wenn alle Hauptzutaten mit Mengen vorliegen.
+
+## Mehrere Rezepte
+
+    audit recipes        # zeigt auch unvollständige Rezepte
+
+Ein Rezept pro Plan. Batch-Verarbeitung führt zuverlässig dazu, dass Zutaten
+zwischen Rezepten wandern.
