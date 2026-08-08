@@ -28,6 +28,8 @@ import subprocess
 import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, ".."))
+import build
 CTX = os.environ.get("MEALIE_CTX", os.path.join(
     HERE, "..", "skill", "scripts", "mealie_ctx.py"))
 AH = {
@@ -38,9 +40,9 @@ AH = {
 MODEL = os.environ.get("MODEL", "claude-sonnet-4-6")
 
 PROMPTS = {
-    "recipe": "recipe.txt", "foods": "foods.txt", "units": "foods.txt",
-    "organizers": "organizers.txt", "cookbooks": "cookbooks.txt",
-    "maintenance": "maintenance.txt",
+    "recipe": "recipes.md", "foods": "foods.md", "units": "foods.md",
+    "organizers": "organizers.md", "cookbooks": "cookbooks.md",
+    "maintenance": "maintenance.md",
 }
 
 
@@ -56,12 +58,16 @@ def ctx(*args):
 def system_block(mode):
     """Gemeinsame Regeln + Modusregeln als EIN gecachter Block.
 
+    Die Modusregeln werden zur Laufzeit aus skill/references/ abgeleitet
+    (build.render_standalone) — eine Quelle, keine Prompt-Kopien.
     Getrennte Bloecke waeren feiner, aber der gemeinsame Teil liegt unter
     der Cache-Mindestgroesse von 1024 Tokens und wuerde allein nicht greifen.
     """
-    p = os.path.join(HERE, "prompts")
-    text = (open(os.path.join(p, "common.txt"), encoding="utf-8").read()
-            + "\n\n" + open(os.path.join(p, PROMPTS[mode]), encoding="utf-8").read())
+    common = open(os.path.join(HERE, "prompts", "common.txt"),
+                  encoding="utf-8").read()
+    ref = open(os.path.join(HERE, "..", "skill", "references", PROMPTS[mode]),
+               encoding="utf-8").read()
+    text = common + "\n\n" + build.render_standalone(ref)
     return [{"type": "text", "text": text,
              "cache_control": {"type": "ephemeral"}}]
 
