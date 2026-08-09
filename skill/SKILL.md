@@ -38,6 +38,7 @@ it with `--help`.
     audit <what> [--limit N]           foods units categories tags tools
                                        recipes links
     ctx recipe <slug> [--search T]     recipe + matching foods + organizers
+                      [--full]         unabridged JSON, rarely needed
     ctx <what> [--limit N] [--group G] foods units categories tags tools
                                        cookbooks diet
     usage <kind> <id>                  recipes using a food/unit/category/tag/tool

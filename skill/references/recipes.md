@@ -9,6 +9,15 @@
 Output: table `field | status` with status from {empty, ok, language,
 unparsed, implausible}.
 <!-- agent-only -->
+The RECIPE block is abridged: ids, timestamps, view settings, comments and
+the scraper's rendered ingredient lines are stripped, everything the modes
+read or write is there. `--full` gives the unabridged JSON - needed about
+once a year, for a field this skill does not know about.
+
+One call per recipe is enough. Everything the plan needs is in that output;
+fetching the same recipe again only repeats it.
+<!-- standalone: The context is complete: work from it and do not ask for a second copy of the recipe. -->
+<!-- agent-only -->
 If an ingredient is missing from the FOODS block, look it up specifically
 with `ctx recipe <slug> --search "<term>"`.
 <!-- standalone: If an ingredient is missing from the FOODS block you were given, first check the block for spelling variants and foreign-language equivalents; otherwise treat it as new. -->

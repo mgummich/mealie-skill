@@ -210,6 +210,47 @@ def mget(path, **params):
     return d.get("items", d) if isinstance(d, dict) else d
 
 
+# Fields of a recipe that no mode reads and none writes: bookkeeping,
+# per-object timestamps and the rendered duplicates of data that is already
+# there. Dropping them shrinks a `ctx recipe` by roughly two thirds.
+NOISE = {
+    "userId", "groupId", "householdId", "dateAdded", "dateUpdated",
+    "createdAt", "updatedAt", "lastMade", "assets", "comments", "extras",
+    "settings", "isOcrRecipe", "imageDir", "display", "summary",
+    "householdsWithIngredientFood", "onHand", "labelId", "label",
+    "aliases", "fraction", "useAbbreviation", "slug",
+}
+
+
+def slim(value, keep_slug=False):
+    """Strip bookkeeping fields from an API object, recursively.
+
+    A blacklist rather than a whitelist: fields Mealie adds later survive,
+    only the known noise goes. The recipe slug is kept at the top level
+    because every write needs it.
+
+    Args:
+        value: Any fragment of a decoded API response.
+        keep_slug: Keep the "slug" key at this level.
+
+    Returns:
+        The fragment without the noise fields and without empty nutrition
+        or null entries.
+    """
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            if k in NOISE and not (k == "slug" and keep_slug):
+                continue
+            if v is None or v == "" or v == [] or v == {}:
+                continue
+            out[k] = slim(v)
+        return out
+    if isinstance(value, list):
+        return [slim(v) for v in value]
+    return value
+
+
 def brief(items):
     """Format objects as a compact "id:name, id:name" line.
 
@@ -555,7 +596,8 @@ def cmd_ctx(a):
             except requests.HTTPError:
                 continue
         print("RECIPE:")
-        print(json.dumps(recipe, ensure_ascii=False, indent=1))
+        print(json.dumps(slim(recipe, keep_slug=True) if not a.full else recipe,
+                         ensure_ascii=False, indent=1))
         print("\nFOODS (pre-search, id|name|plural|label|aliases|desc):")
         print("\n".join(food_line(f) for f in hits.values()) or "(none)")
         print("\nUNITS: " + brief(mget(EP["units"])))
@@ -915,6 +957,8 @@ def main():
     c.add_argument("--search", nargs="*")
     c.add_argument("--limit", type=int, default=25)
     c.add_argument("--group")
+    c.add_argument("--full", action="store_true",
+                   help="recipe: unabridged JSON instead of the slim view")
     c.set_defaults(func=cmd_ctx)
 
     d = sub.add_parser("audit", help="gaps, duplicates, usage")
