@@ -16,11 +16,13 @@ questions - see SKILL.md for the boundary.
 
 ## Step 0 - Connection
 
-Only when the MCP server is not connected. Run once per session:
+Run once per session, MCP server connected or not:
 
     setup --check
 
-It writes nothing and asks nothing. If it reports a missing configuration or
+It writes nothing and asks nothing, and even in MCP mode a plan that needs
+`ORDER` or a dry run falls back to `apply` — a configuration that is only
+noticed at that point is noticed at the write. If it reports a missing configuration or
 a rejected token, stop and ask the user to run
 
     python .agents/skills/mealie/scripts/mealie_ctx.py setup

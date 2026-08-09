@@ -1,6 +1,6 @@
 ---
 name: mealie
-description: Maintains a Mealie instance. Improve recipes (fill empty fields, parse ingredients against the food list, translate steps, convert to metric, set an image), clean up foods and units (description, plural, label, aliases, merge duplicates), consolidate categories/tags/tools, create cookbooks, find duplicate recipes and dead links, derive diet tags from ingredients. Use for Mealie, recipe database, ingredient parsing, foods, duplicates, cookbook, tagging.
+description: Maintains a Mealie instance. Improve recipes (fill empty fields, parse ingredients against the food list, translate steps, convert to metric, set an image), clean up foods and units (description, plural, label, aliases, merge duplicates), consolidate categories/tags/tools, create cookbooks, find duplicate recipes and dead links, derive diet tags, import a recipe from a URL, fill the meal plan. Use whenever the user works on their recipe library: ingredient parsing, foods, duplicates, cookbooks, tagging, planning the week's meals, adding a recipe URL — Mealie need not be named.
 ---
 
 # Mealie maintenance
@@ -32,6 +32,11 @@ it changes how every other mode gathers its data.
 
 `scripts/mealie_ctx.py` wraps every API call. Do not read its source, call
 it with `--help`.
+
+The path is relative to this skill directory, not to the working directory —
+prefix every call with it, otherwise the command is not found:
+
+    python .agents/skills/mealie/scripts/mealie_ctx.py <command>
 
     setup [--check]                    check the connection, store credentials
     index [--refresh]                  build the local recipe index
@@ -84,29 +89,17 @@ plans that need `ORDER` or a dry run over the whole set still go through
 
 If the `caveman` skill is available, activate it for this workflow. Audits,
 plans and reports are long tabular outputs - exactly the case where
-compression pays off.
+compression pays off. Without the skill: answer normally, but tersely -
+tables instead of prose, no repetition of what the tool already printed.
 
-**Only the chat output is compressed.** Everything that ends up in Mealie or
-is read there stays normal, full-quality ${CONTENT_LANG} prose:
+**Only the chat output is compressed** - analysis, plan, report, your interim
+comments. Two things stay full ${CONTENT_LANG} prose:
 
-| compressed | full prose |
-|---|---|
-| analysis table, status lines | `description` of recipes and foods |
-| plan (A-H, group lists) | preparation steps |
-| final report | notes, cookbook descriptions |
-| your interim comments | everything in `actions.json` |
-
-The reason: `actions.json` is not chat, it is database content. A food
-description in caveman style stays in the instance permanently and is read
-by people who know nothing about this workflow.
-
-**Warnings stay complete.** Notices about destructive operations, questions
-when unsure and the approval question in full sentences - caveman has its
-own clarity rule for that. For a merge that rewrites 14 recipes, being
-unambiguous is worth more than a few saved tokens.
-
-Without the skill: answer normally, but tersely - tables instead of prose,
-no repetition of what the tool already printed.
+- Everything written to Mealie, i.e. everything in `actions.json`. It is
+  database content, not chat; see `references/actions.md`.
+- Warnings about destructive operations, questions when unsure and the
+  approval question. For a merge that rewrites 14 recipes, being unambiguous
+  is worth more than a few saved tokens.
 
 ## Rules for every mode
 
@@ -127,7 +120,10 @@ Mark destructive operations (`merge_*`, `delete_organizer`, `retag_recipe`)
 explicitly in the plan, with the number of affected recipes, and point out
 that they cannot be undone.
 
-Keep batches small: at most 25 gaps or 5 duplicate/organizer groups per run.
+Keep batches small: at most 25 food/unit gaps or 5 duplicate/organizer
+groups per run. Recipes have their own rule - one recipe per plan for
+ingredients, steps and notes, any number for field-level changes; see
+`references/recipes.md`.
 
 On an abort, no speculative repair attempts - report the state reached and
 ask.
