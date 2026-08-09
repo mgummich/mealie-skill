@@ -20,12 +20,13 @@ Read **only** the reference for the current mode, not all of them:
 | Consolidate categories, tags, tools | `references/organizers.md` |
 | Create or rework a cookbook | `references/cookbooks.md` |
 | Duplicate recipes, dead images/source URLs, diet tags | `references/maintenance.md` |
+| Meal plan, recipe import from a URL, working with the MCP server | `references/mcp.md` |
 
 The ACTIONS format is the same for every mode: `references/actions.md`.
 Read that file only once phase 2 is due.
 
-Split of duties with the `mcp-mealie` MCP server: `references/mcp.md`.
-Read it only when that server is connected.
+Read `references/mcp.md` whenever the `mcp-mealie` MCP server is connected —
+it changes how every other mode gathers its data.
 
 ## Tool
 
@@ -51,11 +52,12 @@ for.
 
 Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`.
 
-If the `mcp-mealie` MCP server is connected, it covers what this script
-deliberately lacks: meal plan, recipe import from a URL, interactive recipe
-search. Audits and every planned write stay here — the index and the
-execution order only exist in the script, and an MCP write it cannot see
-leaves the index stale. Read `references/mcp.md` before mixing the two.
+If the `mcp-mealie` MCP server is connected, use it instead for analysis: it
+answers the audit questions server-side, so the index is not built at all,
+and it covers what this script deliberately lacks — meal plan, recipe import
+from a URL, interactive recipe search. The script keeps the ordered batch:
+plans that need `ORDER` or a dry run over the whole set still go through
+`actions.json` and `apply`. Read `references/mcp.md` first.
 
 ## Output style: caveman
 
