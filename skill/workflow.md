@@ -1,68 +1,67 @@
 ---
-description: Mealie pflegen - Rezepte, Lebensmittel, Kategorien/Tags/Utensilien, Kochbuecher, Wartung. Fragt nach dem Modus und arbeitet in drei Phasen mit Freigabe.
+description: Maintain Mealie - recipes, foods, categories/tags/tools, cookbooks, maintenance. Asks for the mode and works in three phases with an approval gate.
 ---
 
-# Mealie pflegen
+# Maintain Mealie
 
-Optionales Argument: der Modus (`rezept <slug>`, `lebensmittel`, `einheiten`,
-`organizer`, `kochbuch`, `wartung`). Fehlt es, frage nach.
+Optional argument: the mode (`recipe <slug>`, `foods`, `units`,
+`organizers`, `cookbooks`, `maintenance`). If it is missing, ask.
 
-Halte dich an den Skill `mealie`. Lies **nur** die Referenz zum gewaehlten
-Modus, nicht alle.
+Follow the `mealie` skill. Read **only** the reference for the chosen mode,
+not all of them.
 
-Ist der Skill `caveman` verfuegbar, aktiviere ihn jetzt fuer Analyse, Plan
-und Report. Nicht fuer Inhalte, die nach Mealie geschrieben werden, und
-nicht fuer Warnungen und Rueckfragen - Abgrenzung siehe SKILL.md.
+If the `caveman` skill is available, activate it now for analysis, plan and
+report. Not for content written to Mealie, and not for warnings and
+questions - see SKILL.md for the boundary.
 
-## Schritt 1 - Modus und Referenz
+## Step 1 - Mode and reference
 
-    rezept        -> references/recipes.md
-    lebensmittel  -> references/foods.md
-    einheiten     -> references/foods.md
-    organizer     -> references/organizers.md
-    kochbuch      -> references/cookbooks.md
-    wartung       -> references/maintenance.md
+    recipe       -> references/recipes.md
+    foods        -> references/foods.md
+    units        -> references/foods.md
+    organizers   -> references/organizers.md
+    cookbooks    -> references/cookbooks.md
+    maintenance  -> references/maintenance.md
 
-Alle Skriptaufrufe mit dem Praefix:
+Prefix every script call with:
 
     python .agents/skills/mealie/scripts/mealie_ctx.py
 
-Lies nur die Ausgaben, nicht den Quelltext des Skripts.
+Read only the output, not the source of the script.
 
-## Schritt 2 - Analyse
+## Step 2 - Analysis
 
-Fuehre den `audit`- oder `ctx`-Befehl aus der Referenz aus und gib das
-Ergebnis zusammengefasst wieder. Beim ersten Aufruf baut das Skript den
-Rezeptindex - das dauert einmalig.
+Run the `audit` or `ctx` command from the reference and summarize the
+result. On the first call the script builds the recipe index - that takes a
+while, once.
 
-Frage danach, welche Teilaufgabe und welche Paketgroesse. Nie zwei
-Aufgabenarten in einem Plan.
+Then ask which sub-task and which batch size. Never two kinds of task in one
+plan.
 
-## Schritt 3 - Plan vorlegen und anhalten
+## Step 3 - Present the plan and stop
 
-Plan als Artefakt in der Struktur der Referenz. Aktionen nach `actions.json`
-im Workspace-Root, Format siehe `references/actions.md`.
+Plan as an artifact, structured as the reference describes. Actions go to
+`actions.json` in the workspace root, format see `references/actions.md`.
 
-Pruefen mit:
+Check with:
 
     ... apply actions.json --dry-run
 
-Destruktive Operationen (merge, delete, retag) im Plan kennzeichnen, mit
-Zahl der betroffenen Rezepte. Danach ausdruecklich nach Freigabe fragen und
-**anhalten**. Bei Korrekturwuenschen Plan und `actions.json` anpassen,
-erneut vorlegen.
+Mark destructive operations (merge, delete, retag) in the plan, with the
+number of affected recipes. Then ask explicitly for approval and **stop**.
+If changes are requested, adjust plan and `actions.json` and present again.
 
-## Schritt 4 - Ausfuehrung
+## Step 4 - Execution
 
-Nur nach Freigabe:
+Only after approval:
 
-    ... apply actions.json                # ohne Rezeptbezug
-    ... apply actions.json --slug <slug>  # Rezeptmodus
+    ... apply actions.json                # without a recipe
+    ... apply actions.json --slug <slug>  # recipe mode
 
-Bricht das Skript ab, keine Reparaturversuche auf Verdacht - erreichten
-Zustand melden und nachfragen.
+If the script aborts, no speculative repair attempts - report the state
+reached and ask.
 
-## Schritt 5 - Report
+## Step 5 - Report
 
-Report in der Struktur der Referenz ausgeben, `actions.json` loeschen und
-fragen, ob das naechste Paket folgen soll.
+Print the report structured as the reference describes, delete
+`actions.json` and ask whether the next batch should follow.

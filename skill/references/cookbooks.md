@@ -1,79 +1,79 @@
-# Kochbücher
+# Cookbooks
 
-Ein Kochbuch in Mealie ist keine Rezeptsammlung, sondern eine **gespeicherte
-Filterregel**. Es füllt sich automatisch: Was auf die Regel passt, erscheint
-darin - auch später importierte Rezepte. Daraus folgt fast alles Weitere.
+A cookbook in Mealie is not a collection of recipes but a **saved filter
+rule**. It fills itself: whatever matches the rule appears in it, including
+recipes imported later. Almost everything else follows from that.
 
-## Phase 1 - Analyse
+## Phase 1 - Analysis
 
     ctx cookbooks
 
-Liefert die vorhandenen Kochbücher sowie Kategorien, Tags und Utensilien
-jeweils mit Rezeptzahl. Daraus lässt sich abschätzen, wie groß ein geplantes
-Kochbuch würde.
+Returns the existing cookbooks plus categories, tags and tools, each with a
+recipe count. From that you can estimate how large a planned cookbook would
+be.
 
-Frage nach dem Zweck, bevor du Regeln entwirfst. Typische Muster:
+Ask about the purpose before designing rules. Typical patterns:
 
-- **Alltag** - schnell, wenige Zutaten, meal-prep
-- **Anlass** - gäste, feiertage, grillen
-- **Diät** - vegetarisch, vegan, glutenfrei
-- **Gang** - Desserts, Beilagen, Frühstück
-- **Saison** - sommer, herbst
-- **Vorrat** - one-pot, ofengericht, resteverwertung
+- **Everyday** - quick, few ingredients, meal-prep
+- **Occasion** - guests, holidays, barbecue
+- **Diet** - vegetarian, vegan, gluten-free
+- **Course** - desserts, side dishes, breakfast
+- **Season** - summer, autumn
+- **Pantry** - one-pot, oven dish, leftovers
 
-## Phase 2 - Plan, dann anhalten
+## Phase 2 - Plan, then stop
 
-Plan je Kochbuch:
+Plan per cookbook:
 
-    Kochbuch: Schnelle Feierabendküche
-      REGEL      tags: schnell UND one-pot
-      TREFFER    ca. 18 Rezepte
-      BESCHREIB. Gerichte für unter 30 Minuten, meist in einem Topf.
-      LÜCKE      "schnell" hat nur 6 Rezepte – Vergabe prüfen?
+    Cookbook: Quick weeknight cooking
+      RULE     tags: quick AND one-pot
+      MATCHES  about 18 recipes
+      DESCR.   Dishes for under 30 minutes, mostly in a single pot.
+      GAP      "quick" has only 6 recipes – check its assignment?
 
-Nenne immer die geschätzte Trefferzahl. Unter etwa fünf Treffern lohnt ein
-Kochbuch nicht; sag das und schlage stattdessen vor, erst die Tags breiter
-zu vergeben.
+Always give the estimated number of matches. Below about five matches a
+cookbook is not worth it; say so and propose assigning the tags more widely
+first.
 
-### Regeln entwerfen
+### Designing rules
 
-`requireAllCategories`, `requireAllTags`, `requireAllTools` steuern UND
-gegen ODER. Standard ist ODER - das führt schnell zu Kochbüchern, die halb
-alles enthalten. Setze bewusst:
+`requireAllCategories`, `requireAllTags`, `requireAllTools` switch between
+AND and OR. The default is OR - which quickly produces cookbooks containing
+half of everything. Set them deliberately:
 
-- **ODER** für Sammlungen: Desserts = Kategorie Dessert ODER Tag süßspeise
-- **UND** für Schnittmengen: schnell UND vegetarisch
+- **OR** for collections: desserts = category Dessert OR tag sweets
+- **AND** for intersections: quick AND vegetarian
 
-Mehr als zwei bis drei Bedingungen macht ein Kochbuch unvorhersehbar. Bau
-lieber zwei Kochbücher.
+More than two or three conditions makes a cookbook unpredictable. Build two
+cookbooks instead.
 
-Verwende nur Objekte, die es schon gibt. Braucht die Regel ein neues Tag, ist
-das ein eigener Vorgang: erst das Tag anlegen und an Rezepte vergeben
-(siehe `references/organizers.md`), dann das Kochbuch. Ein Kochbuch auf ein
-frisch angelegtes, noch nirgends vergebenes Tag ist leer.
+Use only objects that already exist. If the rule needs a new tag, that is a
+separate task: create the tag and assign it to recipes first (see
+`references/organizers.md`), then the cookbook. A cookbook built on a
+freshly created tag that is assigned nowhere is empty.
 
-### Beschreibung
+### Description
 
-Ein bis zwei Sätze, die den Zweck nennen, nicht die Regel wiederholen.
-Nicht: "Rezepte mit den Tags schnell und one-pot." Sondern: "Gerichte für
-unter 30 Minuten, meist in einem Topf - für Abende, an denen wenig Zeit ist."
+One or two sentences naming the purpose, not repeating the rule. Not:
+"Recipes tagged quick and one-pot." Instead: "Dishes for under 30 minutes,
+mostly in a single pot - for evenings when time is short."
 
-### Öffentlich
+### Public
 
-`public: true` macht das Kochbuch über den öffentlichen Gruppenlink
-erreichbar. Frage nach, statt es zu setzen.
+`public: true` makes the cookbook reachable via the public group link. Ask
+instead of setting it.
 
-## Phase 3 - Ausführung
+## Phase 3 - Execution
 
     apply actions.json
 
-Danach prüfen, ob die Trefferzahl der Schätzung entspricht - weicht sie stark
-ab, stimmt meist die UND/ODER-Einstellung nicht. Report: ANGELEGT (Name,
-Regel, Treffer) · GEÄNDERT · OFFEN (verworfene Ideen mit Begründung).
+Afterwards check whether the number of matches meets the estimate - if it is
+far off, the AND/OR setting is usually wrong. Report: CREATED (name, rule,
+matches) · CHANGED · OPEN (discarded ideas with a reason).
 
-## Bestehende Kochbücher überarbeiten
+## Reworking existing cookbooks
 
-Häufige Befunde: leere Kochbücher (Regel zeigt auf gelöschte oder
-umbenannte Tags), zu große Kochbücher (ODER statt UND), Dubletten mit
-minimal verschiedener Regel. `update_cookbook` ändert die Regel, ohne das
-Kochbuch neu anzulegen - Links darauf bleiben gültig.
+Common findings: empty cookbooks (the rule points at deleted or renamed
+tags), oversized cookbooks (OR instead of AND), duplicates with a marginally
+different rule. `update_cookbook` changes the rule without recreating the
+cookbook - links to it stay valid.

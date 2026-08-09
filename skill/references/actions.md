@@ -1,66 +1,70 @@
-# ACTIONS-Format
+# ACTIONS format
 
-Plan und Ausführung sind getrennt: Du schreibst `actions.json`, prüfst mit
-`--dry-run`, holst die Freigabe, dann führt das Skript aus.
+Plan and execution are separate: you write `actions.json`, check it with
+`--dry-run`, get approval, then the script executes it.
 
-**Inhalte in `actions.json` sind Datenbankinhalt, kein Chat.** Auch wenn der
-Ausgabestil komprimiert ist (siehe caveman in SKILL.md): `description`,
-Zubereitungsschritte, Notizen und Kochbuchbeschreibungen werden hier in
-vollständiger deutscher Prosa geschrieben. Sie stehen dauerhaft in der
-Instanz und werden von Menschen gelesen, die diesen Ablauf nicht kennen.
+<!-- agent-only -->
+**Content in `actions.json` is database content, not chat.** Even when the
+output style is compressed (see caveman in SKILL.md): `description`,
+preparation steps, notes and cookbook descriptions are written here as full
+${CONTENT_LANG} prose. They stay in the instance permanently and are read by
+people who do not know this workflow.
+<!-- standalone: **Content in the ACTIONS block is database content, not chat.** `description`, preparation steps, notes and cookbook descriptions always as full ${CONTENT_LANG} prose — they stay in the instance permanently and are read by people who do not know this workflow. -->
 
 ```json
 {"actions": [
-  {"op": "create_label", "id_as": "lbl_gewuerze",
-   "payload": {"name": "Gewürze & Kräuter", "color": "#8B5E3C"}},
-  {"op": "create_food", "id_as": "food_kreuzkuemmel",
-   "payload": {"name": "Kreuzkümmel", "labelId": "$ref:lbl_gewuerze"}}
+  {"op": "create_label", "id_as": "lbl_spices",
+   "payload": {"name": "Spices & Herbs", "color": "#8B5E3C"}},
+  {"op": "create_food", "id_as": "food_cumin",
+   "payload": {"name": "Cumin", "labelId": "$ref:lbl_spices"}}
 ]}
 ```
 
-`"$ref:<id_as>"` wird zur Laufzeit durch die ID des im selben Lauf angelegten
-Objekts ersetzt. Bestehende Objekte immer über ihre echte ID referenzieren.
+`"$ref:<id_as>"` is replaced at runtime with the id of the object created in
+the same run. Always reference existing objects by their real id.
 
-## Reihenfolge
+## Order
 
-Zwingend, Verstöße brechen vor dem ersten Schreibzugriff ab:
+Mandatory, violations abort before the first write:
 
     create_label -> merge_food -> merge_unit -> create_food -> create_unit
     -> create_category -> create_tag -> create_tool -> update_food
     -> update_unit -> update_organizer -> retag_recipe -> delete_organizer
     -> create_cookbook -> update_cookbook -> patch_recipe -> set_image
 
-Der Grund: erst umhängen, dann löschen; erst anlegen, dann referenzieren.
+The reason: retag before deleting; create before referencing.
 
-## Operationen
+## Operations
 
 | op | payload |
 |---|---|
-| `create_label` | `name`, `color` (Hex) |
+| `create_label` | `name`, `color` (hex) |
 | `create_food` | `name`, `pluralName`, `description`, `labelId`, `aliases` |
 | `create_unit` | `name`, `pluralName`, `abbreviation` |
 | `create_category` / `create_tag` / `create_tool` | `name` |
-| `merge_food` / `merge_unit` | `from`, `to` (IDs) |
-| `update_food` / `update_unit` | `id` + nur die zu setzenden Felder |
-| `update_organizer` | `kind` (`categories`/`tags`/`tools`), `id`, Felder |
-| `retag_recipe` | `slug`, `kind`, `add` (IDs), `remove` (IDs) |
+| `merge_food` / `merge_unit` | `from`, `to` (ids) |
+| `update_food` / `update_unit` | `id` + only the fields to set |
+| `update_organizer` | `kind` (`categories`/`tags`/`tools`), `id`, fields |
+| `retag_recipe` | `slug`, `kind`, `add` (ids), `remove` (ids) |
 | `delete_organizer` | `kind`, `id` |
 | `create_cookbook` | `name`, `description`, `categories`/`tags`/`tools`, `requireAll*` |
-| `update_cookbook` | `id` + zu ändernde Felder |
-| `patch_recipe` | nur geänderte Rezeptfelder (braucht `--slug`) |
-| `set_image` | `url` (braucht `--slug`) |
+| `update_cookbook` | `id` + fields to change |
+| `patch_recipe` | only the changed recipe fields (needs `--slug`) |
+| `set_image` | `url` (needs `--slug`) |
 
-## Teilaktualisierung
+## Partial updates
 
-`update_food`, `update_unit`, `update_organizer` und `update_cookbook` lesen
-den bestehenden Datensatz und legen die angegebenen Felder darüber - führe
-nur auf, was sich ändern soll.
+`update_food`, `update_unit`, `update_organizer` and `update_cookbook` read
+the existing record and lay the given fields over it - list only what should
+change.
 
-Ausnahme: Listenfelder werden **ersetzt**, nicht ergänzt. Bei `aliases`
-also immer die bestehenden Einträge mit aufführen.
+Exception: list fields are **replaced**, not extended. For `aliases` always
+include the existing entries as well.
 
-## Aufruf
+<!-- agent-only -->
+## Invocation
 
     python scripts/mealie_ctx.py apply actions.json --dry-run
-    python scripts/mealie_ctx.py apply actions.json              # ohne Rezeptbezug
-    python scripts/mealie_ctx.py apply actions.json --slug <slug>  # mit
+    python scripts/mealie_ctx.py apply actions.json              # no recipe
+    python scripts/mealie_ctx.py apply actions.json --slug <slug>  # with one
+<!-- standalone: (The script handles dry run and execution after your approval.) -->

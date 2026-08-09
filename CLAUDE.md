@@ -1,77 +1,83 @@
-# Mealie-Pflege — Projektregeln
+# Mealie skill — project rules
 
-Werkzeug zum Aufräumen einer Mealie-Instanz über deren REST-API. Zwei
-Frontends, eine gemeinsame Logik: ein Antigravity-Skill und ein
-Standalone-Skript für die Anthropic API.
+A tool for cleaning up a Mealie instance through its REST API. Two
+frontends, one shared set of rules: a portable agent skill and a standalone
+script for the Anthropic API.
 
-## Architektur
+## Architecture
 
-    skill/                  einzige Quelle der Wahrheit
-      SKILL.md              Router: Modus wählen, gemeinsame Regeln
-      references/*.md       Details je Modus, nur bei Bedarf gelesen
-      workflow.md           Ablauf für /mealie
-      scripts/mealie_ctx.py ALLE API-Zugriffe, kein Modellaufruf
+    skill/                  the single source of truth
+      SKILL.md              router: pick a mode, shared rules
+      references/*.md       details per mode, read only when needed
+      workflow.md           the /mealie procedure
+      scripts/mealie_ctx.py ALL API access, no model call
     standalone/
-      prompts/common.txt    Grundsätze + ACTIONS-Format (handgepflegt)
-      optimize.py           Modellaufruf, Freigabe, Batch
-    build.py                rendert dist/ für claude-code, antigravity,
-                            cursor, agents-md; installiert mit --install
+      prompts/common.txt    principles + output style (hand-maintained)
+      optimize.py           model call, approval, batch
+    build.py                renders dist/ for claude-code, antigravity,
+                            cursor, agents-md; installs with --install
     test_build.py           python3 test_build.py
 
-`mealie_ctx.py` ist die einzige Stelle mit HTTP-Zugriff auf Mealie.
-`optimize.py` ruft es als Subprozess auf und leitet die Modusprompts zur
-Laufzeit aus `skill/references/` ab (`build.render_standalone`). Neue
-Funktionalität gehört ins Skript, nicht in die Prompts.
+`mealie_ctx.py` is the only place with HTTP access to Mealie. `optimize.py`
+calls it as a subprocess and derives the ACTIONS format and the mode prompts
+from `skill/references/` at runtime (`build.render_standalone`). New
+functionality belongs in the script, not in the prompts.
 
-## Nicht verhandelbar
+## Non-negotiable
 
-**Drei Phasen: ANALYSE -> PLAN -> AUSFÜHRUNG.** Nie schreiben, ohne dass ein
-Plan vorlag und freigegeben wurde. Das gilt auch für dich als Agent: Bei
-Änderungen am Werkzeug erst zeigen, was passieren würde.
+**Three phases: ANALYSIS -> PLAN -> EXECUTION.** Never write without a plan
+that was presented and approved. That applies to you as an agent too: when
+changing the tool, show what would happen first.
 
-**Die Ausführungsreihenfolge in `ORDER` ist erzwungen** und bricht vor dem
-ersten Schreibzugriff ab. Reihenfolge ändern heißt: `references/actions.md`
-und `prompts/common.txt` mitziehen, sonst schlagen die Pläne des Modells
-gegen den Guard.
+**The execution order in `ORDER` is enforced** and aborts before the first
+write. Changing the order means changing `references/actions.md` with it
+(standalone takes it from there), otherwise the model's plans hit the guard.
 
-**Kein Rezeptlöschen.** Es gibt bewusst keine Operation dafür. Doppelte
-Rezepte werden vorgelegt, gelöscht wird von Hand in der Oberfläche.
+**No recipe deletion.** There is deliberately no operation for it. Duplicate
+recipes are presented; deleting happens by hand in the UI.
 
-**`actions.json` ist Datenbankinhalt, kein Chat.** Beschreibungen, Schritte,
-Notizen und Kochbuchtexte immer in vollständiger deutscher Prosa, auch wenn
-der Ausgabestil komprimiert ist (caveman). Diese Regel steht in `SKILL.md`
-und in `references/actions.md` — beide anpassen, wenn sie sich ändert.
+**`actions.json` is database content, not chat.** Descriptions, steps, notes
+and cookbook texts always in full prose, even when the output style is
+compressed (caveman). This rule lives in `SKILL.md` and in
+`references/actions.md` — change both if it changes.
 
-**Regeln stehen an einer Stelle.** `skill/` ist die Quelle; `dist/` und die
-Standalone-Prompts werden gerendert, nie von Hand gepflegt. Drei Stellen in
-den Referenzen tragen `<!-- nur-agent -->`/`<!-- standalone: … -->`-Marker
-für Text, der je Kontext verschieden sein muss.
+**Rules live in one place.** `skill/` is the source; `dist/` and the
+standalone prompts are rendered. Only `prompts/common.txt` (principles,
+output style) is hand-maintained. Several places in the references carry
+`<!-- agent-only -->`/`<!-- standalone: … -->` markers for text that has to
+differ per context.
 
-## Konventionen
+## Conventions
 
-Deutsch in allen Ausgaben, Prompts und Kommentaren. Umlaute in
-Python-Docstrings und `--help` vermeiden (ae/oe/ue), in Markdown und
-Modellausgaben verwenden.
+English everywhere: output, prompts, comments, docstrings. Docstrings are
+Google style (`Args:`/`Returns:`/`Raises:`).
 
-Zeilenlänge 88, keine externen Abhängigkeiten außer `requests`.
+The language of the recipe data is separate from the project language. It
+comes from `${CONTENT_LANG}`, substituted by `build.set_language` from
+`--lang` or `$MEALIE_LANG` (default `English`). Never hardcode a content
+language into a prompt; the placeholder belongs in `skill/` and
+`prompts/common.txt`.
 
-Neue Operationen brauchen: Eintrag in `ORDER`, Zweig in `cmd_apply`, Zeile in
-der Tabelle in `references/actions.md`, Test im Dry-Run.
+Line length 88, no external dependencies except `requests`.
 
-Neue Audits schreiben nichts und lesen aus dem Index, nicht per Einzelabruf.
+New operations need: an entry in `ORDER`, a branch in `cmd_apply`, a row in
+the table in `references/actions.md`, a test in the dry run.
+
+New audits write nothing and read from the index instead of fetching one by
+one.
 
 ## Index
 
-`.mealie_index.json` im Arbeitsverzeichnis, gebaut beim ersten `audit`, nach
-jedem schreibenden `apply` gelöscht. Ein Durchlauf über alle Rezepte. Alle
-Auswertungen (Verwendungszahlen, Dubletten, Linkrot) lesen daraus — nie
-eigene Rezeptschleifen bauen.
+`.mealie_index.json` in the working directory, built on the first `audit`,
+deleted after every writing `apply`. One pass over all recipes. Every
+evaluation (usage counts, duplicates, link rot) reads from it — never build
+your own recipe loops.
 
-## Testen ohne Instanz
+## Testing without an instance
 
-Ein künstlicher Index reicht für alles außer HTTP:
+An artificial index covers everything except HTTP:
 
     MEALIE_INDEX=/tmp/.mealie_index.json python3 mealie_ctx.py audit recipes
 
-Für `apply` immer `--dry-run` — der schreibt nichts und prüft trotzdem
-Reihenfolge, `$ref`-Auflösung und Payload-Struktur.
+For `apply` always use `--dry-run` — it writes nothing and still checks the
+order, `$ref` resolution and payload structure.

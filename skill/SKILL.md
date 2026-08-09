@@ -1,102 +1,101 @@
 ---
 name: mealie
-description: Pflegt eine Mealie-Instanz. Rezepte optimieren (leere Felder fuellen, Zutaten gegen den Food-Bestand parsen, Schritte uebersetzen, metrisch umrechnen, Bild setzen), Lebensmittel und Einheiten aufraeumen (Beschreibung, Plural, Label, Aliase, Dubletten zusammenfuehren), Kategorien/Tags/Utensilien konsolidieren, Kochbuecher anlegen, doppelte Rezepte und tote Links finden, Diaet-Tags aus Zutaten ableiten. Verwenden bei Mealie, Rezeptdatenbank, Zutaten parsen, Foods, Dubletten, Kochbuch, Schlagworten.
+description: Maintains a Mealie instance. Improve recipes (fill empty fields, parse ingredients against the food list, translate steps, convert to metric, set an image), clean up foods and units (description, plural, label, aliases, merge duplicates), consolidate categories/tags/tools, create cookbooks, find duplicate recipes and dead links, derive diet tags from ingredients. Use for Mealie, recipe database, ingredient parsing, foods, duplicates, cookbook, tagging.
 ---
 
-# Mealie-Pflege
+# Mealie maintenance
 
-Immer drei Phasen: **ANALYSE -> PLAN -> AUSFÜHRUNG**.
-Ohne ausdrückliche Freigabe des Plans wird nichts geschrieben.
-Nie zwei Aufgabenarten in einem Plan mischen.
+Always three phases: **ANALYSIS -> PLAN -> EXECUTION**.
+Nothing is written without explicit approval of the plan.
+Never mix two kinds of task in one plan.
 
-## Modus wählen und passende Referenz lesen
+## Pick a mode and read the matching reference
 
-Lies **nur** die Referenz zum aktuellen Modus, nicht alle:
+Read **only** the reference for the current mode, not all of them:
 
-| Anliegen | Referenz |
+| Task | Reference |
 |---|---|
-| Rezept aufräumen, Zutaten parsen, Felder füllen | `references/recipes.md` |
-| Lebensmittel oder Einheiten: Lücken, Dubletten | `references/foods.md` |
-| Kategorien, Tags, Utensilien konsolidieren | `references/organizers.md` |
-| Kochbuch anlegen oder überarbeiten | `references/cookbooks.md` |
-| Doppelte Rezepte, tote Bilder/Quell-URLs, Diät-Tags | `references/maintenance.md` |
+| Clean up a recipe, parse ingredients, fill fields | `references/recipes.md` |
+| Foods or units: gaps, duplicates | `references/foods.md` |
+| Consolidate categories, tags, tools | `references/organizers.md` |
+| Create or rework a cookbook | `references/cookbooks.md` |
+| Duplicate recipes, dead images/source URLs, diet tags | `references/maintenance.md` |
 
-Das ACTIONS-Format ist für alle Modi gleich: `references/actions.md`.
-Diese Datei erst lesen, wenn Phase 2 ansteht.
+The ACTIONS format is the same for every mode: `references/actions.md`.
+Read that file only once phase 2 is due.
 
-## Werkzeug
+## Tool
 
-`scripts/mealie_ctx.py` kapselt alle API-Zugriffe. Nicht den Quelltext lesen,
-sondern mit `--help` aufrufen.
+`scripts/mealie_ctx.py` wraps every API call. Do not read its source, call
+it with `--help`.
 
-    index [--refresh]                  lokalen Rezeptindex bauen
-    audit <was> [--limit N]            foods units categories tags tools
+    index [--refresh]                  build the local recipe index
+    audit <what> [--limit N]           foods units categories tags tools
                                        recipes links
-    ctx recipe <slug> [--search B]     Rezept + passende Foods + Organizer
-    ctx <was> [--limit N] [--group G]  foods units categories tags tools
+    ctx recipe <slug> [--search T]     recipe + matching foods + organizers
+    ctx <what> [--limit N] [--group G] foods units categories tags tools
                                        cookbooks diet
-    usage <art> <id>                   Rezepte zu food/unit/category/tag/tool
-    apply <datei> [--slug S] [--dry-run]
+    usage <kind> <id>                  recipes using a food/unit/category/tag/tool
+    apply <file> [--slug S] [--dry-run]
 
-Der erste `audit`-Aufruf baut den Index (ein Durchlauf über alle Rezepte,
-dauert je nach Bestand eine Weile). Alle weiteren Audits lesen daraus.
-Nach jedem schreibenden `apply` wird der Index verworfen und neu gebaut.
+The first `audit` call builds the index (one pass over all recipes, takes a
+while depending on the size of the instance). Every later audit reads from
+it. After each writing `apply` the index is discarded and rebuilt.
 
-Kontextbefehle liefern bereits gefiltert. Vollständige Tabellen nie
-ungefiltert laden, keine Rezeptschleifen von Hand bauen - dafür ist der
-Index da.
+Context commands return filtered data already. Never load full tables
+unfiltered, never build recipe loops by hand - that is what the index is
+for.
 
-Umgebungsvariablen: `MEALIE_URL`, `MEALIE_TOKEN`.
+Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`.
 
-## Ausgabestil: caveman
+## Output style: caveman
 
-Ist der Skill `caveman` verfügbar, aktiviere ihn für diesen Ablauf. Audits,
-Pläne und Reports sind lange, tabellarische Ausgaben - genau der Fall, in dem
-Kompression trägt.
+If the `caveman` skill is available, activate it for this workflow. Audits,
+plans and reports are long tabular outputs - exactly the case where
+compression pays off.
 
-**Nur die Chat-Ausgabe wird komprimiert.** Alles, was in Mealie landet oder
-dort gelesen wird, bleibt normale deutsche Prosa in voller Qualität:
+**Only the chat output is compressed.** Everything that ends up in Mealie or
+is read there stays normal, full-quality ${CONTENT_LANG} prose:
 
-| komprimiert | volle Prosa |
+| compressed | full prose |
 |---|---|
-| Analysetabelle, Statuszeilen | `description` von Rezepten und Foods |
-| Plan (A–H, Gruppenlisten) | Zubereitungsschritte |
-| Report am Ende | Notizen, Kochbuchbeschreibungen |
-| deine Zwischenkommentare | alles in `actions.json` |
+| analysis table, status lines | `description` of recipes and foods |
+| plan (A-H, group lists) | preparation steps |
+| final report | notes, cookbook descriptions |
+| your interim comments | everything in `actions.json` |
 
-Der Grund: `actions.json` ist kein Chat, sondern Datenbankinhalt. Eine
-Food-Beschreibung im Caveman-Stil steht dauerhaft in der Instanz und wird von
-Menschen gelesen, die nichts von diesem Ablauf wissen.
+The reason: `actions.json` is not chat, it is database content. A food
+description in caveman style stays in the instance permanently and is read
+by people who know nothing about this workflow.
 
-**Warnungen bleiben vollständig.** Hinweise auf destruktive Operationen,
-Rückfragen bei Unsicherheit und die Freigabefrage in ganzen Sätzen -
-caveman hat dafür eine eigene Klarheitsregel. Bei einem Merge, der 14
-Rezepte umschreibt, ist Eindeutigkeit mehr wert als ein paar gesparte Tokens.
+**Warnings stay complete.** Notices about destructive operations, questions
+when unsure and the approval question in full sentences - caveman has its
+own clarity rule for that. For a merge that rewrites 14 recipes, being
+unambiguous is worth more than a few saved tokens.
 
-Ohne den Skill: normal antworten, aber knapp - Tabellen statt Fließtext,
-keine Wiederholung dessen, was das Werkzeug schon ausgegeben hat.
+Without the skill: answer normally, but tersely - tables instead of prose,
+no repetition of what the tool already printed.
 
-## Regeln für alle Modi
+## Rules for every mode
 
-Nichts erfinden: Zutaten, Mengen und Schritte werden nur strukturiert,
-übersetzt und korrigiert, nie ergänzt oder weggelassen. Vorhandene korrekte
-Werte bleiben.
+Invent nothing: ingredients, amounts and steps are only structured,
+translated and corrected, never added or dropped. Existing correct values
+stay.
 
-Alles Deutsch; etablierte Fachbegriffe (Sous-vide, Roux, Ganache) bleiben.
-Metrische Einheiten.
+All content in ${CONTENT_LANG}; established culinary terms (sous-vide, roux,
+ganache) stay as they are. Metric units.
 
-Geschätztes im Report markieren. Im Zweifel Feld leer lassen statt raten.
+Mark estimates in the report. When in doubt leave a field empty instead of
+guessing.
 
-Erst suchen, dann anlegen - bei Foods, Einheiten und Organizern gleichermaßen.
-Auch Schreibvarianten, Singular/Plural und fremdsprachige Entsprechungen
-prüfen.
+Search before creating - for foods, units and organizers alike. Check
+spelling variants, singular/plural and foreign-language equivalents too.
 
-Destruktive Operationen (`merge_*`, `delete_organizer`, `retag_recipe`)
-im Plan ausdrücklich kennzeichnen, mit Zahl der betroffenen Rezepte, und
-darauf hinweisen, dass sie nicht rückgängig zu machen sind.
+Mark destructive operations (`merge_*`, `delete_organizer`, `retag_recipe`)
+explicitly in the plan, with the number of affected recipes, and point out
+that they cannot be undone.
 
-Pakete klein halten: höchstens 25 Lücken oder 5 Dubletten-/Organizer-Gruppen
-pro Lauf.
+Keep batches small: at most 25 gaps or 5 duplicate/organizer groups per run.
 
-Bei Abbruch keine Reparaturversuche auf Verdacht - erreichten Zustand melden
-und nachfragen.
+On an abort, no speculative repair attempts - report the state reached and
+ask.

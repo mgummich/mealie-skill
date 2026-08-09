@@ -1,39 +1,41 @@
-# Mealie-Pflege
+# Mealie skill
 
-> Übernimmst du das Projekt als Agent? Lies zuerst `HANDOFF.md` (Zustand,
-> was verifiziert ist, offene Punkte) und `CLAUDE.md` (Projektregeln).
-> Gegen eine echte Mealie-Instanz lief noch kein Aufruf.
+Clean up a [Mealie](https://mealie.io) instance through its REST API, with
+an LLM doing the judgement calls and a script doing every write.
 
-Zwei Wege, dieselben Regeln:
+Two frontends, one set of rules:
 
-| | Antigravity | Standalone |
+| | Agent (Claude Code, Antigravity, Cursor, AGENTS.md) | Standalone |
 |---|---|---|
-| Modell | das der IDE | Anthropic API, Prompt-Caching |
-| Bedienung | `/mealie <modus>` | `optimize.py <modus> …` |
-| Stärke | Browser für Bild- und Quellenrecherche, Plan-Artefakt | Batch über viele Rezepte |
+| Model | the one your IDE uses | Anthropic API, prompt caching |
+| Usage | `/mealie <mode>` | `optimize.py <mode> …` |
+| Strength | browser for image and source research, plan as an artifact | batches over many recipes |
 
-Gemeinsam: lokaler Rezeptindex statt wiederholter API-Schleifen, Plan vor
-jeder Schreiboperation, deterministische Ausführung über eine ACTIONS-Liste.
+Both share: a local recipe index instead of repeated API loops, a plan
+before every write, deterministic execution through an ACTIONS list.
 
-## Modi
+> Status: this has not yet been run against a live Mealie instance by anyone
+> but its author. Take a backup before the first run.
 
-| Modus | macht |
+## Modes
+
+| Mode | does |
 |---|---|
-| `recipe` | leere Felder füllen, Zutaten parsen, Schritte übersetzen, metrisch umrechnen, Bild setzen |
-| `foods` | Lebensmittel: Beschreibung, Plural, Label, Aliase; Dubletten zusammenführen |
-| `units` | dasselbe für Einheiten |
-| `organizers` | Kategorien, Tags, Utensilien konsolidieren; Rezepte umhängen, leere Objekte löschen |
-| `cookbooks` | Kochbücher als Filterregeln anlegen und überarbeiten |
-| `maintenance` | doppelte Rezepte, tote Bilder und Quell-URLs, Diät-Tags aus Zutaten |
+| `recipe` | fill empty fields, parse ingredients, translate steps, convert to metric, set an image |
+| `foods` | foods: description, plural, label, aliases; merge duplicates |
+| `units` | the same for units |
+| `organizers` | consolidate categories, tags and tools; retag recipes, delete empty objects |
+| `cookbooks` | create and rework cookbooks as filter rules |
+| `maintenance` | duplicate recipes, dead images and source URLs, diet tags from ingredients |
 
-## Vorbereitung
+## Setup
 
     export MEALIE_URL=https://mealie.example.org
-    export MEALIE_TOKEN=<Profil -> API Tokens>
+    export MEALIE_TOKEN=<Profile -> API Tokens>
 
-Vor dem ersten Lauf ein Backup ziehen: Mealie -> Site Settings -> Backups.
+Take a backup before the first run: Mealie -> Site Settings -> Backups.
 
-Endpunktpfade prüfen, sie unterscheiden sich zwischen Mealie-Versionen:
+Check the endpoint paths, they differ between Mealie versions:
 
     for p in foods units groups/labels organizers/categories \
              organizers/tags organizers/tools groups/cookbooks; do
@@ -42,55 +44,74 @@ Endpunktpfade prüfen, sie unterscheiden sich zwischen Mealie-Versionen:
         -H "Authorization: Bearer $MEALIE_TOKEN" "$MEALIE_URL/api/$p?perPage=1"
     done
 
-Was 404 liefert, im `EP`-Dictionary von `mealie_ctx.py` anpassen
-(`/api/categories` statt `/api/organizers/categories` bei älteren Versionen).
+Whatever returns 404 goes into the `EP` dictionary in `mealie_ctx.py`
+(`/api/categories` instead of `/api/organizers/categories` on older
+versions).
 
-Ebenfalls einmal verifizieren, weil je nach Version `PUT` oder `POST`:
-`/api/foods/merge` und `/api/units/merge`.
+Verify these two as well, they are `PUT` or `POST` depending on the version:
+`/api/foods/merge` and `/api/units/merge`.
+
+## Content language
+
+The project is in English; the language of your recipe data is a separate
+setting. `MEALIE_LANG` (default `English`) decides what the model writes
+into descriptions, steps, notes and cookbook texts:
+
+    python3 build.py --install claude-code --lang Deutsch   # baked into the skill
+    export MEALIE_LANG=Deutsch                              # standalone
+
+The duplicate heuristic is tuned for German and English data: umlaut
+folding, German plural endings (which cover the English "s"), a stop word
+list holding both languages. Other languages work, but it finds fewer pairs
+there - the model still reviews every group, so nothing is merged blindly.
 
 ## Installation
 
     python3 build.py --install claude-code           # global, ~/.claude/
     python3 build.py --install antigravity           # global, ~/.gemini/config/
-    python3 build.py --install claude-code --into <projekt>
-    python3 build.py --install cursor --into <projekt>
-    python3 build.py --install agents-md --into <projekt>   # Codex, Zed, …
+    python3 build.py --install claude-code --into <project>
+    python3 build.py --install cursor --into <project>
+    python3 build.py --install agents-md --into <project>   # Codex, Zed, …
 
-`cursor` und `agents-md` sind projektbezogen und verlangen `--into`.
-Vorhandene Dateien werden nie still überschrieben (`--force`); eine
-bestehende `AGENTS.md` wird nur im markierten Block aktualisiert.
+`cursor` and `agents-md` are project-scoped and require `--into`. Existing
+files are never overwritten silently (`--force`); an existing `AGENTS.md` is
+only updated inside its marked block.
 
-Ohne `--install` rendert `python3 build.py` alle Ziele nach `dist/`.
+Without `--install`, `python3 build.py` renders every target into `dist/`.
 
-In Antigravity und Claude Code danach:
+In Claude Code (global or project-scoped) and in Antigravity after a project
+install (`--into`):
 
-    /mealie rezept mein-rezept
-    /mealie lebensmittel
-    /mealie organizer
-    /mealie kochbuch
-    /mealie wartung
+    /mealie recipe my-recipe
+    /mealie foods
+    /mealie organizers
+    /mealie cookbooks
+    /mealie maintenance
 
-Erster Lauf: Terminal auf „Request Review", damit du jeden `apply`-Aufruf
-siehst. Für die Bild- und Quellenrecherche die Domains deiner Rezeptquellen
-sowie `commons.wikimedia.org`, `pexels.com`, `unsplash.com` freigeben.
+A global Antigravity install only places the skill; the `/mealie` workflow
+exists there only after an `--into` install in the project.
+
+First run: set the terminal to "Request Review" so you see every `apply`
+call. For image and source research, allow the domains of your recipe
+sources plus `commons.wikimedia.org`, `pexels.com`, `unsplash.com`.
 
 ## Standalone
 
     export ANTHROPIC_API_KEY=sk-ant-…
     pip install requests
 
-    python standalone/optimize.py recipe mein-rezept --dry-run
+    python standalone/optimize.py recipe my-recipe --dry-run
     python standalone/optimize.py recipe --batch --limit 20
-    python standalone/optimize.py foods luecken --limit 25
-    python standalone/optimize.py foods dubletten --limit 5
-    python standalone/optimize.py units dubletten
+    python standalone/optimize.py foods gaps --limit 25
+    python standalone/optimize.py foods duplicates --limit 5
+    python standalone/optimize.py units duplicates
     python standalone/optimize.py organizers tags
-    python standalone/optimize.py cookbooks --zweck "Schnelle Feierabendküche"
+    python standalone/optimize.py cookbooks --purpose "Quick weeknight cooking"
     python standalone/optimize.py maintenance links
 
-## Werkzeug direkt
+## The tool on its own
 
-`mealie_ctx.py` funktioniert auch ohne Modell:
+`mealie_ctx.py` works without a model:
 
     python .../mealie_ctx.py index --refresh
     python .../mealie_ctx.py audit foods|units|categories|tags|tools|recipes|links
@@ -99,103 +120,111 @@ sowie `commons.wikimedia.org`, `pexels.com`, `unsplash.com` freigeben.
     python .../mealie_ctx.py usage tag <id>
     python .../mealie_ctx.py apply actions.json --dry-run
 
-## Aufbau
+## Layout
 
-    skill/                  einzige Quelle der Wahrheit
-      SKILL.md              schlanker Router
-      references/*.md       Details, nur bei Bedarf gelesen
-      workflow.md           Ablauf für /mealie
-      scripts/mealie_ctx.py alle API-Zugriffe
+    skill/                  the single source of truth
+      SKILL.md              slim router
+      references/*.md       details, read only when needed
+      workflow.md           the /mealie procedure
+      scripts/mealie_ctx.py every API call
     standalone/
-      prompts/common.txt    Grundsätze + ACTIONS-Format (handgepflegt)
-      optimize.py           Modellaufruf, Freigabe, Batch
-    build.py                rendert dist/ für die vier Ziele, installiert
-                            mit --install
+      prompts/common.txt    principles + output style (hand-maintained)
+      optimize.py           model call, approval, batch; ACTIONS format
+                            and mode rules from skill/references/
+    build.py                renders dist/ for the four targets, installs
+                            with --install
     test_build.py           python3 test_build.py
 
-## Ausgabestil: caveman
+## Output style: caveman
 
-Der Skill nutzt [caveman](https://github.com/juliusbrussee/caveman), falls
-installiert – eine Kompression des Antwortstils. Audits, Pläne und Reports
-sind hier lange Tabellenausgaben, also genau der Fall, in dem sich das lohnt.
+The skill uses [caveman](https://github.com/juliusbrussee/caveman) if it is
+installed - a compression of the answer style. Audits, plans and reports are
+long tabular outputs here, exactly the case where that pays off.
 
-Installation (Antigravity, Skill-Ordner analog zu `mealie`):
+Installation (Antigravity, skill folder analogous to `mealie`):
 
     cp -r <caveman-repo>/skills/caveman  <workspace>/.agents/skills/
 
-**Die Abgrenzung ist wichtiger als die Aktivierung.** Komprimiert wird nur
-die Chat-Ausgabe. Alles, was über `actions.json` in die Datenbank wandert –
-Rezept- und Food-Beschreibungen, Zubereitungsschritte, Notizen,
-Kochbuchbeschreibungen – bleibt vollständige deutsche Prosa. Diese Texte
-liest später jemand in der Mealie-Oberfläche, ohne von diesem Ablauf zu
-wissen. Die Regel steht sowohl in `SKILL.md` als auch in
-`references/actions.md`, weil sie genau dort verletzt würde.
+**The boundary matters more than the activation.** Only the chat output is
+compressed. Everything that travels into the database through `actions.json`
+- recipe and food descriptions, preparation steps, notes, cookbook
+descriptions - stays full prose. Someone reads those texts in the Mealie UI
+later, without knowing this workflow existed. The rule sits in both
+`SKILL.md` and `references/actions.md`, because that is exactly where it
+would be violated.
 
-Warnungen zu destruktiven Operationen, Rückfragen und die Freigabefrage
-bleiben ebenfalls in ganzen Sätzen. Bei einem Merge, der 14 Rezepte
-umschreibt, ist Eindeutigkeit mehr wert als ein paar gesparte Tokens –
-caveman hat dafür eine eigene Klarheitsregel.
+Warnings about destructive operations, clarifying questions and the approval
+question stay in whole sentences as well. For a merge that rewrites 14
+recipes, being unambiguous is worth more than a few saved tokens - caveman
+has its own clarity rule for that.
 
-Ohne den Skill ändert sich nichts: Die Referenzen verlangen ohnehin knappe,
-tabellarische Ausgaben. Standalone ist die entsprechende Regel direkt in
-`prompts/common.txt` eingebaut.
+Without the skill nothing changes: the references ask for terse tabular
+output anyway. Standalone has the same rule built into `prompts/common.txt`.
 
-Ehrlich zur Ersparnis: caveman senkt nur die **Ausgabe**-Tokens und bringt
-selbst rund 1–1,5 k Eingabe-Tokens pro Turn mit. Bei den langen Plänen und
-Reports dieses Ablaufs geht die Rechnung auf; bei kurzen Einzelabfragen kann
-sie negativ werden.
+Honest about the savings: caveman only lowers **output** tokens and brings
+about 1-1.5 k input tokens per turn with it. For the long plans and reports
+of this workflow the maths works out; for short one-off queries it can turn
+negative.
 
-## Token-Haushalt
+## Token budget
 
-Drei Maßnahmen, in der Reihenfolge ihrer Wirkung:
+Three measures, in order of impact:
 
-**Referenzdateien statt einer großen SKILL.md.** Der Router ist rund 700
-Tokens; die Moduldetails (je 900–1300) liest der Agent nur, wenn der Modus
-gewählt ist. Vorher kostete jede Mealie-Anfrage den vollen Regelsatz.
+**Reference files instead of one large SKILL.md.** The router is about 700
+tokens; the mode details (900-1300 each) are read only once the mode is
+chosen. Before that, every Mealie request paid for the full rule set.
 
-**Lokaler Rezeptindex.** `audit` und `usage` lesen aus `.mealie_index.json`
-statt jedes Mal alle Rezepte einzeln abzurufen. Der Index wird beim ersten
-Audit gebaut und nach jedem schreibenden `apply` verworfen.
+**Local recipe index.** `audit` and `usage` read `.mealie_index.json`
+instead of fetching every recipe individually each time. The index is built
+on the first audit and discarded after every writing `apply`.
 
-**Gezielte Suche statt voller Tabellen.** `ctx recipe` sucht nur die Foods,
-die zu den Zutaten dieses Rezepts passen. Bei ein paar hundert Foods ist das
-der Unterschied zwischen 500 und 20.000 Tokens Kontext.
+**Targeted search instead of full tables.** `ctx recipe` only searches for
+the foods matching the ingredients of that recipe. With a few hundred foods
+that is the difference between 500 and 20,000 tokens of context.
 
-Standalone kommt Prompt-Caching dazu. Gemeinsame Regeln und Modusregeln
-bilden **einen** Block, weil der gemeinsame Teil allein unter der
-Mindestgröße von 1024 Tokens liegt. Der Cache wird also je Modus
-wiederverwendet, nicht modusübergreifend. Kontrolle in der `[usage]`-Zeile:
-erst `cache_creation_input_tokens`, danach `cache_read_input_tokens`.
-Der Cache lebt fünf Minuten ab letztem Treffer — Batch-Läufe am Stück
-durchlaufen lassen.
+Standalone adds prompt caching. Common rules and mode rules form **one**
+block, because the common part alone is below the 1024 token minimum. The
+cache is therefore reused per mode, not across modes. Check the `[usage]`
+line: `cache_creation_input_tokens` first, `cache_read_input_tokens`
+afterwards. The cache lives five minutes from the last hit - let batch runs
+finish in one go.
 
-## Sicherheitsnetze
+## Safety nets
 
-Die Ausführungsreihenfolge ist erzwungen und bricht vor dem ersten
-Schreibzugriff ab, wenn die ACTIONS sie verletzen:
+The execution order is enforced and aborts before the first write if the
+ACTIONS violate it:
 
     create_label -> merge_food -> merge_unit -> create_food -> create_unit
     -> create_category -> create_tag -> create_tool -> update_food
     -> update_unit -> update_organizer -> retag_recipe -> delete_organizer
     -> create_cookbook -> update_cookbook -> patch_recipe -> set_image
 
-Destruktive Operationen werden vor der Ausführung angesagt. `--dry-run`
-zeigt jede Aktion, ohne zu schreiben. Rezepte löscht das Werkzeug nie —
-doppelte Rezepte werden nur vorgelegt.
+Destructive operations are announced before execution. `--dry-run` shows
+every action without writing. The tool never deletes recipes - duplicates
+are only presented.
 
-## Heuristiken und ihre Grenzen
+## Heuristics and their limits
 
-**Dubletten** laufen über eine Normalform (Kleinschreibung, Umlaute
-aufgelöst, gängige Pluralendungen entfernt). Gefunden werden Tomate/Tomaten
-und Kürbis/Kuerbis; korrekt nicht gruppiert werden Butter/Buttermilch und
-Tomate/Cherrytomate. Nicht gefunden werden unregelmäßige Formen (Ei/Eier)
-und echte Synonyme (Frühlingszwiebel/Lauchzwiebel) — die ergänzt das Modell
-beim Prüfen der Gruppen.
+**Duplicates** go through a normal form (lowercased, umlauts folded, common
+plural endings removed). It finds tomato/tomatoes and Kürbis/Kuerbis; it
+correctly does not group butter/buttermilk or tomato/cherry tomato. It
+misses irregular forms (mouse/mice) and true synonyms (scallion/spring
+onion) - the model adds those while reviewing the groups.
 
-**Doppelte Rezepte** über Namensgleichheit plus Jaccard-Ähnlichkeit der
-Zutaten ab 0.6. Ein hoher Wert ist ein Verdacht, kein Beweis: Varianten
-desselben Gerichts liegen naturgemäß hoch.
+**Duplicate recipes** via identical names plus Jaccard similarity of the
+ingredients from 0.6 up. A high value is a suspicion, not proof: variants of
+the same dish naturally score high.
 
-**Diät-Tags** werden nur aus vollständig geparsten Zutaten abgeleitet und
-nur als Ausschlusskriterium. Bei Unsicherheit wird nicht getaggt — ein
-falsches „glutenfrei" ist teurer als ein fehlendes.
+**Diet tags** are derived only from fully parsed ingredients, and only as
+exclusion criteria. When unsure, nothing is tagged - a wrong "gluten-free"
+costs more than a missing one.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: `skill/` is the
+source, everything else is rendered; run `python3 test_build.py` before
+opening a PR.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

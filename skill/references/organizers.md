@@ -1,84 +1,84 @@
-# Kategorien, Tags, Utensilien
+# Categories, tags, tools
 
-Anders als bei Foods gibt es **keinen Merge-Endpunkt**. Eine Dublette
-aufzulösen heißt: alle betroffenen Rezepte umhängen (`retag_recipe`), dann
-das leer gewordene Objekt löschen (`delete_organizer`). Die Reihenfolge ist
-im ACTIONS-Format erzwungen.
+Unlike foods, there is **no merge endpoint**. Resolving a duplicate means:
+retag every affected recipe (`retag_recipe`), then delete the object that
+has become empty (`delete_organizer`). The order is enforced by the ACTIONS
+format.
 
-## Phase 1 - Analyse
+## Phase 1 - Analysis
 
-    audit categories        # oder: audit tags / audit tools
+    audit categories        # or: audit tags / audit tools
 
-Die Ausgabe zeigt je Objekt die Rezeptzahl sowie vier Auffälligkeiten:
+The output shows the recipe count per object plus four findings:
 
-- **Dublettenverdacht** - Schreib- und Pluralvarianten, deutsch/englisch
-- **ungenutzt** - null Rezepte, Karteileichen
-- **selten** - ein bis zwei Rezepte, meist zu spezifisch oder Tippfehler
-- **größte** - die am häufigsten vergebenen; zu grobe Sammelbecken erkennt
-  man hier
+- **possible duplicates** - spelling and plural variants, across languages
+- **unused** - zero recipes, dead entries
+- **rare** - one or two recipes, usually too specific or a typo
+- **largest** - the most frequently assigned ones; catch-all objects show up
+  here
 
-Gib das zusammengefasst wieder und schlage eine Reihenfolge vor. Sinnvoll ist
-fast immer: erst Dubletten, dann Seltene, dann Ungenutzte.
+Summarize that and propose an order. Almost always sensible: duplicates
+first, then rare ones, then unused ones.
 
-## Kategorien vs. Tags
+## Categories vs. tags
 
-Der häufigste Ist-Zustand ist eine vermischte Taxonomie. Prüfe das und
-sprich es an:
+The most common starting state is a mixed taxonomy. Check for it and say so:
 
-- **Kategorien** sind funktional und exklusiv: Was ist das für ein Gang?
-  Hauptgericht, Vorspeise, Dessert, Beilage, Frühstück, Getränk, Backwaren.
-  1-2 pro Rezept. Mehr als etwa zehn Kategorien insgesamt heißt fast immer,
-  dass Tags in die Kategorien gerutscht sind.
-- **Tags** sind alles andere und beliebig kombinierbar: Küche (italienisch),
-  Diät (vegetarisch, glutenfrei), Methode (ofen, one-pot, grill), Anlass
-  (meal-prep, schnell, gäste), Saison (sommer).
-- **Utensilien** sind nur Spezialgeräte: Standmixer, Springform 26 cm,
-  Thermometer, Mörser, Eismaschine. Keine Töpfe, Pfannen, Messer, Schüsseln,
-  Bretter.
+- **Categories** are functional and exclusive: what kind of course is this?
+  Main course, starter, dessert, side dish, breakfast, drink, baked goods.
+  1-2 per recipe. More than about ten categories in total almost always
+  means tags have slipped into the categories.
+- **Tags** are everything else and freely combinable: cuisine (italian),
+  diet (vegetarian, gluten-free), method (oven, one-pot, grill), occasion
+  (meal-prep, quick, guests), season (summer).
+- **Tools** are special equipment only: blender, 26 cm springform pan,
+  thermometer, mortar, ice cream maker. No pots, pans, knives, bowls,
+  boards.
 
-Steht etwas in der falschen Sortierung ("vegetarisch" als Kategorie), ist der
-saubere Weg: Tag anlegen oder verwenden, Rezepte per `retag_recipe` in beiden
-Feldern umhängen, alte Kategorie löschen.
+If something sits in the wrong bucket ("vegetarian" as a category), the
+clean route is: create or reuse a tag, retag the recipes in both fields with
+`retag_recipe`, delete the old category.
 
-## Phase 2 - Plan, dann anhalten
+## Phase 2 - Plan, then stop
 
-    ctx tags                    # Bestand mit Rezeptzahlen
-    ctx tags --group "Ofen"     # Rezepte dieser Gruppe
+<!-- agent-only -->
+    ctx tags                    # list with recipe counts
+    ctx tags --group "oven"     # recipes in this group
+<!-- standalone:     ctx tags --group "oven"     # recipes in this group -->
 
-Plan je Gruppe:
+Plan per group:
 
-    Gruppe: ofen
-      BEHALTEN  ofen (a1b2…) – 23 Rezepte
-      AUFLÖSEN  Ofen (c3d4…) – 4 Rezepte   -> umhängen, dann löschen
-      AUFLÖSEN  backofen (e5f6…) – 1 Rezept -> umhängen, dann löschen
-      BETROFFEN 5 Rezepte: kuerbissuppe, lasagne, …
+    Group: oven
+      KEEP     oven (a1b2…) – 23 recipes
+      DISSOLVE Oven (c3d4…) – 4 recipes   -> retag, then delete
+      DISSOLVE ovenbaked (e5f6…) – 1 recipe -> retag, then delete
+      AFFECTED 5 recipes: pumpkin-soup, lasagne, …
 
-Führe die betroffenen Slugs auf - `retag_recipe` braucht sie ohnehin einzeln,
-und der Nutzer soll sehen, was angefasst wird.
+List the affected slugs - `retag_recipe` needs them individually anyway, and
+the user should see what gets touched.
 
-Umhängen ist reversibel (man kann neu taggen), das Löschen des Objekts nicht.
-Kennzeichne beides.
+Retagging is reversible (you can tag again), deleting the object is not.
+Mark both.
 
-Umbenennen statt auflösen, wenn nur die Schreibweise stört und keine zweite
-Variante existiert: `update_organizer` ändert den Namen, alle Rezepte behalten
-ihre Zuordnung. Das ist der schonendere Weg - prüfe ihn zuerst.
+Rename instead of dissolving when only the spelling is off and no second
+variant exists: `update_organizer` changes the name, every recipe keeps its
+assignment. That is the gentler route - check it first.
 
-Achte auf Groß-/Kleinschreibung: Tags kleingeschrieben, Kategorien und
-Utensilien in normaler Schreibweise. Ein Lauf, der nur die Schreibweise
-vereinheitlicht, ist ein guter erster Plan.
+Mind capitalization: tags lowercase, categories and tools in normal
+spelling. A run that only unifies spelling is a good first plan.
 
-## Ungenutzte und seltene
+## Unused and rare
 
-Ungenutzte Objekte können ohne Rezeptänderung gelöscht werden - trotzdem
-vorschlagen, nicht ungefragt tun. Seltene sind selten eine Löschung wert:
-meist gehören sie zu einem größeren Objekt oder es fehlt schlicht die
-Vergabe an weiteren Rezepten. Frage, was gewünscht ist.
+Unused objects can be deleted without touching a recipe - still propose it,
+do not just do it. Rare ones are rarely worth deleting: usually they belong
+to a larger object, or they simply have not been assigned to more recipes
+yet. Ask what is wanted.
 
-## Phase 3 - Ausführung
+## Phase 3 - Execution
 
     apply actions.json
 
-Report: UMBENANNT · UMGEHÄNGT (Rezept - von -> nach) · GELÖSCHT (Objekt,
-war leer) · OFFEN (bewusst behalten, mit Begründung).
+Report: RENAMED · RETAGGED (recipe - from -> to) · DELETED (object, was
+empty) · OPEN (deliberately kept, with a reason).
 
-Pakete klein halten: höchstens fünf Gruppen pro Lauf.
+Keep batches small: at most five groups per run.
