@@ -9,13 +9,29 @@ import types
 import build
 
 
+class FakeHTTPError(Exception):
+    """Stand-in for requests.HTTPError, which carries the response."""
+
+    def __init__(self, *args, response=None):
+        """Store the response the way requests does.
+
+        Args:
+            *args: Passed to Exception.
+            response: The object with the status_code.
+        """
+        super().__init__(*args)
+        self.response = response
+
+
 def load_ctx():
     """Import mealie_ctx from skill/scripts without requests installed.
 
     Returns:
         The imported module; its HTTP calls are never exercised here.
     """
-    sys.modules.setdefault("requests", types.ModuleType("requests"))
+    stub = types.ModuleType("requests")
+    stub.HTTPError = FakeHTTPError    # type: ignore[attr-defined]
+    sys.modules.setdefault("requests", stub)
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "skill", "scripts"))
     import mealie_ctx
@@ -270,5 +286,63 @@ with tempfile.TemporaryDirectory() as tmp:
         raise AssertionError("patch_recipe without a slug did not abort")
     except SystemExit as e:
         assert "slug" in str(e), e
+
+# 13. AGENTS.md carries a pointer, not the router: the block is what every
+#     session pays for, so it stays small and names the file to read.
+block = build.agents_md_block("X")
+assert len(block) < 800, len(block)
+assert build.ROUTER_FILE in block
+assert "## Pick a mode" not in block                 # the router itself is not
+assert build.LANG_TOKEN not in block
+router = build.agents_md_router("X")
+assert "## Pick a mode" in router                    # ... it is here
+assert "mealie/references/recipes.md" in router      # paths rewritten
+assert build.LANG_TOKEN not in router
+
+# 14. Credentials: the mcp-mealie names work, the canonical ones outrank them.
+parsed = mealie_ctx.parse_env(
+    "MEALIE_BASE_URL=https://mcp.example\nMEALIE_API_KEY=mcp-token\n")
+assert parsed == {"MEALIE_URL": "https://mcp.example",
+                  "MEALIE_TOKEN": "mcp-token"}, parsed
+parsed = mealie_ctx.parse_env(
+    "MEALIE_BASE_URL=https://mcp.example\nMEALIE_URL=https://own.example\n")
+assert parsed["MEALIE_URL"] == "https://own.example", parsed
+
+# 15. build_index: one unreadable recipe costs that recipe, not the index.
+broken = {"pages": 0}
+
+
+def fake_mget(path, **params):
+    """Serve two recipes, one of which the instance cannot render.
+
+    Args:
+        path: Path below /api.
+        **params: Query parameters; page drives the pagination.
+
+    Returns:
+        The recipe list for the collection, a recipe for a detail path.
+
+    Raises:
+        requests.HTTPError: 500 for the recipe that fails to serialize.
+    """
+    if path == mealie_ctx.EP["recipes"]:
+        broken["pages"] += 1
+        if broken["pages"] > 1:
+            return []
+        return [{"slug": "good"}, {"slug": "bad"}]
+    if path.endswith("/bad"):
+        response = types.SimpleNamespace(status_code=500)
+        raise mealie_ctx.requests.HTTPError("500", response=response)
+    return {"slug": "good", "name": "Good", "recipeIngredient": [],
+            "recipeInstructions": [], "description": "x"}
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    mealie_ctx.mget = fake_mget
+    mealie_ctx.INDEX = os.path.join(tmp, ".mealie_index.json")
+    idx = mealie_ctx.build_index()
+
+assert [r["slug"] for r in idx["recipes"]] == ["good"], idx["recipes"]
+assert idx["failed"] == ["bad"], idx["failed"]
 
 print("ok")

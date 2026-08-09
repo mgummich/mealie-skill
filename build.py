@@ -292,7 +292,8 @@ def build_target(target, out, lang=None):
 
     Layout per target: claude-code and antigravity get a skill directory
     plus a workflow, cursor gets .mdc rules and a command, agents-md gets a
-    marked block in AGENTS.md plus references beside it.
+    marked pointer block in AGENTS.md plus the router and the references
+    beside it.
 
     Args:
         target: One of TARGETS.
@@ -327,11 +328,8 @@ def build_target(target, out, lang=None):
         _write(wf_path, wf)
 
     elif target == "cursor":
-        fm, body = _split_frontmatter(_read("SKILL.md"))
-        m = re.search(r"^description:[ \t]*(.+)$", fm, re.MULTILINE)
-        desc = m.group(1).strip() if m else ""
-        if not desc or desc in (">", ">-", "|", "|-"):
-            sys.exit("SKILL.md: description missing or not on one line")
+        _, body = _split_frontmatter(_read("SKILL.md"))
+        desc = skill_description()
         descs = mode_descriptions()
         _write(os.path.join(root, ".cursor", "rules", "mealie.mdc"),
                _mdc_frontmatter(desc)
@@ -351,6 +349,8 @@ def build_target(target, out, lang=None):
         _write(os.path.join(root, "AGENTS.md"),
                "<!-- mealie:begin -->\n" + agents_md_block(lang)
                + "<!-- mealie:end -->\n")
+        _write(os.path.join(root, *ROUTER_FILE.split("/")),
+               agents_md_router(lang))
         _copy_refs(os.path.join(root, "mealie", "references"), mapping, lang)
         _copy_script(root)
 
@@ -359,17 +359,65 @@ def build_target(target, out, lang=None):
     return root
 
 
-def agents_md_block(lang=None):
-    """Build the AGENTS.md block: the router from SKILL.md, without frontmatter.
+ROUTER_FILE = "mealie/router.md"
 
-    Paths are rewritten to mealie/..., since AGENTS.md sits in the project
-    root rather than in a skill directory.
+
+def skill_description():
+    """Return the one-line description from the SKILL.md frontmatter.
+
+    Returns:
+        The description without surrounding whitespace.
+
+    Raises:
+        OSError: If SKILL.md cannot be read.
+        SystemExit: If it is missing or spread over several lines.
+    """
+    fm, _ = _split_frontmatter(_read("SKILL.md"))
+    m = re.search(r"^description:[ \t]*(.+)$", fm, re.MULTILINE)
+    desc = m.group(1).strip() if m else ""
+    if not desc or desc in (">", ">-", "|", "|-"):
+        sys.exit("SKILL.md: description missing or not on one line")
+    return desc
+
+
+def agents_md_block(lang=None):
+    """Build the AGENTS.md block: a pointer at the router, nothing more.
+
+    Unlike a skill directory, AGENTS.md has no on-demand loading - Codex and
+    friends read it whole, every session, Mealie work or not. So only the
+    trigger sentence lives here and the router itself goes to ROUTER_FILE.
+    The trigger is the description from SKILL.md rather than a hand-written
+    line, so there is still one source for it.
 
     Args:
         lang: Content language for the placeholder.
 
     Returns:
         The block with a trailing newline, without the marker lines.
+
+    Raises:
+        OSError: If SKILL.md cannot be read.
+        SystemExit: If the description is missing or not on one line.
+    """
+    return set_language(
+        "\n## Mealie\n\n" + skill_description() + "\n\nRead `" + ROUTER_FILE
+        + "` before "
+        "acting on any of that - it carries the three phases, the mode table "
+        "and the tool interface. Never write to the instance without it.\n",
+        lang)
+
+
+def agents_md_router(lang=None):
+    """Build the router file that the AGENTS.md block points at.
+
+    This is the SKILL.md body, paths rewritten to mealie/..., since it sits
+    beside the references rather than in a skill directory.
+
+    Args:
+        lang: Content language for the placeholder.
+
+    Returns:
+        The router text with a trailing newline.
 
     Raises:
         OSError: If SKILL.md cannot be read.

@@ -39,6 +39,9 @@ export MEALIE_URL=https://mealie.example.org
 export MEALIE_TOKEN=eyJhbGciOi…
 ```
 
+Already running the `mcp-mealie` server? Its `MEALIE_BASE_URL` and
+`MEALIE_API_KEY` are read as well, so one env file serves both.
+
 Check that the token works and that your Mealie version uses the endpoint
 paths the tool expects:
 
@@ -385,6 +388,8 @@ source research, allow the domains of your recipe sources plus
 | the same duplicates come back | aliases missing after a merge | add the old names as `aliases` on the target |
 | `/mealie` unknown in the IDE | installed globally, workflow needs a project | `build.py --install <target> --into <project>` |
 | the agent reads every recipe one by one | it skipped the index | remind it: audits read `.mealie_index.json` |
+| `skipped <slug>: 500 from the instance` | Mealie cannot serialize that recipe | open it in the UI and save it again; `audit recipes` lists them under `UNREADABLE` |
+| `429` during the index build | the instance rate-limits | nothing to do, the build waits and retries |
 
 An aborted `apply` stops before or between actions and reports how far it
 got. Do not guess at repairs — rerun the audit and let the next plan work
