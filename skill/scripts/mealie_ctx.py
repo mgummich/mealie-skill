@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Mealie tool: fetch context, run checks, execute ACTIONS.
+"""Mealie tool: fetch context, run checks, execute ACTIONS.
 
   index [--refresh]                    build/refresh the local recipe index
   ctx recipe <slug> [--search T ...]   recipe + matching foods + organizers
@@ -16,12 +15,13 @@ the current directory. After changes to the instance: --refresh.
 
 Env: MEALIE_URL, MEALIE_TOKEN
 """
+import argparse
+import json
 import os
 import re
 import sys
-import json
 import time
-import argparse
+
 import requests
 
 MEALIE = os.environ["MEALIE_URL"].rstrip("/")
@@ -181,7 +181,8 @@ def build_index():
             })
         page += 1
     data = {"built": time.time(), "recipes": recipes}
-    json.dump(data, open(INDEX, "w", encoding="utf-8"), ensure_ascii=False)
+    with open(INDEX, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
     return data
 
 
@@ -371,7 +372,7 @@ def cmd_audit(a):
             print("  [{}] {}".format(k, " | ".join(
                 f'{m["name"]} ({m["id"][:8]}, {used.get(m["id"], 0)} rec.)'
                 for m in ms)))
-        print(f"\nLARGEST: " + ", ".join(
+        print("\nLARGEST: " + ", ".join(
             f'{i["name"]}({used.get(i["id"], 0)})'
             for i in sorted(items, key=lambda x: -used.get(x["id"], 0))[:10]))
 

@@ -209,7 +209,7 @@ def _split_frontmatter(text):
         Tuple (raw frontmatter, body). The first element is an empty string
         if there is no frontmatter.
     """
-    m = re.match(r"---\n(.*?)\n---\n", text, re.S)
+    m = re.match(r"---\n(.*?)\n---\n", text, re.DOTALL)
     if not m:
         return "", text
     return m.group(1), text[m.end():]
@@ -246,8 +246,8 @@ def mode_descriptions():
     """
     body = _split_frontmatter(_read("SKILL.md"))[1]
     descs = {ref: desc for desc, ref in re.findall(
-        r"^\| (.+?) \| `references/([^`]+)` \|$", body, re.M)}
-    for desc, ref in re.findall(r"^(.+?): `references/([^`]+)`", body, re.M):
+        r"^\| (.+?) \| `references/([^`]+)` \|$", body, re.MULTILINE)}
+    for desc, ref in re.findall(r"^(.+?): `references/([^`]+)`", body, re.MULTILINE):
         descs.setdefault(ref, desc)
     for ref, _ in MODES:
         if ref not in descs:
@@ -328,7 +328,7 @@ def build_target(target, out, lang=None):
 
     elif target == "cursor":
         fm, body = _split_frontmatter(_read("SKILL.md"))
-        m = re.search(r"^description:[ \t]*(.+)$", fm, re.M)
+        m = re.search(r"^description:[ \t]*(.+)$", fm, re.MULTILINE)
         desc = m.group(1).strip() if m else ""
         if not desc or desc in (">", ">-", "|", "|-"):
             sys.exit("SKILL.md: description missing or not on one line")
@@ -380,8 +380,8 @@ def agents_md_block(lang=None):
 
 
 MARK_BEGIN, MARK_END = "<!-- mealie:begin -->", "<!-- mealie:end -->"
-_RE_BEGIN = re.compile("^" + re.escape(MARK_BEGIN) + r"[ \t]*$", re.M)
-_RE_END = re.compile("^" + re.escape(MARK_END) + r"[ \t]*$", re.M)
+_RE_BEGIN = re.compile("^" + re.escape(MARK_BEGIN) + r"[ \t]*$", re.MULTILINE)
+_RE_END = re.compile("^" + re.escape(MARK_END) + r"[ \t]*$", re.MULTILINE)
 
 
 def merge_agents_md(existing, block):

@@ -1,10 +1,28 @@
-# GitHub Pages. Source: Settings -> Pages -> Deploy from branch, main / (root).
-# README.md becomes the landing page, HOWTO.md is served at /HOWTO.
-# Relative links between the markdown files keep working: GitHub Pages
-# enables jekyll-relative-links by default.
+# GitHub Pages, built by .github/workflows/pages.yml.
+# README.md becomes the landing page (jekyll-readme-index), HOWTO.md is served
+# at /HOWTO. Relative links between the markdown files keep working:
+# jekyll-relative-links ships with the github-pages gem set.
 title: Mealie skill
 description: Clean up a Mealie instance through its REST API - an LLM makes the judgement calls, a script does every write.
-theme: jekyll-theme-cayman
+url: https://mgummich.github.io
+baseurl: /mealie-skill
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
 exclude:
   - dist
   - __pycache__
+  - .venv
+  - skill
+  - standalone
+  - build.py
+  - test_build.py
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
