@@ -730,13 +730,18 @@ def cmd_apply(a):
     --dry-run every action is printed and references resolve to a
     placeholder. After a writing run the index is deleted.
 
+    A rename changes the recipe slug; the new one is read back from the
+    response so that a later set_image in the same run still finds the
+    recipe.
+
     Args:
-        a: Parsed arguments with file (path to actions.json), slug (needed
-            for patch_recipe and set_image) and dry_run.
+        a: Parsed arguments with file (path to actions.json), slug (the
+            default for patch_recipe and set_image, which may each carry
+            their own) and dry_run.
 
     Raises:
-        SystemExit: On unknown operations, violated order, or a missing
-            --slug for patch_recipe/set_image.
+        SystemExit: On unknown operations, violated order, or a
+            patch_recipe/set_image without any slug.
         KeyError: If a "$ref:" cannot be resolved.
         requests.HTTPError: If a write fails. Actions already applied stay
             applied; there is no rollback.
@@ -754,7 +759,8 @@ def cmd_apply(a):
         print("!! Contains destructive operations (merge/delete). "
               "Recipes will be rewritten, objects deleted.\n")
 
-    refs = {}
+    refs: dict = {}
+    renamed: dict = {}          # old slug -> new one, after a rename
     for x in actions:
         op, payload = x["op"], x.get("payload", {})
         if a.dry_run:
@@ -811,16 +817,28 @@ def cmd_apply(a):
             mreq("PUT", f'{EP["cookbooks"]}/{cid}', json={**cur, **payload})
             print(f'UPDATED cookbook – {cur.get("name")}')
         elif op == "patch_recipe":
-            if not a.slug:
-                sys.exit("patch_recipe needs --slug")
-            mreq("PATCH", f'{EP["recipes"]}/{a.slug}', json=payload)
-            print("PATCHED " + ", ".join(payload))
+            slug = payload.pop("slug", None) or a.slug
+            if not slug:
+                sys.exit("patch_recipe needs --slug or a slug in the payload")
+            res = mreq("PATCH", f'{EP["recipes"]}/{slug}', json=payload)
+            print(f"PATCHED {slug} – " + ", ".join(payload))
+            # Mealie re-derives the slug from the name. Every later action on
+            # this recipe – set_image above all – has to follow it, otherwise
+            # it hits a 404 on a recipe that was just written.
+            fresh = res.get("slug") if isinstance(res, dict) else res
+            if isinstance(fresh, str) and fresh and fresh != slug:
+                print(f"SLUG {slug} -> {fresh} (renamed)")
+                renamed[slug] = fresh
+                if slug == a.slug:
+                    a.slug = fresh
         elif op == "set_image":
-            if not a.slug:
-                sys.exit("set_image needs --slug")
-            mreq("POST", f'{EP["recipes"]}/{a.slug}/image',
+            slug = payload.get("slug") or a.slug
+            slug = renamed.get(slug, slug)
+            if not slug:
+                sys.exit("set_image needs --slug or a slug in the payload")
+            mreq("POST", f'{EP["recipes"]}/{slug}/image',
                  json={"url": payload["url"], "includeTags": False})
-            print("IMAGE " + payload["url"])
+            print(f'IMAGE {slug} – {payload["url"]}')
 
     if not a.dry_run and os.path.exists(INDEX):
         os.remove(INDEX)

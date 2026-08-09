@@ -49,8 +49,28 @@ The reason: retag before deleting; create before referencing.
 | `delete_organizer` | `kind`, `id` |
 | `create_cookbook` | `name`, `description`, `categories`/`tags`/`tools`, `requireAll*` |
 | `update_cookbook` | `id` + fields to change |
-| `patch_recipe` | only the changed recipe fields (needs `--slug`) |
-| `set_image` | `url` (needs `--slug`) |
+| `patch_recipe` | only the changed recipe fields, plus `slug` for the recipe (or `--slug` for the whole run) |
+| `set_image` | `url`, plus `slug` (or `--slug`) |
+
+A `slug` in the payload wins over `--slug`, so one file can patch many
+recipes: `--slug` is the shorthand for the single-recipe case. Several
+`patch_recipe` actions in a row are fine — `ORDER` allows repeats, it fixes
+the sequence of the operations, not their number.
+
+## Renaming a recipe changes its slug
+
+Mealie derives the slug from the name, so a `patch_recipe` that carries
+`name` makes the old slug a 404 the moment it lands. Anything that addresses
+the recipe afterwards has to use the new one.
+
+Within one run this is handled: the script reads the slug back from the
+response and prints `SLUG old -> new (renamed)`, and `set_image` — the only
+op that comes after `patch_recipe` — follows it. Beyond that run it is
+yours to track. Take the new slug from that line, do not guess it from the
+name, and do not reuse a slug you noted before the rename.
+
+That is also why a rename belongs in the **same** `patch_recipe` as the
+other field changes, never in a second one afterwards.
 
 ## Partial updates
 
