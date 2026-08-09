@@ -6,3 +6,8 @@ dist/
 .mealie_index.json
 .actions.json
 actions.json
+
+# Jekyll (GitHub Pages)
+_site/
+.jekyll-cache/
+.jekyll-metadata

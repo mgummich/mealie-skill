@@ -1,0 +1,13 @@
+line-length = 88
+target-version = "py39"
+extend-exclude = ["dist"]
+
+[lint]
+extend-select = ["E501", "I", "UP", "B", "D"]
+# EXE001: shebangs are for documentation, the scripts run via `python3 …`.
+# SIM115: short-lived CLI reads, a context manager buys nothing here.
+# PLW1510: return codes are checked by hand, with a useful message.
+extend-ignore = ["EXE001", "SIM115", "PLW1510"]
+
+[lint.pydocstyle]
+convention = "google"

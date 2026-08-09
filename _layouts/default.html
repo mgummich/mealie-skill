@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+<meta name="description" content="{{ page.description | default: site.description }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🧹</text></svg>">
+<style>
+  :root {
+    color-scheme: light dark;
+    --ground: #f7f8f5;
+    --panel: #ffffff;
+    --ink: #16201b;
+    --ink-soft: #4a574f;
+    --ink-faint: #78867d;
+    --rule: #dde3dc;
+    --accent: #2f6b4f;
+    --accent-soft: #e3ede6;
+    --warn: #9a6416;
+    --warn-soft: #f6eddc;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #12160f;
+      --panel: #191e17;
+      --ink: #e7ece3;
+      --ink-soft: #a8b3a5;
+      --ink-faint: #7d8a7b;
+      --rule: #2c342a;
+      --accent: #7fc09a;
+      --accent-soft: #1f2c24;
+      --warn: #d3a45c;
+      --warn-soft: #2b2417;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- chrome ---- */
+  .topbar {
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  .topbar-inner {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: .85rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .4rem 1.4rem;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-size: .82rem;
+    letter-spacing: .04em;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .brand::before { content: "🧹 "; }
+  .topbar nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1rem;
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-left: auto;
+  }
+  .topbar nav a { color: var(--ink-faint); text-decoration: none; }
+  .topbar nav a:hover, .topbar nav a:focus-visible { color: var(--accent); }
+
+  main {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  /* ---- prose ---- */
+  main > * { max-width: 40rem; }
+  main > .table-wide, main > pre, main > table { max-width: none; }
+
+  h1, h2, h3, h4 { font-family: var(--serif); font-weight: 400; text-wrap: balance; line-height: 1.15; }
+  h1 { font-size: clamp(2rem, 5vw, 2.7rem); margin: 0 0 1.2rem; letter-spacing: -.01em; }
+  h2 {
+    font-size: 1.5rem;
+    margin: 3rem 0 .9rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--rule);
+    max-width: none;
+  }
+  h3 { font-size: 1.15rem; margin: 2rem 0 .6rem; }
+  h1 + h2 { margin-top: 2rem; }
+  p, ul, ol { margin: 0 0 1rem; }
+  li { margin-bottom: .3rem; }
+  li::marker { color: var(--ink-faint); }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+  strong { font-weight: 650; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+
+  code {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--accent-soft);
+    padding: .1em .34em;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    padding: .9rem 1rem;
+    overflow-x: auto;
+    margin: 0 0 1.2rem;
+  }
+  pre code { background: none; padding: 0; font-size: .82rem; line-height: 1.6; white-space: pre; }
+
+  blockquote {
+    margin: 0 0 1.2rem;
+    padding: .8rem 1rem;
+    border-left: 2px solid var(--warn);
+    background: var(--warn-soft);
+    border-radius: 0 4px 4px 0;
+    font-size: .93rem;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+  blockquote em { font-style: italic; color: var(--ink-soft); }
+
+  /* Tables can be wide; they scroll inside their own box. */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: .88rem;
+    margin: 0 0 1.2rem;
+    display: block;
+    overflow-x: auto;
+  }
+  th, td {
+    text-align: left;
+    padding: .5rem .9rem .5rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  td code { background: none; padding: 0; color: var(--accent); }
+
+  img { max-width: 100%; }
+  /* Badge row under the title reads as one line of metadata, not content. */
+  p > a > img[src*="shields.io"] { vertical-align: middle; }
+
+  footer {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 1.2rem 1.5rem 3rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: .74rem;
+    color: var(--ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem 1.4rem;
+  }
+  footer a { color: var(--ink-faint); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="{{ site.baseurl }}/">mealie-skill</a>
+    <nav>
+      <a href="{{ site.baseurl }}/">Overview</a>
+      <a href="{{ site.baseurl }}/HOWTO.html">How-to</a>
+      <a href="https://github.com/mgummich/mealie-skill">GitHub</a>
+      <a href="https://mgummich.github.io/mcp-mealie/">mcp-mealie</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+  {{ content }}
+</main>
+
+<footer>
+  <span>MIT</span>
+  <a href="https://github.com/mgummich/mealie-skill">github.com/mgummich/mealie-skill</a>
+  <a href="https://github.com/mgummich/mcp-mealie">mcp-mealie</a>
+</footer>
+
+</body>
+</html>

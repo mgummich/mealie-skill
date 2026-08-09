@@ -58,7 +58,9 @@ comes from `${CONTENT_LANG}`, substituted by `build.set_language` from
 language into a prompt; the placeholder belongs in `skill/` and
 `prompts/common.txt`.
 
-Line length 88, no external dependencies except `requests`.
+Line length 88, no external dependencies except `requests`. `ruff check .`
+enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
+runtime dependency.
 
 New operations need: an entry in `ORDER`, a branch in `cmd_apply`, a row in
 the table in `references/actions.md`, a test in the dry run.

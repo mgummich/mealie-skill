@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Maintain Mealie through the Anthropic API.
+"""Maintain Mealie through the Anthropic API.
 
   optimize.py recipe <slug> [<slug> ...]
   optimize.py recipe --batch [--limit 20]
@@ -20,18 +19,20 @@ Env: MEALIE_URL, MEALIE_TOKEN, ANTHROPIC_API_KEY
      MEALIE_LANG   language of the recipe content (default: English)
      MODEL         model id (default: claude-sonnet-4-6)
 """
+import argparse
+import json
 import os
 import re
-import sys
-import json
-import time
-import argparse
 import subprocess
+import sys
+import time
+
 import requests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 import build
+
 CTX = os.environ.get("MEALIE_CTX", os.path.join(
     HERE, "..", "skill", "scripts", "mealie_ctx.py"))
 AH = {
@@ -143,7 +144,7 @@ def extract_actions(text):
         The dict containing "actions", or None if the answer has no usable
         ACTIONS block.
     """
-    for b in reversed(re.findall(r"```json\s*(.*?)```", text, re.S)):
+    for b in reversed(re.findall(r"```json\s*(.*?)```", text, re.DOTALL)):
         try:
             data = json.loads(b)
         except json.JSONDecodeError:
@@ -189,10 +190,10 @@ def run(mode, task, user_msg, args, slug=None):
     if destructive:
         print(f"\n!! Destructive: {', '.join(destructive)} - recipes will be "
               "rewritten and objects deleted.")
-    if not args.yes:
-        if input(f"\nExecute {len(actions)} actions? [y/N] ").strip().lower() != "y":
-            print("Aborted.")
-            return
+    if not args.yes and input(
+            f"\nExecute {len(actions)} actions? [y/N] ").strip().lower() != "y":
+        print("Aborted.")
+        return
     with open(".actions.json", "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
     print(ctx(*(["apply", ".actions.json"] + (["--slug", slug] if slug else []))))

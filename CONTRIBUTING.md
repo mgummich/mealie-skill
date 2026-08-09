@@ -16,8 +16,9 @@ The only hand-maintained prompt file is `standalone/prompts/common.txt`
 
     python3 test_build.py        # plain asserts, no framework
     python3 build.py             # renders all four targets into dist/
+    ruff check .                 # config in ruff.toml, or: uvx ruff check .
 
-Both have to pass. CI runs the same two commands plus a dry run of the
+All three have to pass. CI runs the same commands plus a dry run of the
 ACTIONS guard.
 
 ## Conventions

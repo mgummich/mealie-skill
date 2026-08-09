@@ -1,0 +1,48 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "*.md"
+      - "_config.yml"
+      - "_layouts/**"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "*.md"
+      - "_config.yml"
+      - "_layouts/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A queued deploy replaces a running one; a half-published site helps nobody.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - uses: actions/jekyll-build-pages@v1
+      - uses: actions/upload-pages-artifact@v5
+
+  deploy:
+    # Pull requests build only — deploying happens once the change is on main.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
