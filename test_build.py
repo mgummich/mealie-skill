@@ -212,4 +212,63 @@ assert after < before * 0.55, (before, after)
 assert mealie_ctx.slim(recipe)                   # without keep_slug: no slug
 assert "slug" not in mealie_ctx.slim(recipe)
 
+# 12. apply: per-action slugs, and a rename carries the new slug forward.
+calls: list = []
+
+
+def fake_mreq(method, path, **kw):
+    """Record one API call and answer a PATCH with a re-derived slug.
+
+    Args:
+        method: HTTP method.
+        path: Path below /api.
+        **kw: Ignored request payload.
+
+    Returns:
+        The recipe as Mealie would return it after the write.
+    """
+    calls.append((method, path))
+    name = (kw.get("json") or {}).get("name")
+    slug = path.rsplit("/", 1)[-1]
+    return {"slug": "red-lentil-curry" if name else slug}
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    plan = os.path.join(tmp, "actions.json")
+    with open(plan, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"actions": [
+            {"op": "patch_recipe",
+             "payload": {"slug": "lentil-curry", "name": "Red lentil curry"}},
+            {"op": "patch_recipe",
+             "payload": {"slug": "pumpkin-soup", "description": "Autumn soup."}},
+            {"op": "patch_recipe", "payload": {"totalTime": "PT30M"}},
+            {"op": "set_image",
+             "payload": {"slug": "lentil-curry", "url": "https://e.example/1.jpg"}},
+        ]}))
+    mealie_ctx.mreq = fake_mreq
+    mealie_ctx.INDEX = os.path.join(tmp, "no-index.json")
+    args = types.SimpleNamespace(file=plan, slug="fallback-recipe", dry_run=False)
+    mealie_ctx.cmd_apply(args)
+
+paths = [p for _, p in calls]
+assert paths[0] == "/recipes/lentil-curry", paths          # slug from the payload
+assert paths[1] == "/recipes/pumpkin-soup", paths          # a second recipe
+assert paths[2] == "/recipes/fallback-recipe", paths       # falls back to --slug
+# the rename is followed: the image lands on the new slug, not on a 404
+assert paths[3] == "/recipes/red-lentil-curry/image", paths
+assert args.slug == "fallback-recipe"                      # never renamed itself
+
+# an action file without any slug aborts instead of writing to nothing
+with tempfile.TemporaryDirectory() as tmp:
+    plan = os.path.join(tmp, "actions.json")
+    with open(plan, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(
+            {"actions": [{"op": "patch_recipe", "payload": {"name": "X"}}]}))
+    try:
+        mealie_ctx.cmd_apply(
+            types.SimpleNamespace(file=plan, slug=None, dry_run=False))
+        raise AssertionError("patch_recipe without a slug did not abort")
+    except SystemExit as e:
+        assert "slug" in str(e), e
+
 print("ok")

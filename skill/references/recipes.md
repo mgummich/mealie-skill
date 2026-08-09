@@ -130,3 +130,24 @@ come with amounts.
 
 One recipe per plan. Batch processing reliably makes ingredients wander
 between recipes.
+
+The rule is about ingredients, not about the number of recipes. Split by
+what is being changed:
+
+- **Ingredients, steps, notes** - one recipe per plan, no exceptions. These
+  are written as whole lists, and holding several recipes' lists at once is
+  exactly how a quantity from one lands in another.
+- **Field-level changes** (`name`, `description`, times, yield, image,
+  tags/categories/tools) - as many recipes in one plan as the user wants.
+  Each recipe is its own `patch_recipe`, values come from that recipe alone,
+  so nothing can wander.
+
+A user who asks for all 80 recipes at once gets one plan listing all 80 with
+their concrete values, one approval, then the run - not 80 questions. What
+does not lapse: the plan is shown before the first write, and a batch that
+includes ingredients is still split by recipe.
+
+For a long run, report per block of ten (`n/80 done`), collect errors and
+show them at the end rather than stopping at the first one - but do stop
+when the same error hits twice in a row, because that is a systematic fault
+and the remaining 60 will hit it too.

@@ -126,9 +126,13 @@ the fallback for step 2, not the starting point.
    the page only for what is genuinely not in the import, and say in the plan
    that you are doing it.
 
-   Empty ingredients **and** empty steps mean the scraper got nothing and
-   the import left a stub behind — that is the one case where the page is the
-   only source. Fill it from the page or tell the user, who removes the stub
+   Empty ingredients **and** empty steps ("could not detect ingredients")
+   mean the scraper got nothing and the import left a stub behind — that is
+   the one case where the page is the only source. Typical cause: the site
+   renders its recipe in the browser and ships no data in the HTML, so
+   nothing is there to find. Retrying does not help, and neither does
+   another scraper; transcribe the page and set the fields with one
+   `update_recipe`. Fill it from the page or tell the user, who removes the stub
    in the UI; see `references/maintenance.md`, section Stubs. Do not import
    the same URL a second time hoping for a better run.
 3. `update_recipe(slug, tags=[...], categories=[...], tools=[...])` files it.
@@ -148,6 +152,39 @@ note.
 Mealie's parser — for a recipe the user pastes or dictates, not for a URL.
 Anything with a URL goes through the scraper. `parse_ingredients` shows how Mealie would read a line
 without writing anything — useful to check a parse before committing it.
+
+## Renaming a recipe changes its slug
+
+Mealie derives the slug from the name. An `update_recipe` carrying `name`
+therefore invalidates the slug you called it with, and every later call on
+the old one gets a 404 — including `set_recipe_image` and a second
+`update_recipe` for the remaining fields.
+
+Consequences for the plan:
+
+- Set **all** fields in one `update_recipe` call, rename included. Two calls
+  where the first renames is the failure case.
+- Take the new slug from the response of that call, do not derive it from
+  the name yourself; Mealie's slugification is its own.
+- Set the image after the rename with the new slug, or before it with the
+  old one — not with a slug noted earlier in the session.
+
+## When a write half-landed
+
+A 404 or a 500 in the middle of a sequence leaves the recipe partly updated:
+new name, old ingredients, missing image. Recover in this order:
+
+1. Find it again. After a rename `get_recipe(<new slug>)`, otherwise
+   `search_recipes(query=<name>)` — the recipe is still there, only under a
+   different address.
+2. Read what actually landed and say so, field by field. What the call
+   intended is not evidence.
+3. Set the rest with **one** `update_recipe` on the current slug.
+
+Do not re-import the URL to repair a recipe. That creates a second recipe
+next to the damaged one, and this workflow deletes neither — one broken
+state becomes a duplicate pair plus a broken state. Re-importing is only
+right after the user has removed the damaged recipe in the UI.
 
 ## Differences worth knowing
 

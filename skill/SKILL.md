@@ -56,6 +56,15 @@ Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`. If they are unset, the
 script reads them from `.mealie.env` and then from `.env` in the working
 directory. Any command that finds neither aborts with a hint to `setup`.
 
+The script needs network access to the instance. In a sandboxed environment
+the call fails with a connection error even though URL and token are
+correct - that is a permission of the environment, not a bug in the
+configuration. Say so and let the user allow the call. Never work around it
+with a hand-written HTTP script: `mealie_ctx.py` is the only path to the
+API, and a second one has neither the order guard nor the dry run. Where
+the MCP server is connected, its calls run through the server and are not
+affected.
+
 `setup --check` only probes the configuration and is safe to run yourself -
 use it once at the start of a session when the connection is unclear. Plain
 `setup` prompts for URL and token and must be run by the user, not by you:
