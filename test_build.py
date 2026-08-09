@@ -30,7 +30,7 @@ def load_ctx():
         The imported module; its HTTP calls are never exercised here.
     """
     stub = types.ModuleType("requests")
-    stub.HTTPError = FakeHTTPError
+    stub.HTTPError = FakeHTTPError    # type: ignore[attr-defined]
     sys.modules.setdefault("requests", stub)
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "skill", "scripts"))
