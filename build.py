@@ -25,7 +25,7 @@ TARGETS = ("claude-code", "antigravity", "cursor", "agents-md")
 
 RE_AGENT = re.compile(r"^\s*<!-- agent-only -->\s*$")
 RE_STANDALONE = re.compile(r"^\s*<!-- standalone: (.*?) -->\s*$")
-TOOL_WORDS = ("index", "audit", "ctx", "usage", "apply", "python")
+TOOL_WORDS = ("setup", "index", "audit", "ctx", "usage", "apply", "python")
 
 # Placeholder for the content language in SKILL.md, references and prompts.
 # The project language is English; this is the language of the recipe data.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Mealie tool: fetch context, run checks, execute ACTIONS.
 
+  setup [--check]                      check the connection, store credentials
   index [--refresh]                    build/refresh the local recipe index
   ctx recipe <slug> [--search T ...]   recipe + matching foods + organizers
   ctx <what> [--limit N] [--group G]   fetch a work package
@@ -13,9 +14,11 @@
 The index (.mealie_index.json) is used by every audit command and lives in
 the current directory. After changes to the instance: --refresh.
 
-Env: MEALIE_URL, MEALIE_TOKEN
+Env: MEALIE_URL, MEALIE_TOKEN — or a .mealie.env (written by "setup") or
+.env in the current directory.
 """
 import argparse
+import getpass
 import json
 import os
 import re
@@ -24,9 +27,11 @@ import time
 
 import requests
 
-MEALIE = os.environ["MEALIE_URL"].rstrip("/")
-MH = {"Authorization": f"Bearer {os.environ['MEALIE_TOKEN']}"}
 INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
+ENV_FILE = os.environ.get("MEALIE_ENV", ".mealie.env")
+ENV_FALLBACK = ".env"           # read as well, never written by setup
+ENV_KEYS = ("MEALIE_URL", "MEALIE_TOKEN")
+_CONN = None
 
 # Check these endpoints against your own instance once and adjust them here.
 EP = {
@@ -88,6 +93,85 @@ def norm(name):
     return s
 
 
+def parse_env(text):
+    """Read KEY=VALUE lines from an env file.
+
+    Comments, blank lines, a leading "export " and quotes around the value
+    are tolerated; unknown keys are ignored.
+
+    Args:
+        text: Content of the env file.
+
+    Returns:
+        A dict with the recognized keys from ENV_KEYS.
+    """
+    out = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        if key.startswith("export "):
+            key = key[len("export "):].strip()
+        if key in ENV_KEYS:
+            out[key] = val.strip().strip("'\"")
+    return out
+
+
+def read_cfg():
+    """Collect URL and token from the environment and the env files.
+
+    The environment wins, then ENV_FILE, then ENV_FALLBACK (a plain .env, as
+    written by other tools) - all relative to the current directory. Nothing
+    is validated here.
+
+    Returns:
+        A dict with the keys from ENV_KEYS that have a value.
+
+    Raises:
+        SystemExit: If an env file exists but cannot be read.
+    """
+    cfg = {k: os.environ[k] for k in ENV_KEYS if os.environ.get(k)}
+    for path in dict.fromkeys((ENV_FILE, ENV_FALLBACK)):
+        if len(cfg) == len(ENV_KEYS):
+            break
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                file_cfg = parse_env(fh.read())
+        except OSError as e:
+            sys.exit(f"{path} unreadable: {e}")
+        cfg = {**file_cfg, **cfg}
+    return cfg
+
+
+def conn():
+    """Resolve the Mealie base URL and the auth header, cached per process.
+
+    Returns:
+        A (base_url, headers) tuple.
+
+    Raises:
+        SystemExit: If URL or token are configured nowhere.
+    """
+    global _CONN
+    if _CONN:
+        return _CONN
+    cfg = read_cfg()
+    missing = [k for k in ENV_KEYS if not cfg.get(k)]
+    if missing:
+        sys.exit(f"{', '.join(missing)} not set – neither in the environment "
+                 f"nor in {ENV_FILE} or {ENV_FALLBACK}. Run:\n"
+                 f"  python3 {os.path.basename(__file__)} setup\n"
+                 "or export the variables by hand (token: Mealie -> Profile "
+                 "-> API Tokens).")
+    _CONN = (cfg["MEALIE_URL"].rstrip("/"),
+             {"Authorization": f"Bearer {cfg['MEALIE_TOKEN']}"})
+    return _CONN
+
+
 def mreq(method, path, **kw):
     """Send one authenticated request to the Mealie API.
 
@@ -102,7 +186,9 @@ def mreq(method, path, **kw):
     Raises:
         requests.HTTPError: If the response status is 4xx or 5xx.
     """
-    r = requests.request(method, f"{MEALIE}/api{path}", headers=MH, timeout=45, **kw)
+    base, headers = conn()
+    r = requests.request(method, f"{base}/api{path}", headers=headers,
+                         timeout=45, **kw)
     r.raise_for_status()
     return r.json() if r.text.strip() else {}
 
@@ -211,7 +297,7 @@ def counts(idx, field):
         Mapping of object id to number of recipes using it. Ids that appear
         in no recipe are absent, not zero.
     """
-    c = {}
+    c: dict = {}
     for r in idx["recipes"]:
         for i in r[field]:
             c[i] = c.get(i, 0) + 1
@@ -235,7 +321,7 @@ def dupe_groups(items, extra_keys=None):
         List of (key, members) tuples with two or more members each. Groups
         with an identical member set appear once.
     """
-    by = {}
+    by: dict = {}
     for f in items:
         keys = {norm(f.get("name"))}
         if f.get("pluralName"):
@@ -336,7 +422,7 @@ def cmd_audit(a):
         used = counts(idx, what)
         print(f"{len(items)} {what} in total, {len(used)} of them in use")
         if what == "foods":
-            g = {}
+            g: dict = {}
             for f in items:
                 for x in gaps(f, what):
                     g[x] = g.get(x, 0) + 1
@@ -377,7 +463,7 @@ def cmd_audit(a):
             for i in sorted(items, key=lambda x: -used.get(x["id"], 0))[:10]))
 
     elif what == "recipes":
-        by = {}
+        by: dict = {}
         for r in R:
             by.setdefault(norm(r["name"]), []).append(r)
         name_dupes = [v for v in by.values() if len(v) > 1]
@@ -408,7 +494,7 @@ def cmd_audit(a):
         if not a.check_urls:
             print("\n(pass --check-urls to check source URLs for reachability)")
             return
-        dead = []
+        dead: list = []
         for r in R:
             if not r["orgURL"]:
                 continue
@@ -693,6 +779,110 @@ def cmd_apply(a):
         print("(index discarded – rebuilt on the next audit)")
 
 
+def probe(url, token):
+    """Try one authenticated call against an instance.
+
+    Args:
+        url: Base URL of the Mealie instance, without a trailing slash.
+        token: API token from Mealie -> Profile -> API Tokens.
+
+    Returns:
+        A (ok, message) tuple; the message names the cause on failure.
+    """
+    try:
+        r = requests.get(f"{url}/api/users/self", timeout=15,
+                         headers={"Authorization": f"Bearer {token}"})
+    except requests.RequestException as e:
+        return False, f"no connection to {url} ({e.__class__.__name__})"
+    if r.status_code in (401, 403):
+        return False, (f"token rejected (HTTP {r.status_code}) – expired, or "
+                       "from another instance")
+    if r.status_code == 404:
+        return False, f"{url} answers but has no Mealie API – wrong URL?"
+    if not r.ok:
+        return False, f"HTTP {r.status_code} from {url}"
+    try:
+        who = (r.json() or {}).get("username") or "?"
+    except ValueError:
+        return False, f"{url} answers, but not with JSON – wrong URL?"
+    return True, f"{url} reachable, authenticated as {who}"
+
+
+def write_env_file(url, token):
+    """Write URL and token to ENV_FILE with owner-only permissions.
+
+    Args:
+        url: Base URL of the Mealie instance.
+        token: API token, stored in clear text.
+    """
+    fd = os.open(ENV_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(f"MEALIE_URL={url}\nMEALIE_TOKEN={token}\n")
+    os.chmod(ENV_FILE, 0o600)
+
+
+def cmd_setup(a):
+    """Check the connection and optionally store the credentials.
+
+    With --check the existing configuration is only probed. Otherwise URL
+    and token are asked for, probed, and on request written to ENV_FILE.
+
+    Args:
+        a: Parsed arguments with the "check" flag.
+
+    Raises:
+        SystemExit: If the probe fails, or nothing is configured under
+            --check.
+    """
+    cfg = read_cfg()
+    url, token = cfg.get("MEALIE_URL", "").rstrip("/"), cfg.get("MEALIE_TOKEN", "")
+    entered = False
+
+    if not a.check:
+        shown = url or "https://mealie.example.org"
+        url = (input(f"Mealie URL [{shown}]: ").strip() or url).rstrip("/")
+        hint = "keep stored token" if token else "Mealie -> Profile -> API Tokens"
+        new_token = getpass.getpass(f"API token ({hint}, not echoed): ").strip()
+        entered = bool(new_token) or url != cfg.get("MEALIE_URL", "").rstrip("/")
+        token = new_token or token
+
+    if not (url and token):
+        sys.exit("nothing configured yet. Run without --check to enter "
+                 "URL and token.")
+
+    ok, msg = probe(url, token)
+    print(("ok – " if ok else "failed – ") + msg)
+    if not ok:
+        sys.exit(1)
+    if a.check or not entered:
+        return
+
+    where = " (overwrites the existing file)" if os.path.exists(ENV_FILE) else ""
+    print(f"\nThe token can be stored in {ENV_FILE}{where}. It is written in "
+          "clear text; the file gets mode 600 and belongs in .gitignore.")
+    if input("Store? [y/N]: ").strip().lower() not in ("y", "yes"):
+        print("Not stored. Export by hand:\n"
+              f"  export MEALIE_URL={url}\n  export MEALIE_TOKEN=<token>")
+        return
+    write_env_file(url, token)
+    print(f"written: {ENV_FILE} (mode 600)")
+    if ENV_FILE not in _read_gitignore():
+        print(f"still missing in .gitignore: add a line {ENV_FILE}")
+
+
+def _read_gitignore():
+    """Read .gitignore from the current directory.
+
+    Returns:
+        The content, or an empty string if there is none.
+    """
+    try:
+        with open(".gitignore", encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
 def main():
     """Parse the command line and dispatch to the cmd_* function.
 
@@ -702,6 +892,11 @@ def main():
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("setup", help="check the connection, store credentials")
+    s.add_argument("--check", action="store_true",
+                   help="only probe the existing configuration, ask nothing")
+    s.set_defaults(func=cmd_setup)
 
     i = sub.add_parser("index", help="build the recipe index")
     i.add_argument("--refresh", action="store_true")

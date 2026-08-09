@@ -69,10 +69,27 @@ runs without a model.
 
 ## Setup
 
+Either export the two variables:
+
 ```bash
 export MEALIE_URL=https://mealie.example.org
 export MEALIE_TOKEN=<Profile -> API Tokens>
 ```
+
+Or let the script ask, probe the instance and store the answers:
+
+```bash
+python3 skill/scripts/mealie_ctx.py setup          # prompts, then offers
+                                                   # to write .mealie.env
+python3 skill/scripts/mealie_ctx.py setup --check  # probe only, asks nothing
+```
+
+`.mealie.env` lives in the working directory, holds the token in clear text,
+gets mode 600 and is in `.gitignore`. A plain `.env` in the same directory is
+read as well (never written), so an existing one works without any copying.
+
+Precedence: environment → `.mealie.env` → `.env`, per variable. Another path
+for the first file: `MEALIE_ENV=/path/to/env`.
 
 Take a backup before the first run: Mealie → Site Settings → Backups.
 

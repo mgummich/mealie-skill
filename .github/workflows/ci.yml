@@ -21,6 +21,12 @@ jobs:
       - name: Lint
         uses: astral-sh/ruff-action@v3
 
+      - name: Types
+        if: matrix.python-version == '3.12'   # current mypy needs 3.10+
+        run: |
+          pip install mypy types-requests
+          mypy
+
       - name: Unit tests
         run: python3 test_build.py
 
@@ -37,6 +43,12 @@ jobs:
           MEALIE_URL: http://localhost
           MEALIE_TOKEN: dummy
         run: python3 skill/scripts/mealie_ctx.py --help
+
+      - name: setup --check fails cleanly without a configuration
+        run: |
+          out=$(python3 skill/scripts/mealie_ctx.py setup --check 2>&1) && {
+            echo "setup --check did not abort"; exit 1; }
+          echo "$out" | grep -q "nothing configured" || { echo "$out"; exit 1; }
 
       - name: ACTIONS order guard rejects a bad plan
         env:
