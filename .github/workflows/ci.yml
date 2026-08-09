@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install requests
+
+      - name: Unit tests
+        run: python3 test_build.py
+
+      - name: Render all targets
+        run: |
+          python3 build.py
+          ! grep -rq 'CONTENT_LANG' dist/
+
+      - name: Render with a different content language
+        run: python3 build.py --lang Deutsch --target claude-code
+
+      - name: CLI help
+        env:
+          MEALIE_URL: http://localhost
+          MEALIE_TOKEN: dummy
+        run: python3 skill/scripts/mealie_ctx.py --help
+
+      - name: ACTIONS order guard rejects a bad plan
+        env:
+          MEALIE_URL: http://localhost
+          MEALIE_TOKEN: dummy
+        run: |
+          # patch_recipe before create_food violates ORDER
+          echo '{"actions":[{"op":"patch_recipe","payload":{"name":"x"}},
+                            {"op":"create_food","payload":{"name":"y"}}]}' > bad.json
+          if python3 skill/scripts/mealie_ctx.py apply bad.json --dry-run; then
+            echo "order guard did not abort"; exit 1
+          fi
+
+      - name: Dry run applies a valid plan without writing
+        env:
+          MEALIE_URL: http://localhost
+          MEALIE_TOKEN: dummy
+        run: |
+          echo '{"actions":[{"op":"create_label","id_as":"l",
+                             "payload":{"name":"Spices","color":"#8B5E3C"}},
+                            {"op":"create_food",
+                             "payload":{"name":"Cumin","labelId":"$ref:l"}}]}' > ok.json
+          python3 skill/scripts/mealie_ctx.py apply ok.json --dry-run

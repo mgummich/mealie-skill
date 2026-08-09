@@ -1,84 +1,85 @@
-# Wartung
+# Maintenance
 
-Drei Prüfungen, die sich gut in einem Durchgang machen lassen, aber je einen
-eigenen Plan bekommen.
+Three checks that fit well into one session, but each gets its own plan.
 
-## Doppelte Rezepte
+## Duplicate recipes
 
     audit recipes
 
-Zwei Verdachtsquellen:
+Two sources of suspicion:
 
-- **Namensdubletten** - gleiche Normalform ("Linsencurry" / "Linsen Curry").
-  Meist echte Doppelimporte.
-- **Zutatenähnlichkeit** - Jaccard-Wert über den Food-IDs ab 0.6. Findet
-  Doppelimporte mit abweichendem Titel, aber auch legitime Varianten.
+- **Name duplicates** - same normal form ("Lentil curry" / "Lentil Curry").
+  Usually genuine double imports.
+- **Ingredient similarity** - Jaccard score over the food ids from 0.6 up.
+  Finds double imports with a different title, but also legitimate variants.
 
-Ein hoher Wert ist kein Beweis. Vergleiche vor jedem Vorschlag die Rezepte
-selbst mit `ctx recipe <slug>` und schau auf: Schrittzahl, Portionen,
-Quell-URL, Bild, Vollständigkeit.
+A high score is not proof. Before proposing anything, compare the recipes
+themselves with `ctx recipe <slug>` and look at: number of steps, servings,
+source URL, image, completeness.
 
-Empfehlung im Plan:
+Recommendation in the plan:
 
-    Paar: linsencurry <-> linsen-curry (0.67)
-      BEHALTEN  linsencurry – 8 Schritte, Bild, Quelle, Notizen
-      LÖSCHEN   linsen-curry – 3 Schritte, kein Bild, gleiche Quelle
-      ODER      beide behalten: unterschiedliche Schärfe, Variante
+    Pair: lentil-curry <-> lentilcurry (0.67)
+      KEEP    lentil-curry – 8 steps, image, source, notes
+      DELETE  lentilcurry – 3 steps, no image, same source
+      OR      keep both: different heat level, a variant
 
-Das Skript löscht keine Rezepte - dafür gibt es bewusst keine Operation.
-Lege dem Nutzer die Paare vor und lass ihn in der Oberfläche löschen. Was
-sich automatisieren lässt: das schwächere Rezept per `patch_recipe` als
-Variante kennzeichnen oder Inhalte ins bessere übernehmen.
+The script does not delete recipes - there is deliberately no operation for
+it. Present the pairs to the user and let them delete in the UI. What can be
+automated: mark the weaker recipe as a variant with `patch_recipe`, or move
+content into the better one.
 
-Legitime Varianten nicht als Dublette behandeln: gleiche Basis mit
-abweichender Zubereitung (Ofen/Pfanne), Portionsgrößen, vegane Fassung.
+Do not treat legitimate variants as duplicates: same base with a different
+preparation (oven/pan), serving sizes, a vegan version.
 
-## Tote Bilder und Quell-URLs
+## Dead images and source URLs
 
-    audit links                 # Rezepte ohne Bild, ohne Quelle
-    audit links --check-urls    # Quell-URLs auf Erreichbarkeit prüfen
+<!-- agent-only -->
+    audit links                 # recipes without image, without source
+    audit links --check-urls    # check source URLs for reachability
+<!-- standalone:     audit links --check-urls    # check source URLs for reachability -->
 
-`--check-urls` schickt einen HEAD-Request pro Rezept - bei großem Bestand
-dauert das und erzeugt Last auf fremden Servern. Einmalig laufen lassen, das
-Ergebnis notieren, nicht routinemäßig wiederholen.
+`--check-urls` sends one HEAD request per recipe - with a large instance
+that takes a while and puts load on other people's servers. Run it once,
+note the result, do not repeat it routinely.
 
-Bei toter Quell-URL:
+For a dead source URL:
 
-1. Prüfen, ob die Seite umgezogen ist (Domain plus Rezeptname suchen).
-   Gefunden: `patch_recipe` mit neuer `orgURL`.
-2. Sonst nach einer Archivfassung suchen und diese eintragen.
-3. Nichts gefunden: `orgURL` leeren und im Report vermerken. Das Rezept
-   selbst bleibt - der Inhalt ist ja da.
+1. Check whether the page moved (search for the domain plus the recipe
+   name). Found: `patch_recipe` with the new `orgURL`.
+2. Otherwise look for an archived version and use that.
+3. Nothing found: clear `orgURL` and note it in the report. The recipe
+   itself stays - the content is there.
 
-Rezepte ohne Bild lassen sich im Rezeptmodus mitversorgen; siehe
-`references/recipes.md`, Abschnitt Bild.
+Recipes without an image can be handled in recipe mode; see
+`references/recipes.md`, section Image.
 
-## Diät-Tags aus Zutaten ableiten
+## Deriving diet tags from ingredients
 
     ctx diet --limit 25
 
-Liefert je Rezept die Zutatenliste und die bereits vergebenen Tags.
+Returns the ingredient list and the already assigned tags per recipe.
 
-Ableitbar sind nur **Ausschlusskriterien**, und auch die nur, wenn die
-Zutaten vollständig geparst sind. Ungeparste Zutaten bedeuten: nicht
-beurteilbar, überspringen und im Report ausweisen.
+Only **exclusion criteria** can be derived, and only when the ingredients
+are fully parsed. Unparsed ingredients mean: cannot be judged, skip and show
+it in the report.
 
-- **vegetarisch** - kein Fleisch, kein Fisch, keine Meeresfrüchte
-- **vegan** - zusätzlich keine Milchprodukte, Eier, kein Honig
-- **glutenfrei** - kein Weizen, Dinkel, Roggen, Gerste, Hafer (außer
-  glutenfrei deklariert), kein Bier, Sojasauce, Couscous, Bulgur, Seitan
-- **laktosefrei** - keine Milch, Sahne, Butter, Frischkäse; Hartkäse und
-  Butterschmalz sind grenzwertig, nicht automatisch vergeben
+- **vegetarian** - no meat, no fish, no seafood
+- **vegan** - additionally no dairy, eggs or honey
+- **gluten-free** - no wheat, spelt, rye, barley, oats (unless declared
+  gluten-free), no beer, soy sauce, couscous, bulgur, seitan
+- **lactose-free** - no milk, cream, butter, cream cheese; hard cheese and
+  ghee are borderline, do not assign automatically
 
-Stolpersteine, die zu falschen Tags führen: Fischsauce und Anchovis in
-asiatischen Pasten, Worcestershiresauce, Gelatine in Desserts, Schmalz in
-Gebäck, Parmesan mit tierischem Lab bei "vegetarisch", Sojasauce bei
-"glutenfrei", Brühe unbekannter Art.
+Pitfalls that lead to wrong tags: fish sauce and anchovies in Asian pastes,
+Worcestershire sauce, gelatine in desserts, lard in pastry, parmesan with
+animal rennet for "vegetarian", soy sauce for "gluten-free", stock of
+unknown kind.
 
-Im Zweifel **nicht taggen**. Ein fehlendes Tag ist ein kleines Ärgernis,
-ein falsches "glutenfrei" ein gesundheitliches Risiko. Führe unsichere Fälle
-unter RÜCKFRAGEN auf, mit der Zutat, die den Ausschlag gibt.
+When in doubt, **do not tag**. A missing tag is a minor annoyance, a wrong
+"gluten-free" is a health risk. List uncertain cases under QUESTIONS, naming
+the ingredient that decides it.
 
-Plan als Tabelle `Rezept | vorhandene Tags | neu | Begründung`.
-Die Begründung nennt die entscheidende Zutat, nicht die ganze Liste.
-Ausführung über `retag_recipe` mit `add`.
+Plan as a table `recipe | existing tags | new | reason`. The reason names
+the deciding ingredient, not the whole list. Execution via `retag_recipe`
+with `add`.
