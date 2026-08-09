@@ -31,9 +31,10 @@ The most common starting state is a mixed taxonomy. Check for it and say so:
 - **Tags** are everything else and freely combinable: cuisine (italian),
   diet (vegetarian, gluten-free), method (oven, one-pot, grill), occasion
   (meal-prep, quick, guests), season (summer).
-- **Tools** are special equipment only: blender, 26 cm springform pan,
-  thermometer, mortar, ice cream maker. No pots, pans, knives, bowls,
-  boards.
+- **Tools** are special equipment only: blender, food processor, mandoline,
+  Dutch oven, 26 cm springform pan, thermometer, mortar, ice cream maker. No
+  pots, pans, knives, bowls, boards, tea towels - everyday kitchen equipment
+  says nothing about a recipe and belongs in no tool list.
 
 If something sits in the wrong bucket ("vegetarian" as a category), the
 clean route is: create or reuse a tag, retag the recipes in both fields with
