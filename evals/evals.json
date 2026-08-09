@@ -1,0 +1,43 @@
+{
+  "skill_name": "mealie",
+  "setup": "Behaviour evals run without a Mealie instance. Point the script at an artificial index: MEALIE_INDEX=<fixture>/.mealie_index.json, and expect every write to be refused at the HTTP layer — what is graded is the plan, the gate and the payload, not the write.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "My mealie has a bunch of duplicate foods - tomato, Tomato, tomatoes are three separate entries. Merge them, keep the one that's actually used.",
+      "expected_output": "Analysis from `audit foods`, then a plan naming KEEP/MERGE per group with recipe counts and an explicit note that a merge rewrites recipes and cannot be undone. Stops for approval. Writes nothing.",
+      "files": [],
+      "assertions": [
+        "Runs the script via its skill-directory path, not a hand-written HTTP call",
+        "Presents a plan and stops for approval before any `apply` without --dry-run",
+        "Marks the merge as destructive and gives the number of affected recipes",
+        "Plans to add the merged names as aliases on the surviving food",
+        "At most 5 duplicate groups in the run"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Clean up the recipe red-lentil-curry - the ingredients are unparsed and it has no description or times.",
+      "expected_output": "One `ctx recipe` call, an A-H plan, an actions.json checked with --dry-run, then a stop for approval.",
+      "files": [],
+      "assertions": [
+        "Fetches the recipe exactly once (no repeated ctx recipe for the same slug)",
+        "Runs `apply actions.json --dry-run` before asking for approval",
+        "description, steps and notes in actions.json are full prose, not compressed chat style",
+        "Ingredients are matched against the FOODS block before anything new is created",
+        "Nothing is invented: no ingredient or step appears that the recipe did not have"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Go through everything and fix whatever's broken - duplicate recipes, dead links, missing tags, the works.",
+      "expected_output": "Refuses to mix task kinds in one plan: proposes an order of separate runs and asks which to start with.",
+      "files": [],
+      "assertions": [
+        "Does not produce one plan mixing several task kinds",
+        "Asks which sub-task to start with, or proposes an explicit order",
+        "Does not propose deleting recipes; duplicates are presented for the user to delete in the UI"
+      ]
+    }
+  ]
+}

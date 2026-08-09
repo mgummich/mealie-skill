@@ -1,0 +1,23 @@
+[
+  {"query": "my mealie instance has like 40 foods that are just duplicates of each other (tomato, Tomato, tomatoes...) can you clean that up", "should_trigger": true},
+  {"query": "https://www.seriouseats.com/miso-butter-roasted-potatoes - add this one to my recipe collection please, and file it under sides", "should_trigger": true},
+  {"query": "i've got ~80 recipes and half of them have no prep time and no description. what would it take to fill those in from what's already in the steps?", "should_trigger": true},
+  {"query": "the recipe at localhost:9925 for red lentil curry has the ingredients as one big text blob, none of them are parsed against the food list. fix that one recipe", "should_trigger": true},
+  {"query": "plan dinners for next week, nothing we already ate last week, and we have a lot of chickpeas to use up", "should_trigger": true},
+  {"query": "can you make me a cookbook for weeknight stuff? under 30 min, one pot ideally", "should_trigger": true},
+  {"query": "half my tags are also categories (vegetarian is both) and some are capitalized differently. sort out the taxonomy", "should_trigger": true},
+  {"query": "which of my recipes link to source URLs that are 404 now", "should_trigger": true},
+  {"query": "go through the recipes and tag the ones that are actually vegan. don't guess on the borderline ones", "should_trigger": true},
+  {"query": "MEALIE_URL is set in my .env but the script says it can't find a token, what am I missing", "should_trigger": true},
+
+  {"query": "convert this recipe I pasted from a US blog to metric - 2 cups flour, 1 stick butter, 350F", "should_trigger": false},
+  {"query": "write me a lentil curry recipe for 4 people, nothing fancy, I'll cook it tonight", "should_trigger": false},
+  {"query": "I'm building a recipe app in Next.js, design the postgres schema for recipes, ingredients and tags", "should_trigger": false},
+  {"query": "scrape allrecipes.com/recipe/12345 and give me the ingredient list as JSON in the terminal", "should_trigger": false},
+  {"query": "our docker-compose has mealie, paperless and jellyfin behind traefik. mealie's container keeps restarting, here's the log", "should_trigger": false},
+  {"query": "dedupe this CSV of grocery items - column A has product names with inconsistent casing and plurals", "should_trigger": false},
+  {"query": "what's a good substitute for buttermilk, I only have milk and lemon", "should_trigger": false},
+  {"query": "add a tags column to the recipes table in my sqlite db and backfill it from the notes field", "should_trigger": false},
+  {"query": "upgrade mealie from v1.2 to v2.0 in my compose file, do I need to migrate the database first?", "should_trigger": false},
+  {"query": "make me a meal plan pdf for the week, just a table I can print and stick on the fridge", "should_trigger": false}
+]
