@@ -1,6 +1,7 @@
 # Working with the mcp-mealie server
 
-Only relevant when the `mcp-mealie` MCP server is connected. Without it,
+Only relevant when the [`mcp-mealie`](https://github.com/mgummich/mcp-mealie)
+MCP server is connected. Without it,
 ignore this file — `mealie_ctx.py` covers everything the modes need.
 
 When it is connected it is the primary path. It talks to the same instance
