@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for build.py — plain asserts, run with: python3 test_build.py."""
+import json
 import os
 import sys
 import tempfile
@@ -139,5 +140,76 @@ with tempfile.TemporaryDirectory() as tmp:
         raise AssertionError("conn() did not abort without credentials")
     except SystemExit as e:
         assert "setup" in str(e), e
+
+# 11. slim(): the noise goes, everything a write needs survives.
+recipe: dict = {
+    "id": "r1", "userId": "u1", "groupId": "g1", "householdId": "h1",
+    "name": "Lentil curry", "slug": "lentil-curry",
+    "description": "Quick weeknight curry.",
+    "dateAdded": "2024-01-01", "dateUpdated": "2024-02-02",
+    "createdAt": "2024-01-01T10:00:00", "updatedAt": "2024-02-02T10:00:00",
+    "lastMade": None, "rating": None, "orgURL": "https://example.org/curry",
+    "image": "abc", "totalTime": "PT30M", "prepTime": None,
+    "recipeServings": 4, "recipeYield": "4 servings",
+    "recipeCategory": [{"id": "c1", "name": "Main course", "slug": "main-course",
+                        "groupId": "g1"}],
+    "tags": [{"id": "t1", "name": "quick", "slug": "quick", "groupId": "g1"}],
+    "tools": [],
+    "recipeIngredient": [{
+        "quantity": 200, "note": "rinsed", "isFood": True,
+        "disableAmount": False, "display": "200 g red lentils, rinsed",
+        "title": None, "originalText": "200 g red lentils",
+        "referenceId": "ref-1",
+        "unit": {"id": "u-g", "name": "gram", "pluralName": "grams",
+                 "abbreviation": "g", "useAbbreviation": True,
+                 "fraction": True, "aliases": [], "createdAt": "2023-01-01",
+                 "updatedAt": "2023-01-01"},
+        "food": {"id": "f-1", "name": "red lentils", "pluralName": None,
+                 "description": "", "labelId": "l1",
+                 "label": {"id": "l1", "name": "Pantry"}, "aliases": [],
+                 "householdsWithIngredientFood": [], "onHand": False,
+                 "createdAt": "2023-01-01", "updatedAt": "2023-01-01"},
+    }],
+    "recipeInstructions": [{"id": "s1", "title": "", "summary": "",
+                            "text": "Simmer the lentils.",
+                            "ingredientReferences": [{"referenceId": "ref-1"}]}],
+    "notes": [{"title": "Tip", "text": "Better the next day."}],
+    "nutrition": {"calories": "420", "fatContent": None},
+    "settings": {"public": True, "showNutrition": False},
+    "assets": [], "comments": [], "extras": {}, "isOcrRecipe": False,
+}
+lean = mealie_ctx.slim(recipe, keep_slug=True)
+
+for gone in ("userId", "groupId", "householdId", "dateAdded", "dateUpdated",
+             "createdAt", "updatedAt", "settings", "comments", "extras",
+             "isOcrRecipe", "lastMade", "rating", "prepTime", "assets",
+             "tools"):
+    assert gone not in lean, gone
+for kept in ("id", "name", "slug", "description", "orgURL", "image",
+             "totalTime", "recipeServings", "recipeYield", "recipeCategory",
+             "tags", "recipeIngredient", "recipeInstructions", "notes",
+             "nutrition"):
+    assert kept in lean, kept
+
+ing = lean["recipeIngredient"][0]
+assert ing["referenceId"] == "ref-1"            # instructions link to it
+assert ing["originalText"] == "200 g red lentils"
+assert "display" not in ing                     # rendered duplicate
+assert ing["food"] == {"id": "f-1", "name": "red lentils"}, ing["food"]
+assert ing["unit"] == {"id": "u-g", "name": "gram", "pluralName": "grams",
+                       "abbreviation": "g"}, ing["unit"]
+step = lean["recipeInstructions"][0]
+assert step["text"] == "Simmer the lentils." and step["id"] == "s1"
+assert "summary" not in step
+assert step["ingredientReferences"] == [{"referenceId": "ref-1"}]
+assert lean["nutrition"] == {"calories": "420"}   # null entries dropped
+assert lean["recipeCategory"] == [{"id": "c1", "name": "Main course"}]
+
+# the point of the exercise
+before = len(json.dumps(recipe, ensure_ascii=False, indent=1))
+after = len(json.dumps(lean, ensure_ascii=False, indent=1))
+assert after < before * 0.55, (before, after)
+assert mealie_ctx.slim(recipe)                   # without keep_slug: no slug
+assert "slug" not in mealie_ctx.slim(recipe)
 
 print("ok")

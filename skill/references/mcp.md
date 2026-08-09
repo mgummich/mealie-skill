@@ -20,6 +20,7 @@ write.
 | What exists, and how often is it used? | `library_stats(resource)` — `tags`, `categories`, `tools`, `foods`, `units`; every entry with its `recipe_count`, unused ones included, highest first |
 | Is this food safe to delete? | `library_stats("foods")` — `recipe_count: 0` |
 | Same recipe imported twice? | `find_duplicate_recipes()` — groups by name, punctuation and case ignored |
+| Is this dish already in the library? | `search_recipes(query="lentil curry")` — free-text over the recipe list, before an import |
 | Which source links are dead? | `check_recipe_links()` — `broken_sources`, plus `unverified_sources` for hosts that refuse the probe, plus recipes with no image |
 | What does one recipe look like? | `get_recipe(slug, fields=[...])` |
 | Survey a field across the library | `search_recipes(fields=["slug", "tags", "rating"], limit=100)` |
@@ -91,10 +92,45 @@ Only the MCP has meal plan operations; the script deliberately has none.
 
 Also MCP only.
 
-1. `import_recipe_from_url(url)` — Mealie scrapes it and returns the recipe.
-2. Read what the scraper produced. Sites vary; ingredients and times are
-   often incomplete. Everything in `references/recipes.md` about fields,
-   ingredients and steps applies to the result.
+**Let Mealie scrape first, then repair.** Never read the page yourself to
+build the recipe — the scraper is one server-side call and gets title,
+ingredients, steps, times and photo off any site with usable markup, while
+a recipe page costs thousands of tokens of navigation, comments and ads to
+pull through the model. Import, look at the result, and spend the tokens
+only on what is actually missing.
+
+That makes it a patch job, not an authoring job: keep the scraper's values
+where they are right, and touch a field only to fix it. Fetching the page is
+the fallback for step 2, not the starting point.
+
+0. Is it already there? `search_recipes(query="lentil curry")` on the dish
+   name, spelling variants included. A second import of the same page is the
+   most common source of duplicate recipes, and the script cannot delete the
+   loser afterwards.
+1. `import_recipe_from_url(url, include_tags=False, include_categories=False)`
+   — Mealie scrapes it and returns the recipe. Both flags default to `True`
+   and let the site's own tags into the taxonomy: "dinner-party-favourites",
+   a cuisine as a category, the blog's tag cloud. That is exactly the mixed
+   taxonomy `references/organizers.md` then has to clean up. Import bare and
+   file it deliberately in step 3.
+2. Read what the scraper produced and list what is wrong with it. Sites
+   vary: usually the ingredients and steps are there and the times, yield,
+   description or an unparsed ingredient line are not. Everything in
+   `references/recipes.md` about fields, ingredients and steps applies to the
+   result — including the language: a page in another language is imported as
+   it stands and has to be translated to ${CONTENT_LANG} like any other
+   recipe.
+
+   Gaps that the recipe itself answers (times from the steps, yield from the
+   amounts, an ingredient line for `parse_ingredients`) need no page. Read
+   the page only for what is genuinely not in the import, and say in the plan
+   that you are doing it.
+
+   Empty ingredients **and** empty steps mean the scraper got nothing and
+   the import left a stub behind — that is the one case where the page is the
+   only source. Fill it from the page or tell the user, who removes the stub
+   in the UI; see `references/maintenance.md`, section Stubs. Do not import
+   the same URL a second time hoping for a better run.
 3. `update_recipe(slug, tags=[...], categories=[...], tools=[...])` files it.
    All three **merge** with what is already there and create names that do
    not exist yet — the response says which, so read that line back to the
@@ -109,7 +145,8 @@ first and pass the whole list back, not just the new items. Notes are
 note.
 
 `create_recipe` takes free text directly and runs ingredient lines through
-Mealie's parser. `parse_ingredients` shows how Mealie would read a line
+Mealie's parser — for a recipe the user pastes or dictates, not for a URL.
+Anything with a URL goes through the scraper. `parse_ingredients` shows how Mealie would read a line
 without writing anything — useful to check a parse before committing it.
 
 ## Differences worth knowing
