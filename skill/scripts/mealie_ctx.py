@@ -232,8 +232,8 @@ def build_index():
     Returns:
         The index dict: {"built": epoch seconds, "recipes": [...]}, where
         each recipe carries slug, name, organizer ids, food/unit ids, food
-        names, ingredient and unparsed counts, image flag, source URL and a
-        description flag.
+        names, ingredient, step and unparsed counts, image flag, source URL
+        and a description flag.
 
     Raises:
         requests.HTTPError: If any recipe request fails.
@@ -260,6 +260,7 @@ def build_index():
                 "units": [i["unit"]["id"] for i in ings
                           if (i.get("unit") or {}).get("id")],
                 "ings": len(ings),
+                "steps": len(f.get("recipeInstructions") or []),
                 "unparsed": sum(1 for i in ings if not (i.get("food") or {}).get("id")),
                 "image": bool(f.get("image")),
                 "orgURL": f.get("orgURL") or f.get("originalURL"),
@@ -484,6 +485,11 @@ def cmd_audit(a):
         print(f"\nSIMILAR INGREDIENTS (Jaccard >= 0.6): {len(sim)}")
         for j, s1, s2 in sim[: a.limit]:
             print(f"  {j}  {s1}  <->  {s2}")
+        # stubs: no ingredients and no steps, an import that produced nothing
+        stubs = [r["slug"] for r in R
+                 if not r["ings"] and not r.get("steps")]
+        print(f"\nSTUBS (no ingredients, no steps): {len(stubs)}" + (
+            " – " + ", ".join(stubs[: a.limit]) if stubs else ""))
 
     elif what == "links":
         no_img = [r["slug"] for r in R if not r["image"]]

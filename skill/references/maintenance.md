@@ -32,6 +32,25 @@ content into the better one.
 Do not treat legitimate variants as duplicates: same base with a different
 preparation (oven/pan), serving sizes, a vegan version.
 
+## Stubs
+
+The same audit ends with `STUBS` - recipes with neither ingredients nor
+steps. Usually an import that failed silently: the title is there, the
+content is not.
+
+Check each one with `ctx recipe <slug>` before saying anything - a recipe
+that keeps everything in the notes is not a stub. For a genuine stub there
+are two routes:
+
+1. A source URL exists: reimport it (MCP mode can, see `references/mcp.md`)
+   or fill the recipe by hand from the page.
+2. Nothing to work from: present it for deletion. The script deletes no
+   recipes, that happens in the UI.
+
+List stubs as a table `recipe | source URL | recommendation`. Never delete
+silently and never fill a stub with invented content - that is the same rule
+as everywhere else.
+
 ## Dead images and source URLs
 
 <!-- agent-only -->
