@@ -142,7 +142,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert "setup" in str(e), e
 
 # 11. slim(): the noise goes, everything a write needs survives.
-recipe = {
+recipe: dict = {
     "id": "r1", "userId": "u1", "groupId": "g1", "householdId": "h1",
     "name": "Lentil curry", "slug": "lentil-curry",
     "description": "Quick weeknight curry.",
