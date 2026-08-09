@@ -39,8 +39,10 @@ export MEALIE_URL=https://mealie.example.org
 export MEALIE_TOKEN=eyJhbGciOi…
 ```
 
-Already running the `mcp-mealie` server? Its `MEALIE_BASE_URL` and
-`MEALIE_API_KEY` are read as well, so one env file serves both.
+Already running the `mcp-mealie` server? It uses the same `MEALIE_URL` and
+its `MEALIE_API_TOKEN` is read as well, so one env file serves both.
+`MEALIE_BASE_URL` and `MEALIE_API_KEY`, the names other Mealie MCP servers
+use, work too.
 
 Check that the token works and that your Mealie version uses the endpoint
 paths the tool expects:

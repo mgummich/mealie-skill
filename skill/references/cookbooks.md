@@ -85,9 +85,15 @@ the same name lists and writes the filter itself, matching your names to
 Mealie's stored casing. `require_all=True` is the AND/OR switch, one flag for
 all three lists instead of three.
 
+`list_cookbooks()` is the analysis call and the only source of the ids the
+other three need - names alone address nothing here.
+
 `update_cookbook(cookbook_id, ...)` takes the same arguments and only changes
 the fields you pass - never delete and recreate, that throws away the id.
-`query_filter=""` clears the filter.
+`query_filter=""` clears the filter. `delete_cookbook(cookbook_id)` is for a
+cookbook that should not exist at all; it removes the rule, not the recipes,
+but any link to the cookbook dies with it - so it belongs in the plan and
+needs approval like any other destructive step.
 
 Reach for `query_filter` only for what names cannot express; it cannot be
 combined with the name lists:

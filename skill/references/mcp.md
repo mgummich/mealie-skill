@@ -22,14 +22,20 @@ write.
 | Same recipe imported twice? | `find_duplicate_recipes()` — groups by name, punctuation and case ignored |
 | Is this dish already in the library? | `search_recipes(query="lentil curry")` — free-text over the recipe list, before an import |
 | Which source links are dead? | `check_recipe_links()` — `broken_sources`, plus `unverified_sources` for hosts that refuse the probe, plus recipes with no image |
-| What does one recipe look like? | `get_recipe(slug, fields=[...])` |
+| Which recipes use this food/tag/category/tool? | `search_recipes(foods=[...])`, `tags=[...]`, `categories=[...]`, `tools=[...]` — the `usage` command of the script |
+| What does one recipe look like? | `get_recipe(slug, fields=[...])`, `full=True` for the unabridged record |
 | Survey a field across the library | `search_recipes(fields=["slug", "tags", "rating"], limit=100)` |
 | What exists in a taxonomy right now? | `manage_taxonomy(resource, "list", search=...)` |
+| Which cookbooks exist, with their ids? | `list_cookbooks()` |
 
 `foods` and `units` are the slow rollups — they need each recipe's
 ingredients, so that sweep is one request per recipe and honors
 `max_recipes`. Tags, categories and tools come off the recipe list in a
 handful of requests.
+
+`find_duplicate_recipes` and `check_recipe_links` take `max_recipes` too, and
+both say in a `note` when they stopped short of the library — read that line
+before reporting a count as complete.
 
 `search_recipes` does not carry ingredients, instructions or notes; those
 still need `get_recipe`. Never build a rollup by hand with one
@@ -55,6 +61,15 @@ Every action except `list` takes `items` and runs the whole batch in one
 call. The reply splits `results` from `errors`, each error carrying the index
 and the item that failed, so one bad id does not strand the rest. Twenty-five
 renames are one call, not twenty-five.
+
+Tagging many recipes has its own batch:
+
+    bulk_tag_recipes(slugs=[...], tags=["Quick"], categories=["Dinner"])
+
+Names are plain text and are created if they do not exist yet. It **only
+adds** — the recipes keep what they already carry. Removing a tag, or setting
+one recipe's list exactly, is `update_recipe` with `replace_tags` /
+`replace_categories` (there is no bulk form for tools).
 
 Keep `actions.json` and `apply` for what the batch form cannot do:
 
@@ -87,6 +102,11 @@ Only the MCP has meal plan operations; the script deliberately has none.
    week is partly full. Capped at 14 days per call.
 
 `get_todays_meals` answers "what are we cooking today" without a date range.
+
+An entry set wrongly is removed with `delete_meal_plan_entry(entry_id)`; the
+id comes from `get_meal_plan`. There is no update — delete the slot and add
+it again. Deleting an entry is a write like any other: it belongs in the plan
+and needs approval, even though nothing but the schedule changes.
 
 ## Import a recipe from a URL
 
@@ -126,9 +146,11 @@ the fallback for step 2, not the starting point.
    the page only for what is genuinely not in the import, and say in the plan
    that you are doing it.
 
-   Empty ingredients **and** empty steps ("could not detect ingredients")
-   mean the scraper got nothing and the import left a stub behind — that is
-   the one case where the page is the only source. Typical cause: the site
+   Empty ingredients or steps mean the scraper got nothing and the import
+   left a stub behind — that is the one case where the page is the only
+   source. The result says so itself in a `note` ("the scraper found no
+   ingredients …"); trust that line over the placeholder text, which reads
+   like content. Typical cause: the site
    renders its recipe in the browser and ships no data in the HTML, so
    nothing is there to find. Retrying does not help, and neither does
    another scraper; transcribe the page and set the fields with one
@@ -142,6 +164,8 @@ the fallback for step 2, not the starting point.
    `replace_categories` / `replace_tools`) overwrites instead.
 4. If the scraper missed the photo, `set_recipe_image(slug, url)` fetches one
    from an image URL and replaces whatever is there.
+   `upload_recipe_image(slug, path)` does the same from a file on disk — for
+   a photo the user points at locally, never for a URL.
 
 Ingredients, instructions and notes **replace** on update — read the recipe
 first and pass the whole list back, not just the new items. Notes are
@@ -164,8 +188,10 @@ Consequences for the plan:
 
 - Set **all** fields in one `update_recipe` call, rename included. Two calls
   where the first renames is the failure case.
-- Take the new slug from the response of that call, do not derive it from
-  the name yourself; Mealie's slugification is its own.
+- Take the new slug from `slug` in the response of that call, do not derive
+  it from the name yourself; Mealie's slugification is its own. A response
+  carrying `renamed_from` is the server saying the recipe moved, and
+  `renamed_from` is the **old** slug — the dead one, not the one to use next.
 - Set the image after the rename with the new slug, or before it with the
   old one — not with a slug noted earlier in the session.
 
