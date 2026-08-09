@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .venv/
 dist/
+.mealie_index.json
+.actions.json
+actions.json
