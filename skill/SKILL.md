@@ -52,9 +52,10 @@ Context commands return filtered data already. Never load full tables
 unfiltered, never build recipe loops by hand - that is what the index is
 for.
 
-Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`. If they are unset, the
-script reads them from `.mealie.env` and then from `.env` in the working
-directory. Any command that finds neither aborts with a hint to `setup`.
+Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`, or the `mcp-mealie`
+names `MEALIE_BASE_URL` and `MEALIE_API_KEY`. If they are unset, the script
+reads them from `.mealie.env` and then from `.env` in the working directory.
+Any command that finds neither aborts with a hint to `setup`.
 
 The script needs network access to the instance. In a sandboxed environment
 the call fails with a connection error even though URL and token are

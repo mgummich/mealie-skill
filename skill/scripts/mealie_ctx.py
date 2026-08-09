@@ -31,6 +31,15 @@ INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
 ENV_FILE = os.environ.get("MEALIE_ENV", ".mealie.env")
 ENV_FALLBACK = ".env"           # read as well, never written by setup
 ENV_KEYS = ("MEALIE_URL", "MEALIE_TOKEN")
+# The mcp-mealie server names the same two values differently. Accepting its
+# names means one env file serves both tools; the canonical names win when
+# a file or the environment carries both.
+ENV_ALIASES = {"MEALIE_BASE_URL": "MEALIE_URL",
+               "MEALIE_API_KEY": "MEALIE_TOKEN"}
+# HTTP 429 from Mealie's rate limiter: wait and try again rather than lose a
+# half-built index. Retry-After wins when the response carries it.
+RETRIES = 5
+BACKOFF = 2.0
 _CONN = None
 
 # Check these endpoints against your own instance once and adjust them here.
@@ -97,7 +106,8 @@ def parse_env(text):
     """Read KEY=VALUE lines from an env file.
 
     Comments, blank lines, a leading "export " and quotes around the value
-    are tolerated; unknown keys are ignored.
+    are tolerated; unknown keys are ignored. The ENV_ALIASES names are read
+    under their canonical key, but lose against it.
 
     Args:
         text: Content of the env file.
@@ -105,7 +115,7 @@ def parse_env(text):
     Returns:
         A dict with the recognized keys from ENV_KEYS.
     """
-    out = {}
+    out, aliased = {}, {}
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -114,9 +124,12 @@ def parse_env(text):
         key = key.strip()
         if key.startswith("export "):
             key = key[len("export "):].strip()
-        if key in ENV_KEYS:
-            out[key] = val.strip().strip("'\"")
-    return out
+        val = val.strip().strip("'\"")
+        if key in ENV_ALIASES:
+            aliased[ENV_ALIASES[key]] = val
+        elif key in ENV_KEYS:
+            out[key] = val
+    return {**aliased, **out}
 
 
 def read_cfg():
@@ -132,7 +145,9 @@ def read_cfg():
     Raises:
         SystemExit: If an env file exists but cannot be read.
     """
-    cfg = {k: os.environ[k] for k in ENV_KEYS if os.environ.get(k)}
+    cfg = {**{canon: os.environ[name]
+              for name, canon in ENV_ALIASES.items() if os.environ.get(name)},
+           **{k: os.environ[k] for k in ENV_KEYS if os.environ.get(k)}}
     for path in dict.fromkeys((ENV_FILE, ENV_FALLBACK)):
         if len(cfg) == len(ENV_KEYS):
             break
@@ -180,15 +195,29 @@ def mreq(method, path, **kw):
         path: Path below /api, starting with a slash.
         **kw: Passed through to requests.request (json, params, ...).
 
+    A 429 is retried up to RETRIES times, waiting for Retry-After or an
+    exponential backoff. Every other status is left to the caller. This is
+    the single choke point for the API, so reads and writes alike are
+    covered.
+
     Returns:
         The parsed JSON body, or an empty dict for an empty response.
 
     Raises:
-        requests.HTTPError: If the response status is 4xx or 5xx.
+        requests.HTTPError: If the response status is 4xx or 5xx, 429
+            included once the retries are used up.
     """
     base, headers = conn()
-    r = requests.request(method, f"{base}/api{path}", headers=headers,
-                         timeout=45, **kw)
+    for attempt in range(RETRIES):
+        r = requests.request(method, f"{base}/api{path}", headers=headers,
+                             timeout=45, **kw)
+        if r.status_code != 429 or attempt == RETRIES - 1:
+            break
+        try:
+            wait = float(r.headers.get("Retry-After", ""))
+        except ValueError:
+            wait = 0.0
+        time.sleep(max(wait, BACKOFF * (attempt + 1)))
     r.raise_for_status()
     return r.json() if r.text.strip() else {}
 
@@ -212,7 +241,10 @@ def mget(path, **params):
 
 # Fields of a recipe that no mode reads and none writes: bookkeeping,
 # per-object timestamps and the rendered duplicates of data that is already
-# there. Dropping them shrinks a `ctx recipe` by roughly two thirds.
+# there. Dropping them shrinks a `ctx recipe` by roughly half, measured over
+# a 259 recipe library. The ratio rises with the ingredient count - every
+# ingredient drags a full food and unit object along, most of it noise - and
+# falls for recipes whose bulk is prose, which is kept in full.
 NOISE = {
     "userId", "groupId", "householdId", "dateAdded", "dateUpdated",
     "createdAt", "updatedAt", "lastMade", "assets", "comments", "extras",
@@ -270,23 +302,36 @@ def build_index():
     The only place that fetches all recipes individually. Every audit reads
     the resulting file instead of looping over the API again.
 
+    A recipe the instance cannot serve is skipped, not fatal: Mealie answers
+    500 for recipes it fails to serialize, and a single one of those used to
+    cost the whole index. The slugs are kept in the index so `audit recipes`
+    can name them long after the build scrolled away.
+
     Returns:
-        The index dict: {"built": epoch seconds, "recipes": [...]}, where
-        each recipe carries slug, name, organizer ids, food/unit ids, food
-        names, ingredient, step and unparsed counts, image flag, source URL
-        and a description flag.
+        The index dict: {"built": epoch seconds, "recipes": [...],
+        "failed": [slugs]}, where each recipe carries slug, name, organizer
+        ids, food/unit ids, food names, ingredient, step and unparsed
+        counts, image flag, source URL and a description flag.
 
     Raises:
-        requests.HTTPError: If any recipe request fails.
+        requests.HTTPError: If a recipe *list* request fails; failures on a
+            single recipe are collected instead.
         OSError: If the index file cannot be written.
     """
-    recipes, page = [], 1
+    recipes, failed, page = [], [], 1
     while True:
         items = mget(EP["recipes"], page=page, perPage=100)
         if not items:
             break
         for r in items:
-            f = mget(f"{EP['recipes']}/{r['slug']}")
+            try:
+                f = mget(f"{EP['recipes']}/{r['slug']}")
+            except requests.HTTPError as e:
+                failed.append(r["slug"])
+                print(f"skipped {r['slug']}: "
+                      f"{e.response.status_code} from the instance",
+                      file=sys.stderr)
+                continue
             ings = f.get("recipeIngredient") or []
             recipes.append({
                 "slug": f["slug"],
@@ -308,7 +353,7 @@ def build_index():
                 "description": bool((f.get("description") or "").strip()),
             })
         page += 1
-    data = {"built": time.time(), "recipes": recipes}
+    data = {"built": time.time(), "recipes": recipes, "failed": failed}
     with open(INDEX, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
     return data
@@ -510,6 +555,10 @@ def cmd_audit(a):
             by.setdefault(norm(r["name"]), []).append(r)
         name_dupes = [v for v in by.values() if len(v) > 1]
         print(f"{len(R)} recipes, {len(name_dupes)} name duplicates")
+        broken = idx.get("failed") or []
+        if broken:
+            print(f"UNREADABLE ({len(broken)}, the instance answers with an "
+                  "error – fix them in the UI): " + ", ".join(broken))
         for grp in name_dupes[: a.limit]:
             print("  " + " | ".join(x["slug"] for x in grp))
         # ingredient overlap as a second source of suspicion

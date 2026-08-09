@@ -91,6 +91,10 @@ read as well (never written), so an existing one works without any copying.
 Precedence: environment → `.mealie.env` → `.env`, per variable. Another path
 for the first file: `MEALIE_ENV=/path/to/env`.
 
+`MEALIE_BASE_URL` and `MEALIE_API_KEY` work too — the names the `mcp-mealie`
+server uses, so one env file serves both. The canonical names win when both
+are set.
+
 Take a backup before the first run: Mealie → Site Settings → Backups.
 
 Check the endpoint paths, they differ between Mealie versions:
@@ -155,7 +159,9 @@ python3 build.py --install agents-md --into <project>   # Codex, Zed, …
 
 `cursor` and `agents-md` are project-scoped and require `--into`. Existing
 files are never overwritten silently (`--force`); an existing `AGENTS.md` is
-only updated inside its marked block.
+only updated inside its marked block. That block is a pointer at
+`mealie/router.md` rather than the router itself — `AGENTS.md` has no
+on-demand loading, so everything in it is paid for in every session.
 
 Without `--install`, `python3 build.py` renders every target into `dist/`.
 
