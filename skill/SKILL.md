@@ -52,8 +52,9 @@ Context commands return filtered data already. Never load full tables
 unfiltered, never build recipe loops by hand - that is what the index is
 for.
 
-Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`, or the `mcp-mealie`
-names `MEALIE_BASE_URL` and `MEALIE_API_KEY`. If they are unset, the script
+Environment variables: `MEALIE_URL`, `MEALIE_TOKEN` — `MEALIE_API_TOKEN` (the
+`mcp-mealie` name for the token), `MEALIE_BASE_URL` and `MEALIE_API_KEY` are
+read as well. If they are unset, the script
 reads them from `.mealie.env` and then from `.env` in the working directory.
 Any command that finds neither aborts with a hint to `setup`.
 

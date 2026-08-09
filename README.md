@@ -91,9 +91,10 @@ read as well (never written), so an existing one works without any copying.
 Precedence: environment → `.mealie.env` → `.env`, per variable. Another path
 for the first file: `MEALIE_ENV=/path/to/env`.
 
-`MEALIE_BASE_URL` and `MEALIE_API_KEY` work too — the names the `mcp-mealie`
-server uses, so one env file serves both. The canonical names win when both
-are set.
+`MEALIE_API_TOKEN` works too — the name the `mcp-mealie` server uses for the
+token, and it shares `MEALIE_URL`, so one env file serves both.
+`MEALIE_BASE_URL` and `MEALIE_API_KEY` are read as well, for the other Mealie
+MCP servers. The canonical names win when both are set.
 
 Take a backup before the first run: Mealie → Site Settings → Backups.
 

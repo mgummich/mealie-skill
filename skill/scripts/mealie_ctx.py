@@ -31,10 +31,13 @@ INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
 ENV_FILE = os.environ.get("MEALIE_ENV", ".mealie.env")
 ENV_FALLBACK = ".env"           # read as well, never written by setup
 ENV_KEYS = ("MEALIE_URL", "MEALIE_TOKEN")
-# The mcp-mealie server names the same two values differently. Accepting its
-# names means one env file serves both tools; the canonical names win when
-# a file or the environment carries both.
+# Other Mealie tools name the same two values differently: mcp-mealie shares
+# MEALIE_URL but calls the token MEALIE_API_TOKEN, other servers use
+# MEALIE_BASE_URL/MEALIE_API_KEY. Accepting all of them means one env file
+# serves every tool; the canonical names win when a file or the environment
+# carries both.
 ENV_ALIASES = {"MEALIE_BASE_URL": "MEALIE_URL",
+               "MEALIE_API_TOKEN": "MEALIE_TOKEN",
                "MEALIE_API_KEY": "MEALIE_TOKEN"}
 # HTTP 429 from Mealie's rate limiter: wait and try again rather than lose a
 # half-built index. Retry-After wins when the response carries it.
