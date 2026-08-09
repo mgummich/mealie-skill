@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/mgummich/mealie-skill/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/mgummich/mealie-skill/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://mgummich.github.io/mealie-skill/"><img alt="Docs" src="https://img.shields.io/badge/docs-github%20pages-blue.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-blue.svg">
   <img alt="Dependencies: requests" src="https://img.shields.io/badge/dependencies-requests-lightgrey.svg">
@@ -29,7 +30,8 @@ Both share: a local recipe index instead of repeated API loops, a plan
 before every write, deterministic execution through an ACTIONS list.
 
 New here? [**HOWTO.md**](HOWTO.md) walks through a full session per mode,
-with examples.
+with examples. Both files are also served as a site:
+[mgummich.github.io/mealie-skill](https://mgummich.github.io/mealie-skill/).
 
 ## Contents
 
