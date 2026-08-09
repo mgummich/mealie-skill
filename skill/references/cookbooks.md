@@ -77,3 +77,28 @@ Common findings: empty cookbooks (the rule points at deleted or renamed
 tags), oversized cookbooks (OR instead of AND), duplicates with a marginally
 different rule. `update_cookbook` changes the rule without recreating the
 cookbook - links to it stay valid.
+
+## With the MCP server
+
+`create_cookbook(name=..., tags=[...], categories=[...], tools=[...])` takes
+the same name lists and writes the filter itself, matching your names to
+Mealie's stored casing. `require_all=True` is the AND/OR switch, one flag for
+all three lists instead of three.
+
+`update_cookbook(cookbook_id, ...)` takes the same arguments and only changes
+the fields you pass - never delete and recreate, that throws away the id.
+`query_filter=""` clears the filter.
+
+Reach for `query_filter` only for what names cannot express; it cannot be
+combined with the name lists:
+
+| Pattern | Example |
+|---|---|
+| Match any of | `tags.name IN ["Dinner", "Lunch"]` |
+| Match all of | `tags.name CONTAINS ALL ["Vegan", "Quick"]` |
+| Combine | `recipeCategory.name IN ["Dessert"] AND rating > 3` |
+| By date | `createdAt > "2026-01-01"` |
+| By equipment | `tools.name IN ["Air Fryer"]` |
+
+Verify with `get_cookbook_recipes(cookbook_id)` afterwards - an overly narrow
+filter matches nothing, which is easy to miss.
