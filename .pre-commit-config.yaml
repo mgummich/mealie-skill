@@ -1,0 +1,39 @@
+# Dev only, no runtime dependency. Install once: pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.2
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        pass_filenames: false          # the file list lives in mypy.ini
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: forbid-submodules
+
+  - repo: local
+    hooks:
+      - id: tests
+        name: python3 test_build.py
+        entry: python3 test_build.py
+        language: system
+        pass_filenames: false
+        files: ^(build\.py|test_build\.py|skill/)
+
+      - id: no-credentials
+        name: no env file with a Mealie token
+        entry: env files hold the API token in clear text - never commit them
+        language: fail
+        files: ^(\.env|\.mealie\.env)$

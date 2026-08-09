@@ -14,6 +14,21 @@ If the `caveman` skill is available, activate it now for analysis, plan and
 report. Not for content written to Mealie, and not for warnings and
 questions - see SKILL.md for the boundary.
 
+## Step 0 - Connection
+
+Only when the MCP server is not connected. Run once per session:
+
+    setup --check
+
+It writes nothing and asks nothing. If it reports a missing configuration or
+a rejected token, stop and ask the user to run
+
+    python .agents/skills/mealie/scripts/mealie_ctx.py setup
+
+themselves - in Claude Code with a leading `!`, because the command prompts
+for URL and token. Do not run it yourself and do not ask for the token in
+the chat.
+
 ## Step 1 - Mode and reference
 
     recipe       -> references/recipes.md

@@ -17,9 +17,18 @@ The only hand-maintained prompt file is `standalone/prompts/common.txt`
     python3 test_build.py        # plain asserts, no framework
     python3 build.py             # renders all four targets into dist/
     ruff check .                 # config in ruff.toml, or: uvx ruff check .
+    mypy                         # config in mypy.ini, needs types-requests
 
-All three have to pass. CI runs the same commands plus a dry run of the
+All four have to pass. CI runs the same commands plus a dry run of the
 ACTIONS guard.
+
+Or let git run them for you:
+
+    pip install pre-commit && pre-commit install   # or: uvx pre-commit install
+
+The hooks are ruff, mypy, the tests, whitespace fixers and a guard that
+refuses to commit `.env` or `.mealie.env` — both hold the API token in clear
+text. All of it is dev-only; nothing is added to the runtime dependencies.
 
 ## Conventions
 

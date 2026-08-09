@@ -33,6 +33,7 @@ it changes how every other mode gathers its data.
 `scripts/mealie_ctx.py` wraps every API call. Do not read its source, call
 it with `--help`.
 
+    setup [--check]                    check the connection, store credentials
     index [--refresh]                  build the local recipe index
     audit <what> [--limit N]           foods units categories tags tools
                                        recipes links
@@ -50,7 +51,15 @@ Context commands return filtered data already. Never load full tables
 unfiltered, never build recipe loops by hand - that is what the index is
 for.
 
-Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`.
+Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`. If they are unset, the
+script reads them from `.mealie.env` and then from `.env` in the working
+directory. Any command that finds neither aborts with a hint to `setup`.
+
+`setup --check` only probes the configuration and is safe to run yourself -
+use it once at the start of a session when the connection is unclear. Plain
+`setup` prompts for URL and token and must be run by the user, not by you:
+ask for it and wait. Never ask for the token in the chat and never write it
+into a file yourself.
 
 If the `mcp-mealie` MCP server is connected, use it instead for analysis: it
 answers the audit questions server-side, so the index is not built at all,

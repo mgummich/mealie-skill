@@ -1,6 +1,24 @@
 #!/usr/bin/env python3
 """Tests for build.py — plain asserts, run with: python3 test_build.py."""
+import os
+import sys
+import tempfile
+import types
+
 import build
+
+
+def load_ctx():
+    """Import mealie_ctx from skill/scripts without requests installed.
+
+    Returns:
+        The imported module; its HTTP calls are never exercised here.
+    """
+    sys.modules.setdefault("requests", types.ModuleType("requests"))
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "skill", "scripts"))
+    import mealie_ctx
+    return mealie_ctx
 
 # 1. Tool lines disappear in the standalone rendering, the rest stays line for line.
 src = "Head\n\n    audit foods          # or: audit units\n\nText\n"
@@ -83,5 +101,43 @@ for ref, _ in build.MODES:
     text = build._read("references", ref)
     assert build.LANG_TOKEN not in build.render_agent(text, "X")
     assert build.LANG_TOKEN not in build.render_standalone(text, "X")
+
+# 10. Credentials: env file parsing, .env fallback and precedence.
+mealie_ctx = load_ctx()
+
+parsed = mealie_ctx.parse_env(
+    "# comment\n\nexport MEALIE_URL=https://m.example.org/ \n"
+    'MEALIE_TOKEN="tok=en"\nOTHER=ignored\nbroken line\n')
+assert parsed == {"MEALIE_URL": "https://m.example.org/",
+                  "MEALIE_TOKEN": "tok=en"}, parsed
+
+with tempfile.TemporaryDirectory() as tmp:
+    own = os.path.join(tmp, ".mealie.env")
+    dotenv = os.path.join(tmp, ".env")
+    with open(own, "w", encoding="utf-8") as fh:
+        fh.write("MEALIE_TOKEN=own-token\n")
+    with open(dotenv, "w", encoding="utf-8") as fh:
+        fh.write("MEALIE_URL=https://from-dotenv\nMEALIE_TOKEN=dotenv-token\n")
+    mealie_ctx.ENV_FILE, mealie_ctx.ENV_FALLBACK = own, dotenv
+    for key in ("MEALIE_URL", "MEALIE_TOKEN"):
+        os.environ.pop(key, None)
+
+    cfg = mealie_ctx.read_cfg()                       # .mealie.env wins over .env
+    assert cfg == {"MEALIE_URL": "https://from-dotenv",
+                   "MEALIE_TOKEN": "own-token"}, cfg
+
+    os.environ["MEALIE_TOKEN"] = "env-token"          # the environment wins
+    assert mealie_ctx.read_cfg()["MEALIE_TOKEN"] == "env-token"
+
+    mealie_ctx.ENV_FILE = os.path.join(tmp, "gone")   # a .env alone is enough
+    del os.environ["MEALIE_TOKEN"]
+    assert mealie_ctx.read_cfg()["MEALIE_TOKEN"] == "dotenv-token"
+
+    mealie_ctx.ENV_FALLBACK = os.path.join(tmp, "gone-too")
+    try:
+        mealie_ctx.conn()
+        raise AssertionError("conn() did not abort without credentials")
+    except SystemExit as e:
+        assert "setup" in str(e), e
 
 print("ok")

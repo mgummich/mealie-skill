@@ -15,7 +15,8 @@
 Context and execution go through skill/scripts/mealie_ctx.py; this script
 adds the model call, the approval gate and the batch loop.
 
-Env: MEALIE_URL, MEALIE_TOKEN, ANTHROPIC_API_KEY
+Env: MEALIE_URL, MEALIE_TOKEN (or a .mealie.env, see "mealie_ctx.py setup"),
+ANTHROPIC_API_KEY
      MEALIE_LANG   language of the recipe content (default: English)
      MODEL         model id (default: claude-sonnet-4-6)
 """
