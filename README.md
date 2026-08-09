@@ -1,7 +1,21 @@
-# Mealie skill
+<h1 align="center">Mealie skill</h1>
 
-Clean up a [Mealie](https://mealie.io) instance through its REST API, with
-an LLM doing the judgement calls and a script doing every write.
+<p align="center">
+  Clean up a <a href="https://mealie.io">Mealie</a> instance through its REST
+  API — an LLM makes the judgement calls, a script does every write.
+</p>
+
+<p align="center">
+  <a href="https://github.com/mgummich/mealie-skill/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/mgummich/mealie-skill/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-blue.svg">
+  <img alt="Dependencies: requests" src="https://img.shields.io/badge/dependencies-requests-lightgrey.svg">
+</p>
+
+> [!WARNING]
+> This has not yet been run against a live Mealie instance by anyone but its
+> author. **Take a backup before the first run** (Mealie → Site Settings →
+> Backups).
 
 Two frontends, one set of rules:
 
@@ -14,8 +28,14 @@ Two frontends, one set of rules:
 Both share: a local recipe index instead of repeated API loops, a plan
 before every write, deterministic execution through an ACTIONS list.
 
-> Status: this has not yet been run against a live Mealie instance by anyone
-> but its author. Take a backup before the first run.
+## Contents
+
+- [Modes](#modes) · [Quickstart](#quickstart) · [Setup](#setup)
+- [Content language](#content-language) · [Installation](#installation) · [Standalone](#standalone)
+- [The tool on its own](#the-tool-on-its-own) · [Layout](#layout)
+- [Output style: caveman](#output-style-caveman) · [Token budget](#token-budget)
+- [Safety nets](#safety-nets) · [Heuristics and their limits](#heuristics-and-their-limits)
+- [Contributing](#contributing) · [Security](#security) · [License](#license)
 
 ## Modes
 
@@ -28,21 +48,38 @@ before every write, deterministic execution through an ACTIONS list.
 | `cookbooks` | create and rework cookbooks as filter rules |
 | `maintenance` | duplicate recipes, dead images and source URLs, diet tags from ingredients |
 
+## Quickstart
+
+```bash
+export MEALIE_URL=https://mealie.example.org
+export MEALIE_TOKEN=<Profile -> API Tokens>
+
+python3 build.py --install claude-code   # then: /mealie recipe my-recipe
+```
+
+Prefer it without an IDE? Jump to [Standalone](#standalone). Want to look
+around before anything writes? [The tool on its own](#the-tool-on-its-own)
+runs without a model.
+
 ## Setup
 
-    export MEALIE_URL=https://mealie.example.org
-    export MEALIE_TOKEN=<Profile -> API Tokens>
+```bash
+export MEALIE_URL=https://mealie.example.org
+export MEALIE_TOKEN=<Profile -> API Tokens>
+```
 
-Take a backup before the first run: Mealie -> Site Settings -> Backups.
+Take a backup before the first run: Mealie → Site Settings → Backups.
 
 Check the endpoint paths, they differ between Mealie versions:
 
-    for p in foods units groups/labels organizers/categories \
-             organizers/tags organizers/tools groups/cookbooks; do
-      printf '%-26s ' "$p"
-      curl -s -o /dev/null -w '%{http_code}\n' \
-        -H "Authorization: Bearer $MEALIE_TOKEN" "$MEALIE_URL/api/$p?perPage=1"
-    done
+```bash
+for p in foods units groups/labels organizers/categories \
+         organizers/tags organizers/tools groups/cookbooks; do
+  printf '%-26s ' "$p"
+  curl -s -o /dev/null -w '%{http_code}\n' \
+    -H "Authorization: Bearer $MEALIE_TOKEN" "$MEALIE_URL/api/$p?perPage=1"
+done
+```
 
 Whatever returns 404 goes into the `EP` dictionary in `mealie_ctx.py`
 (`/api/categories` instead of `/api/organizers/categories` on older
@@ -57,8 +94,10 @@ The project is in English; the language of your recipe data is a separate
 setting. `MEALIE_LANG` (default `English`) decides what the model writes
 into descriptions, steps, notes and cookbook texts:
 
-    python3 build.py --install claude-code --lang Deutsch   # baked into the skill
-    export MEALIE_LANG=Deutsch                              # standalone
+```bash
+python3 build.py --install claude-code --lang Deutsch   # baked into the skill
+export MEALIE_LANG=Deutsch                              # standalone
+```
 
 The duplicate heuristic is tuned for German and English data: umlaut
 folding, German plural endings (which cover the English "s"), a stop word
@@ -67,11 +106,13 @@ there - the model still reviews every group, so nothing is merged blindly.
 
 ## Installation
 
-    python3 build.py --install claude-code           # global, ~/.claude/
-    python3 build.py --install antigravity           # global, ~/.gemini/config/
-    python3 build.py --install claude-code --into <project>
-    python3 build.py --install cursor --into <project>
-    python3 build.py --install agents-md --into <project>   # Codex, Zed, …
+```bash
+python3 build.py --install claude-code           # global, ~/.claude/
+python3 build.py --install antigravity           # global, ~/.gemini/config/
+python3 build.py --install claude-code --into <project>
+python3 build.py --install cursor --into <project>
+python3 build.py --install agents-md --into <project>   # Codex, Zed, …
+```
 
 `cursor` and `agents-md` are project-scoped and require `--into`. Existing
 files are never overwritten silently (`--force`); an existing `AGENTS.md` is
@@ -82,11 +123,13 @@ Without `--install`, `python3 build.py` renders every target into `dist/`.
 In Claude Code (global or project-scoped) and in Antigravity after a project
 install (`--into`):
 
-    /mealie recipe my-recipe
-    /mealie foods
-    /mealie organizers
-    /mealie cookbooks
-    /mealie maintenance
+```
+/mealie recipe my-recipe
+/mealie foods
+/mealie organizers
+/mealie cookbooks
+/mealie maintenance
+```
 
 A global Antigravity install only places the skill; the `/mealie` workflow
 exists there only after an `--into` install in the project.
@@ -97,43 +140,49 @@ sources plus `commons.wikimedia.org`, `pexels.com`, `unsplash.com`.
 
 ## Standalone
 
-    export ANTHROPIC_API_KEY=sk-ant-…
-    pip install requests
+```bash
+export ANTHROPIC_API_KEY=sk-ant-…
+pip install requests
 
-    python standalone/optimize.py recipe my-recipe --dry-run
-    python standalone/optimize.py recipe --batch --limit 20
-    python standalone/optimize.py foods gaps --limit 25
-    python standalone/optimize.py foods duplicates --limit 5
-    python standalone/optimize.py units duplicates
-    python standalone/optimize.py organizers tags
-    python standalone/optimize.py cookbooks --purpose "Quick weeknight cooking"
-    python standalone/optimize.py maintenance links
+python standalone/optimize.py recipe my-recipe --dry-run
+python standalone/optimize.py recipe --batch --limit 20
+python standalone/optimize.py foods gaps --limit 25
+python standalone/optimize.py foods duplicates --limit 5
+python standalone/optimize.py units duplicates
+python standalone/optimize.py organizers tags
+python standalone/optimize.py cookbooks --purpose "Quick weeknight cooking"
+python standalone/optimize.py maintenance links
+```
 
 ## The tool on its own
 
 `mealie_ctx.py` works without a model:
 
-    python .../mealie_ctx.py index --refresh
-    python .../mealie_ctx.py audit foods|units|categories|tags|tools|recipes|links
-    python .../mealie_ctx.py ctx recipe <slug>
-    python .../mealie_ctx.py ctx foods|units|categories|tags|tools|cookbooks|diet
-    python .../mealie_ctx.py usage tag <id>
-    python .../mealie_ctx.py apply actions.json --dry-run
+```bash
+python .../mealie_ctx.py index --refresh
+python .../mealie_ctx.py audit foods|units|categories|tags|tools|recipes|links
+python .../mealie_ctx.py ctx recipe <slug>
+python .../mealie_ctx.py ctx foods|units|categories|tags|tools|cookbooks|diet
+python .../mealie_ctx.py usage tag <id>
+python .../mealie_ctx.py apply actions.json --dry-run
+```
 
 ## Layout
 
-    skill/                  the single source of truth
-      SKILL.md              slim router
-      references/*.md       details, read only when needed
-      workflow.md           the /mealie procedure
-      scripts/mealie_ctx.py every API call
-    standalone/
-      prompts/common.txt    principles + output style (hand-maintained)
-      optimize.py           model call, approval, batch; ACTIONS format
-                            and mode rules from skill/references/
-    build.py                renders dist/ for the four targets, installs
-                            with --install
-    test_build.py           python3 test_build.py
+```
+skill/                  the single source of truth
+  SKILL.md              slim router
+  references/*.md       details, read only when needed
+  workflow.md           the /mealie procedure
+  scripts/mealie_ctx.py every API call
+standalone/
+  prompts/common.txt    principles + output style (hand-maintained)
+  optimize.py           model call, approval, batch; ACTIONS format
+                        and mode rules from skill/references/
+build.py                renders dist/ for the four targets, installs
+                        with --install
+test_build.py           python3 test_build.py
+```
 
 ## Output style: caveman
 
@@ -143,7 +192,9 @@ long tabular outputs here, exactly the case where that pays off.
 
 Installation (Antigravity, skill folder analogous to `mealie`):
 
-    cp -r <caveman-repo>/skills/caveman  <workspace>/.agents/skills/
+```bash
+cp -r <caveman-repo>/skills/caveman  <workspace>/.agents/skills/
+```
 
 **The boundary matters more than the activation.** Only the chat output is
 compressed. Everything that travels into the database through `actions.json`
@@ -194,10 +245,12 @@ finish in one go.
 The execution order is enforced and aborts before the first write if the
 ACTIONS violate it:
 
-    create_label -> merge_food -> merge_unit -> create_food -> create_unit
-    -> create_category -> create_tag -> create_tool -> update_food
-    -> update_unit -> update_organizer -> retag_recipe -> delete_organizer
-    -> create_cookbook -> update_cookbook -> patch_recipe -> set_image
+```
+create_label -> merge_food -> merge_unit -> create_food -> create_unit
+-> create_category -> create_tag -> create_tool -> update_food
+-> update_unit -> update_organizer -> retag_recipe -> delete_organizer
+-> create_cookbook -> update_cookbook -> patch_recipe -> set_image
+```
 
 Destructive operations are announced before execution. `--dry-run` shows
 every action without writing. The tool never deletes recipes - duplicates
@@ -223,7 +276,18 @@ costs more than a missing one.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: `skill/` is the
 source, everything else is rendered; run `python3 test_build.py` before
-opening a PR.
+opening a PR. By taking part you agree to the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+Bug reports and feature requests have
+[issue templates](.github/ISSUE_TEMPLATE) — for anything touching writes,
+attach the output of `apply --dry-run`.
+
+## Security
+
+Please do not open a public issue for a vulnerability. See
+[SECURITY.md](SECURITY.md) for the reporting path and for what the tool does
+with your Mealie token.
 
 ## License
 
