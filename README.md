@@ -31,7 +31,8 @@ before every write, deterministic execution through an ACTIONS list.
 ## Contents
 
 - [Modes](#modes) · [Quickstart](#quickstart) · [Setup](#setup)
-- [Content language](#content-language) · [Installation](#installation) · [Standalone](#standalone)
+- [MCP server](#mcp-server-optional) · [Content language](#content-language)
+- [Installation](#installation) · [Standalone](#standalone)
 - [The tool on its own](#the-tool-on-its-own) · [Layout](#layout)
 - [Output style: caveman](#output-style-caveman) · [Token budget](#token-budget)
 - [Safety nets](#safety-nets) · [Heuristics and their limits](#heuristics-and-their-limits)
@@ -87,6 +88,22 @@ versions).
 
 Verify these two as well, they are `PUT` or `POST` depending on the version:
 `/api/foods/merge` and `/api/units/merge`.
+
+## MCP server (optional)
+
+If [`mcp-mealie`](https://github.com/mgummich/mcp-mealie) is connected, the
+agent frontend uses it as the primary analysis path: `library_stats`,
+`find_duplicate_recipes` and `check_recipe_links` answer the survey questions
+server-side, so the local index is never built. It also has the meal plan and
+recipe-import operations that `mealie_ctx.py` deliberately lacks.
+
+The three phases stay: ANALYSIS → PLAN → EXECUTION. Per plan there is exactly
+one write path — either every write is an MCP call or the plan goes through
+`actions.json` and `apply`, never half by each. Details in
+[`skill/references/mcp.md`](skill/references/mcp.md).
+
+Without the server nothing changes; `mealie_ctx.py` covers every mode on its
+own. The standalone frontend never uses MCP.
 
 ## Content language
 
