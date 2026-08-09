@@ -28,6 +28,9 @@ Two frontends, one set of rules:
 Both share: a local recipe index instead of repeated API loops, a plan
 before every write, deterministic execution through an ACTIONS list.
 
+New here? [**HOWTO.md**](HOWTO.md) walks through a full session per mode,
+with examples.
+
 ## Contents
 
 - [Modes](#modes) · [Quickstart](#quickstart) · [Setup](#setup)
