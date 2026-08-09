@@ -24,6 +24,9 @@ Read **only** the reference for the current mode, not all of them:
 The ACTIONS format is the same for every mode: `references/actions.md`.
 Read that file only once phase 2 is due.
 
+Split of duties with the `mcp-mealie` MCP server: `references/mcp.md`.
+Read it only when that server is connected.
+
 ## Tool
 
 `scripts/mealie_ctx.py` wraps every API call. Do not read its source, call
@@ -47,6 +50,12 @@ unfiltered, never build recipe loops by hand - that is what the index is
 for.
 
 Environment variables: `MEALIE_URL`, `MEALIE_TOKEN`.
+
+If the `mcp-mealie` MCP server is connected, it covers what this script
+deliberately lacks: meal plan, recipe import from a URL, interactive recipe
+search. Audits and every planned write stay here — the index and the
+execution order only exist in the script, and an MCP write it cannot see
+leaves the index stale. Read `references/mcp.md` before mixing the two.
 
 ## Output style: caveman
 

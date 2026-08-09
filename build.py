@@ -41,6 +41,7 @@ MODES = [
     ("cookbooks.md", "cookbooks"),
     ("maintenance.md", "maintenance"),
     ("actions.md", "actions"),
+    ("mcp.md", "mcp"),
 ]
 
 _CTX_LONG = ".agents/skills/mealie/scripts/mealie_ctx.py"
@@ -231,9 +232,10 @@ def _mdc_frontmatter(desc):
 def mode_descriptions():
     """Derive one description per reference file from SKILL.md.
 
-    The five modes come from the router table, actions.md from the prose
-    line below it. Descriptions live in SKILL.md only, so they cannot drift
-    apart from the router.
+    The five modes come from the router table, the files that are not modes
+    (actions.md, mcp.md) from the prose lines below it: "<description>:
+    `references/<file>`". Descriptions live in SKILL.md only, so they cannot
+    drift apart from the router.
 
     Returns:
         Mapping of reference filename to its description.
@@ -245,9 +247,8 @@ def mode_descriptions():
     body = _split_frontmatter(_read("SKILL.md"))[1]
     descs = {ref: desc for desc, ref in re.findall(
         r"^\| (.+?) \| `references/([^`]+)` \|$", body, re.M)}
-    m = re.search(r"^(.+?): `references/actions\.md`", body, re.M)
-    if m:
-        descs["actions.md"] = m.group(1)
+    for desc, ref in re.findall(r"^(.+?): `references/([^`]+)`", body, re.M):
+        descs.setdefault(ref, desc)
     for ref, _ in MODES:
         if ref not in descs:
             sys.exit("no description in SKILL.md for " + ref)
