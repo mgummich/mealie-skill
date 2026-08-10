@@ -91,7 +91,10 @@ language into a prompt; the placeholder belongs in `skill/` and
 
 Line length 88, no external dependencies except `requests`. `ruff check .`
 enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
-runtime dependency.
+runtime dependency. CI also runs `mypy` on 3.12 — run it before pushing,
+`ruff` passing says nothing about it:
+
+    pip install mypy types-requests && mypy
 
 New operations need: an entry in `ORDER`, a branch in `cmd_apply` that logs
 its before-state, a row in the table in `references/actions.md`, a test in

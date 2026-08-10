@@ -927,9 +927,9 @@ def cmd_audit(a):
             where = ", ".join(f"{v} {k}" for k, v in sorted(keys[key].items()))
             mark = "" if key in registered else "   !! not in the register"
             print(f"   {key}: {where}{mark}")
-        unused = registered - set(keys)
-        if unused:
-            print("REGISTERED BUT UNUSED: " + ", ".join(sorted(unused)))
+        orphaned = registered - set(keys)
+        if orphaned:
+            print("REGISTERED BUT UNUSED: " + ", ".join(sorted(orphaned)))
         print("\nAnything that fits a real field is moved there, not kept. A "
               "key you might filter by is dead here: cookbook filters cannot "
               "read extras.")
@@ -2092,7 +2092,7 @@ def cmd_apply(a):
         print("[dry-run] nothing configured: name collisions and recipe list "
               "fields NOT checked")
     try:
-        merged_away = {x["op"]: set() for x in actions}
+        merged_away: dict = {x["op"]: set() for x in actions}
         for x in actions if guarded else []:
             if x["op"] in ("merge_food", "merge_unit"):
                 merged = "foods" if x["op"] == "merge_food" else "units"

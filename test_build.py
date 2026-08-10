@@ -601,12 +601,12 @@ with tempfile.TemporaryDirectory() as tmp:
         return {"id": "f-1", "name": "Salz", "labelId": "l1",
                 "slug": "curry", "totalTime": "PT30M"}
 
-    plan = [{"op": "update_food",
-             "payload": {"id": "f-1", "labelId": "l1"}},
-            {"op": "patch_recipe",
-             "payload": {"slug": "curry", "totalTime": "PT30M"}}]
+    idempotent = [{"op": "update_food",
+                   "payload": {"id": "f-1", "labelId": "l1"}},
+                  {"op": "patch_recipe",
+                   "payload": {"slug": "curry", "totalTime": "PT30M"}}]
     calls = []
-    logged = run_apply(plan, already_set, tmp)
+    logged = run_apply(idempotent, already_set, tmp)
     assert not [m for m, _ in calls if m in ("PUT", "PATCH")], calls
     assert logged == [], logged        # nothing overwritten, nothing logged
 
@@ -618,7 +618,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 "slug": "curry", "totalTime": "PT10M"}
 
     calls = []
-    logged = run_apply(plan, differs, tmp)
+    logged = run_apply(idempotent, differs, tmp)
     assert [m for m, _ in calls if m in ("PUT", "PATCH")], calls
     assert len(logged) == 2, logged
 
@@ -771,7 +771,9 @@ for ref, _ in build.MODES:
     assert ref in mapped, f"{ref} has no standalone prompt"
 # every mode of the CLI resolves to a prompt, and units gets its own -
 # it ran on the foods prompt until units.md existed
-cli = set(re.search(r"choices=\[(.*?)\]", optimize_src, re.DOTALL).group(1)
+choices = re.search(r"choices=\[(.*?)\]", optimize_src, re.DOTALL)
+assert choices, "optimize.py has no mode list"
+cli = set(choices.group(1)
           .replace('"', "").replace("\n", " ").replace(" ", "").split(","))
 by_mode = dict(prompts)
 for mode in cli - {""}:
@@ -782,7 +784,7 @@ for ref, _ in build.MODES:
     raw = build._read("references", ref)
     # a standalone replacement may name a command on purpose (test 7); what
     # must not survive is a tool line the agent-only text left behind
-    kept = {build.set_language(m.group(1), "X")
+    deliberate = {build.set_language(m.group(1), "X")
             for m in (build.RE_STANDALONE.match(line)
                       for line in raw.splitlines()) if m}
     rendered = build.render_standalone(raw, "X")
@@ -790,7 +792,7 @@ for ref, _ in build.MODES:
         words = line.split()
         assert not (line.startswith("    ") and words
                     and words[0] in build.TOOL_WORDS
-                    and line not in kept), (ref, line)
+                    and line not in deliberate), (ref, line)
 # the density figures survive into the standalone prompt, which has no
 # convert command to fall back on
 units_prompt = build.render_standalone(build._read("references", "units.md"))
