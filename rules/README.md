@@ -5,7 +5,6 @@ A complete rule set for a well-maintained Mealie database, in two language versi
 
 - `de/` — deutsche Fassung (kanonisch: bundesdeutsches Standarddeutsch)
 - `en/` — English version (canonical: en-GB, swappable to en-US)
-- `archiv/` — überholte Vorfassungen, nur zur Nachvollziehbarkeit
 
 Die beiden Sprachfassungen sind **eigenständige Regelwerke**, keine Übersetzungen voneinander. Wo die Sprache sich anders verhält, unterscheiden sich die Regeln.
 
@@ -87,9 +86,3 @@ Bewusst außerhalb des Zuschnitts, falls später gebraucht:
 - `assets` und `comments` am Rezept
 - Haushalte, Gruppen, Benutzer
 - Die haushaltsbezogenen Vorratsflags `householdsWithIngredientFood` und `householdsWithTool`
-
----
-
-## Archiv
-
-`archiv/` enthält drei überholte Dateien: die wörtliche englische Übersetzung der ursprünglichen niederländischen Vorlage sowie die beiden kombinierten Metadaten-Dokumente, die inzwischen in Einzeldokumente je Entität aufgeteilt sind. Sie sind **nicht** zu verwenden und liegen nur bei, um Entscheidungen nachvollziehen zu können.
