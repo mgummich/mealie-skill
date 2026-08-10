@@ -72,8 +72,10 @@ Three of these replace things you would otherwise write out by hand, badly:
   colours, the metric unit set - as an ACTIONS file, skipping what exists.
 
 `apply` logs every action to `.mealie.changelog.jsonl` with the state it
-overwrote, refuses a `patch_recipe` that would shorten a list field, and
-lints the plan - fatally for a non-metric unit. `--dry-run` runs the same
+overwrote, refuses a `patch_recipe` that would shorten a list field and a
+cookbook payload written for Mealie 1.x (one `queryFilterString`, never
+`tags`/`categories`/`tools`/`requireAll*`), and lints the plan - fatally
+for a non-metric unit. `--dry-run` runs the same
 checks. Details in `references/actions.md`.
 
 Context commands return filtered data already. Never load full tables

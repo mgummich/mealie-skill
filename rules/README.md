@@ -5,7 +5,6 @@ A complete rule set for a well-maintained Mealie database, in two language versi
 
 - `de/` — deutsche Fassung (kanonisch: bundesdeutsches Standarddeutsch)
 - `en/` — English version (canonical: en-GB, swappable to en-US)
-- `archiv/` — überholte Vorfassungen, nur zur Nachvollziehbarkeit
 
 Die beiden Sprachfassungen sind **eigenständige Regelwerke**, keine Übersetzungen voneinander. Wo die Sprache sich anders verhält, unterscheiden sich die Regeln.
 
@@ -26,17 +25,17 @@ Der Unterschied ist grundsätzlich: Beim Anlegen ist der schlimmste Fall eine fa
 
 Die Nummerierung ist die Abhängigkeitsreihenfolge. Wer bereinigt, arbeitet sie von oben nach unten ab.
 
-| # | Entität | Hängt an | Menge |
-| - | --- | --- | --- |
-| 01 | Lebensmittel / Foods | Zutatenzeile | offen |
-| 02 | Einheiten / Units | Zutatenzeile | geschlossen, 25–40 |
-| 03 | Labels | Lebensmittel | geschlossen, 29 |
-| 04 | Kategorien / Categories | Rezept | geschlossen, 10–20 |
-| 05 | Schlagwörter / Tags | Rezept | offen, kontrolliert, 40–120 |
-| 06 | Utensilien / Tools | Rezept | halboffen, 15–40 |
-| 07 | Rezepte / Recipes | — | offen |
-| 08 | Kochbücher / Cookbooks | gespeicherter Filter | 5–20 |
-| 09 | Extras | Feld auf 01, 02, 07 | Register |
+| # | Entität | Deutsch | English | Hängt an | Menge |
+| - | --- | --- | --- | --- | --- |
+| 01 | Lebensmittel / Foods | [anlegen](de/01-lebensmittel-anlegen-DE.md) · [überarbeiten](de/01-lebensmittel-ueberarbeiten-DE.md) | [create](en/01-foods-create-EN.md) · [cleanup](en/01-foods-cleanup-EN.md) | Zutatenzeile | offen |
+| 02 | Einheiten / Units | [anlegen](de/02-einheiten-anlegen-DE.md) · [überarbeiten](de/02-einheiten-ueberarbeiten-DE.md) | [create](en/02-units-create-EN.md) · [cleanup](en/02-units-cleanup-EN.md) | Zutatenzeile | geschlossen, 25–40 |
+| 03 | Labels | [anlegen](de/03-labels-anlegen-DE.md) · [überarbeiten](de/03-labels-ueberarbeiten-DE.md) | [create](en/03-labels-create-EN.md) · [cleanup](en/03-labels-cleanup-EN.md) | Lebensmittel | geschlossen, 29 |
+| 04 | Kategorien / Categories | [anlegen](de/04-kategorien-anlegen-DE.md) · [überarbeiten](de/04-kategorien-ueberarbeiten-DE.md) | [create](en/04-categories-create-EN.md) · [cleanup](en/04-categories-cleanup-EN.md) | Rezept | geschlossen, 10–20 |
+| 05 | Schlagwörter / Tags | [anlegen](de/05-schlagwoerter-anlegen-DE.md) · [überarbeiten](de/05-schlagwoerter-ueberarbeiten-DE.md) | [create](en/05-tags-create-EN.md) · [cleanup](en/05-tags-cleanup-EN.md) | Rezept | offen, kontrolliert, 40–120 |
+| 06 | Utensilien / Tools | [anlegen](de/06-utensilien-anlegen-DE.md) · [überarbeiten](de/06-utensilien-ueberarbeiten-DE.md) | [create](en/06-tools-create-EN.md) · [cleanup](en/06-tools-cleanup-EN.md) | Rezept | halboffen, 15–40 |
+| 07 | Rezepte / Recipes | [anlegen](de/07-rezepte-anlegen-DE.md) · [überarbeiten](de/07-rezepte-ueberarbeiten-DE.md) | [create](en/07-recipes-create-EN.md) · [cleanup](en/07-recipes-cleanup-EN.md) | — | offen |
+| 08 | Kochbücher / Cookbooks | [anlegen](de/08-kochbuecher-anlegen-DE.md) · [überarbeiten](de/08-kochbuecher-ueberarbeiten-DE.md) | [create](en/08-cookbooks-create-EN.md) · [cleanup](en/08-cookbooks-cleanup-EN.md) | gespeicherter Filter | 5–20 |
+| 09 | Extras | [Extras](de/09-extras-DE.md) | [Extras](en/09-extras-EN.md) | Feld auf 01, 02, 07 | Register |
 
 **Die Reihenfolge ist nicht beliebig.** Kochbücher (08) filtern auf 04, 05 und 06 — wer sie zuerst baut, baut auf Vokabular, das anschließend zusammengeführt wird, und der Filter läuft still leer. Rezepte (07) verweisen auf 01 bis 06; deren Bereinigung läuft davor.
 
@@ -60,8 +59,8 @@ Die Nummerierung ist die Abhängigkeitsreihenfolge. Wer bereinigt, arbeitet sie 
 
 | Datei | Inhalt |
 | --- | --- |
-| `de/02-einheiten-DE.json` | 29 Einheiten, importfertig, mit Aliassen, Abkürzungen und Standardisierung |
-| `en/02-units-EN.json` | 25 units, same structure |
+| [`de/02-einheiten-DE.json`](de/02-einheiten-DE.json) | 29 Einheiten, importfertig, mit Aliassen, Abkürzungen und Standardisierung |
+| [`en/02-units-EN.json`](en/02-units-EN.json) | 25 units, same structure |
 
 Beide sind gegen die Regeln validiert: keine nicht-metrische Einheit, keine Abkürzungs-Kollision, keine Alias-Dublette.
 
@@ -87,9 +86,3 @@ Bewusst außerhalb des Zuschnitts, falls später gebraucht:
 - `assets` und `comments` am Rezept
 - Haushalte, Gruppen, Benutzer
 - Die haushaltsbezogenen Vorratsflags `householdsWithIngredientFood` und `householdsWithTool`
-
----
-
-## Archiv
-
-`archiv/` enthält drei überholte Dateien: die wörtliche englische Übersetzung der ursprünglichen niederländischen Vorlage sowie die beiden kombinierten Metadaten-Dokumente, die inzwischen in Einzeldokumente je Entität aufgeteilt sind. Sie sind **nicht** zu verwenden und liegen nur bei, um Entscheidungen nachvollziehen zu können.

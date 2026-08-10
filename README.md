@@ -30,8 +30,11 @@ Both share: a local recipe index instead of repeated API loops, a plan
 before every write, deterministic execution through an ACTIONS list.
 
 New here? [**HOWTO.md**](HOWTO.md) walks through a full session per mode,
-with examples. Both files are also served as a site:
-[mgummich.github.io/mealie-skill](https://mgummich.github.io/mealie-skill/).
+with examples. Everything else is on the site:
+[**documentation**](https://mgummich.github.io/mealie-skill/docs/) — guides,
+CLI and format reference, the decisions behind the design, Mealie best
+practices — and the
+[**rule set**](https://mgummich.github.io/mealie-skill/rules/) it all serves.
 
 ## Contents
 
@@ -104,11 +107,15 @@ MCP servers. The canonical names win when both are set.
 
 Take a backup before the first run: Mealie → Site Settings → Backups.
 
-Check the endpoint paths, they differ between Mealie versions:
+The paths are the ones Mealie 3.22.0 serves, checked against its OpenAPI
+spec. They differ between Mealie versions — cookbooks moved from
+`/api/groups/cookbooks` to `/api/households/cookbooks` in Mealie 2.0, and
+their filter became a single `queryFilterString` in the same release. Check
+what your instance answers:
 
 ```bash
 for p in foods units groups/labels organizers/categories \
-         organizers/tags organizers/tools groups/cookbooks; do
+         organizers/tags organizers/tools households/cookbooks; do
   printf '%-26s ' "$p"
   curl -s -o /dev/null -w '%{http_code}\n' \
     -H "Authorization: Bearer $MEALIE_TOKEN" "$MEALIE_URL/api/$p?perPage=1"
@@ -322,6 +329,10 @@ Four more, because Mealie has no undo:
   `notes` and the rest instead of merging them, so a patch carrying fewer
   lines than the recipe holds would delete the difference. It aborts unless
   the action says `"replace": true`.
+- **A cookbook filter written for Mealie 1.x is refused.** The three name
+  lists and their `requireAll*` switches became one `queryFilterString` in
+  Mealie 2.0, and Mealie ignores the old keys rather than rejecting them -
+  which would leave a cookbook matching every recipe.
 - **Merges are verified.** The affected recipes are read back afterwards;
   if any still points at the merged-away object, the run stops.
 - **Plans are linted** against the rules that can be checked mechanically -

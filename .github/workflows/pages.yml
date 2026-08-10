@@ -5,12 +5,16 @@ on:
     branches: [main]
     paths:
       - "*.md"
+      - "rules/**"
+      - "docs/**"
       - "_config.yml"
       - "_layouts/**"
       - ".github/workflows/pages.yml"
   pull_request:
     paths:
       - "*.md"
+      - "rules/**"
+      - "docs/**"
       - "_config.yml"
       - "_layouts/**"
       - ".github/workflows/pages.yml"

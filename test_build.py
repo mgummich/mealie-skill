@@ -437,6 +437,37 @@ def offline(method, path, **kw):
 with tempfile.TemporaryDirectory() as tmp:
     assert run_apply(shrink, offline, tmp, dry_run=True) == []   # nothing logged
 
+# 12d-2. Mealie ignores the pre-2.0 cookbook filter keys instead of refusing
+#        them, which would leave a cookbook matching every recipe.
+legacy_cookbook = [{"op": "create_cookbook",
+                    "payload": {"name": "Quick", "tags": ["t-quick"],
+                                "requireAllTags": True}}]
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    try:
+        run_apply(legacy_cookbook, three_line_recipe, tmp, dry_run=True)
+        raise AssertionError("a pre-2.0 cookbook payload did not abort")
+    except SystemExit as e:
+        assert "queryFilterString" in str(e) and "tags" in str(e), e
+    assert not [m for m, _ in calls if m != "GET"], calls   # nothing was written
+
+# 12d-3. The current shape writes, and to the household path - cookbooks
+#        moved off the group in Mealie 2.0.
+filtered = [{"op": "create_cookbook",
+             "payload": {"name": "Quick", "description": "Weeknights.",
+                         "queryFilterString": 'tags.name IN ["Quick"]'}}]
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+
+    def created(method, path, **kw):
+        """Answer a create with an id, recording the path it was sent to."""
+        calls.append((method, path))
+        return {"id": "cb-1"}
+
+    logged = run_apply(filtered, created, tmp)
+    assert ("POST", "/households/cookbooks") in calls, calls
+    assert logged[0]["payload"]["queryFilterString"], logged
+
 # 12e. A merge is verified by reading the affected recipes back: Mealie
 #      answers a merge that lost references exactly like one that worked.
 with tempfile.TemporaryDirectory() as tmp:

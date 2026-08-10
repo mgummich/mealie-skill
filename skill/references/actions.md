@@ -58,7 +58,7 @@ first, then delete.
 | `retag_recipe` | `slug`, `kind` (no labels - nothing to retag), `add` (ids), `remove` (ids) |
 | `delete_organizer` | `kind`, `id` |
 | `delete_food` / `delete_unit` | `id`; refused while any recipe uses it |
-| `create_cookbook` | `name`, `description`, `categories`/`tags`/`tools`, `requireAll*` |
+| `create_cookbook` | `name`, `description`, `queryFilterString` (the filter, see `references/cookbooks.md`), optional `public` |
 | `update_cookbook` | `id` + fields to change |
 | `patch_recipe` | the changed recipe fields - list fields in full, see below - plus `slug` for the recipe (or `--slug` for the whole run) |
 | `set_image` | `url`, plus `slug` (or `--slug`) |

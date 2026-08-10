@@ -1,0 +1,12 @@
+{"actions": [
+  {"op": "create_label", "id_as": "lbl_spices",
+   "payload": {"name": "Spices & Herbs", "color": "#8B5E3C"}},
+  {"op": "create_food", "id_as": "food_cumin",
+   "payload": {"name": "cumin",
+               "pluralName": "cumin",
+               "description": "Ground cumin seed.",
+               "labelId": "$ref:lbl_spices",
+               "aliases": [{"name": "ground cumin"}, {"name": "Kreuzkümmel"}]}},
+  {"op": "create_unit",
+   "payload": {"name": "gram", "pluralName": "grams", "abbreviation": "g"}}
+]}

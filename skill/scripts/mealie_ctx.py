@@ -67,7 +67,8 @@ EP = {
     "categories": "/organizers/categories",
     "tags": "/organizers/tags",
     "tools": "/organizers/tools",
-    "cookbooks": "/groups/cookbooks",
+    # Cookbooks hang off the household since Mealie 2.0, not the group.
+    "cookbooks": "/households/cookbooks",
 }
 ORG = {"categories": "recipeCategory", "tags": "tags", "tools": "tools"}
 CREATE_EP = {
@@ -89,6 +90,13 @@ ORDER = [
     "delete_food", "delete_unit",
     "create_cookbook", "update_cookbook", "patch_recipe", "set_image",
 ]
+# Mealie 2.0 replaced the cookbook's three name lists and their requireAll*
+# switches with a single query filter string. The old keys are not rejected
+# by the API, they are ignored - a plan carrying them creates a cookbook
+# that matches every recipe and nobody notices. So they are refused here.
+COOKBOOK_LEGACY = ("categories", "tags", "tools", "requireAllCategories",
+                   "requireAllTags", "requireAllTools")
+
 # Kinds update_organizer and delete_organizer accept. Labels are organizers
 # to this format even though they hang off a food rather than a recipe;
 # retag_recipe deliberately does not take them, there is nothing to retag.
@@ -283,6 +291,28 @@ def mget(path, **params):
             nxt = mreq("GET", path, params={**params, "page": page})
             items += (nxt or {}).get("items", [])
     return items
+
+
+def cookbook_hits(cid):
+    """Count the recipes one cookbook's filter currently matches.
+
+    The hit count is the only thing that tells a working cookbook from an
+    emptied one, and Mealie answers it in a single request: the recipe list
+    filtered by the cookbook reports its total. Asking for one item keeps
+    the body small; only the count is read.
+
+    Args:
+        cid: Cookbook id or slug.
+
+    Returns:
+        The number of matching recipes, or "?" if the instance refuses the
+        request - an unreadable count must not abort an analysis run.
+    """
+    try:
+        d = mreq("GET", EP["recipes"], params={"cookbook": cid, "perPage": 1})
+    except requests.HTTPError:
+        return "?"
+    return d.get("total", "?") if isinstance(d, dict) else "?"
 
 
 # Fields of a recipe that no mode reads and none writes: bookkeeping,
@@ -1052,9 +1082,11 @@ def cmd_ctx(a):
 
     if what == "cookbooks":
         idx = load_index()
-        print("EXISTING COOKBOOKS:")
+        print("EXISTING COOKBOOKS (id|name|hits|filter|description):")
         for c in mget(EP["cookbooks"]):
-            print(f' {c["id"]}|{c.get("name")}|{c.get("description", "")[:60]}')
+            print(f' {c["id"]}|{c.get("name")}|{cookbook_hits(c["id"])}'
+                  f'|{c.get("queryFilterString") or "(none - matches all)"}'
+                  f'|{c.get("description", "")[:60]}')
         for kind in ORG:
             u = counts(idx, kind)
             items = mget(EP[kind])
@@ -1985,6 +2017,31 @@ def _guard_deletes(actions, idx):
                      "those recipes first.")
 
 
+def _guard_cookbooks(actions):
+    """Refuse a cookbook payload written against the pre-2.0 filter model.
+
+    Mealie ignores unknown fields on a write, so a cookbook created from
+    `tags` plus `requireAllTags` is accepted, has no filter and matches
+    everything. The filter is one string since 2.0, see COOKBOOK_LEGACY.
+
+    Args:
+        actions: The parsed action list.
+
+    Raises:
+        SystemExit: If a cookbook action carries a pre-2.0 filter key.
+    """
+    for x in actions:
+        if x["op"] not in ("create_cookbook", "update_cookbook"):
+            continue
+        bad = [k for k in COOKBOOK_LEGACY if k in x.get("payload", {})]
+        if bad:
+            sys.exit(f'{x["op"]}: {", ".join(bad)} is not a cookbook field '
+                     "since Mealie 2.0 and would be ignored, leaving a "
+                     'cookbook that matches everything. Use one '
+                     '"queryFilterString", e.g. '
+                     'tags.name IN ["Quick"] AND rating > 3')
+
+
 def _merge_users(idx, kind, oid):
     """List the slugs of the recipes that use one food or unit.
 
@@ -2130,6 +2187,7 @@ def cmd_apply(a):
         if kind not in ORG_KINDS:
             sys.exit(f'{x["op"]}: unknown kind {kind!r} - one of '
                      f"{', '.join(ORG_KINDS)}")
+    _guard_cookbooks(actions)
     _guard_deletes(actions, idx)
 
     if any(x["op"] in ("merge_food", "merge_unit", "delete_organizer",
