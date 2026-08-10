@@ -48,11 +48,17 @@ with examples. Both files are also served as a site:
 | Mode | does |
 |---|---|
 | `recipe` | fill empty fields, parse ingredients, translate steps, convert to metric, set an image |
-| `foods` | foods: description, plural, label, aliases; merge duplicates |
-| `units` | the same for units |
+| `foods` | matching cascade, gaps, merge duplicates, split ambiguous foods |
+| `units` | the closed metric set, abbreviation collisions, converting non-metric amounts away |
+| `labels` | the 29 shopping-list labels, their zone palette and the shop route |
 | `organizers` | consolidate categories, tags and tools; retag recipes, delete empty objects |
 | `cookbooks` | create and rework cookbooks as filter rules |
-| `maintenance` | duplicate recipes, dead images and source URLs, diet tags from ingredients |
+| `maintenance` | duplicate recipes, broken ingredient lines, dead links, diet tags |
+| `extras` | the free key-value field on recipes, foods and units |
+
+The rules behind the modes live in [`rules/`](rules/) in two independent
+language versions; `skill/references/` is their compressed working form and
+`skill/data/` their machine form.
 
 ## Quickstart
 
@@ -206,19 +212,24 @@ python standalone/optimize.py maintenance links
 
 ```bash
 python .../mealie_ctx.py index --refresh
-python .../mealie_ctx.py audit foods|units|categories|tags|tools|recipes|links
+python .../mealie_ctx.py audit foods|units|labels|categories|tags|tools|recipes|links|extras
 python .../mealie_ctx.py ctx recipe <slug>
 python .../mealie_ctx.py ctx foods|units|categories|tags|tools|cookbooks|diet
 python .../mealie_ctx.py usage tag <id>
+python .../mealie_ctx.py convert "1 cup plain flour" "350 F"
+python .../mealie_ctx.py rules --init
+python .../mealie_ctx.py seed labels|units|all --out actions.json
 python .../mealie_ctx.py apply actions.json --dry-run
 ```
 
 ## Layout
 
 ```
+rules/                  the rule set, DE and EN, the upstream record
 skill/                  the single source of truth
   SKILL.md              slim router
   references/*.md       details, read only when needed
+  data/<lang>/          conversion, lint, seed and house-rule tables
   workflow.md           the /mealie procedure
   scripts/mealie_ctx.py every API call
 standalone/
@@ -301,6 +312,22 @@ create_label -> merge_food -> merge_unit -> create_food -> create_unit
 Destructive operations are announced before execution. `--dry-run` shows
 every action without writing. The tool never deletes recipes - duplicates
 are only presented.
+
+Four more, because Mealie has no undo:
+
+- **Nothing is overwritten unrecorded.** Every applied action goes to
+  `.mealie.changelog.jsonl` with the state it replaced, written before the
+  next action runs. Merges and deletions record the whole object.
+- **A shortening list is refused.** Mealie replaces `recipeIngredient`,
+  `notes` and the rest instead of merging them, so a patch carrying fewer
+  lines than the recipe holds would delete the difference. It aborts unless
+  the action says `"replace": true`.
+- **Merges are verified.** The affected recipes are read back afterwards;
+  if any still points at the merged-away object, the run stops.
+- **Plans are linted** against the rules that can be checked mechanically -
+  a new food without a label or aliases, a tag carrying two concepts, a
+  note title outside the vocabulary. Creating a non-metric unit is refused
+  outright.
 
 ## Heuristics and their limits
 

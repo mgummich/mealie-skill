@@ -25,7 +25,8 @@ TARGETS = ("claude-code", "antigravity", "cursor", "agents-md")
 
 RE_AGENT = re.compile(r"^\s*<!-- agent-only -->\s*$")
 RE_STANDALONE = re.compile(r"^\s*<!-- standalone: (.*?) -->\s*$")
-TOOL_WORDS = ("setup", "index", "audit", "ctx", "usage", "apply", "python")
+TOOL_WORDS = ("setup", "index", "audit", "ctx", "usage", "apply", "python",
+              "convert", "rules", "seed")
 
 # Placeholder for the content language in SKILL.md, references and prompts.
 # The project language is English; this is the language of the recipe data.
@@ -37,9 +38,12 @@ DEFAULT_LANG = os.environ.get("MEALIE_LANG") or "English"
 MODES = [
     ("recipes.md", "recipes"),
     ("foods.md", "foods"),
+    ("units.md", "units"),
+    ("labels.md", "labels"),
     ("organizers.md", "organizers"),
     ("cookbooks.md", "cookbooks"),
     ("maintenance.md", "maintenance"),
+    ("extras.md", "extras"),
     ("actions.md", "actions"),
     ("mcp.md", "mcp"),
 ]
@@ -232,7 +236,7 @@ def _mdc_frontmatter(desc):
 def mode_descriptions():
     """Derive one description per reference file from SKILL.md.
 
-    The five modes come from the router table, the files that are not modes
+    The modes come from the router table, the files that are not modes
     (actions.md, mcp.md) from the prose lines below it: "<description>:
     `references/<file>`". Descriptions live in SKILL.md only, so they cannot
     drift apart from the router.
@@ -285,6 +289,27 @@ def _copy_script(root):
     """
     _write(os.path.join(root, "mealie", "scripts", "mealie_ctx.py"),
            _read("scripts", "mealie_ctx.py"))
+    _copy_data(os.path.join(root, "mealie"))
+
+
+def _copy_data(parent):
+    """Copy skill/data/ next to the scripts directory of a target.
+
+    The script resolves its data as ../data relative to itself, so the two
+    directories have to stay siblings in every layout.
+
+    Args:
+        parent: Directory that holds the scripts directory of this target.
+
+    Raises:
+        OSError: If a file cannot be read or written.
+    """
+    src = os.path.join(HERE, "skill", "data")
+    for dirpath, _, files in os.walk(src):
+        for name in files:
+            rel = os.path.relpath(os.path.join(dirpath, name), src)
+            _write(os.path.join(parent, "data", rel),
+                   _read("data", *rel.split(os.sep)))
 
 
 def build_target(target, out, lang=None):
@@ -321,6 +346,7 @@ def build_target(target, out, lang=None):
         _copy_refs(os.path.join(skill_dir, "references"), mapping, lang)
         _write(os.path.join(skill_dir, "scripts", "mealie_ctx.py"),
                _read("scripts", "mealie_ctx.py"))
+        _copy_data(skill_dir)
         wf = rewrite(render_agent(_read("workflow.md"), lang), mapping)
         wf_path = (os.path.join(root, ".claude", "commands", "mealie.md")
                    if target == "claude-code"

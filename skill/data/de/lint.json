@@ -1,0 +1,65 @@
+{
+  "_source": "Maschinell prüfbare Punkte aus rules/de/. Alles, was Urteil braucht, bleibt in den References.",
+  "foodNameCase": "any",
+  "tagNameCase": "any",
+  "foodDescriptionMax": 100,
+  "maxTags": 8,
+  "maxCategories": 2,
+  "maxTools": 4,
+  "maxNotes": 5,
+  "noteTitles": [
+    "Quelle",
+    "Variante",
+    "Vorbereitung",
+    "Aufbewahrung",
+    "Dazu passt",
+    "Erfahrung"
+  ],
+  "defaultLabelColor": "#959595",
+  "singleLetterAbbreviations": [
+    "g",
+    "l"
+  ],
+  "toolBrands": [
+    "thermomix",
+    "kitchenaid",
+    "crockpot",
+    "instant pot",
+    "vitamix",
+    "magimix"
+  ],
+  "negativeTagPrefixes": [
+    "ohne ",
+    "kein ",
+    "keine "
+  ],
+  "conjunctions": [
+    " und "
+  ],
+  "symbolAbbreviations": [
+    "mg",
+    "g",
+    "kg",
+    "ml",
+    "l"
+  ],
+  "everydayEquipment": [
+    "Messer",
+    "Schneidebrett",
+    "Topf",
+    "Pfanne",
+    "Schüssel",
+    "Sieb",
+    "Kochlöffel",
+    "Backblech",
+    "Schneebesen",
+    "Reibe",
+    "Sparschäler",
+    "Backofen",
+    "Herd",
+    "Kühlschrank",
+    "Rührschüssel",
+    "Teigschaber",
+    "Nudelholz"
+  ]
+}

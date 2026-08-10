@@ -4,7 +4,9 @@
   optimize.py recipe <slug> [<slug> ...]
   optimize.py recipe --batch [--limit 20]
   optimize.py foods gaps|duplicates [--limit N]
-  optimize.py units gaps|duplicates [--limit N]
+  optimize.py units gaps|duplicates|metric [--limit N]
+  optimize.py labels [--limit N]
+  optimize.py extras
   optimize.py organizers categories|tags|tools [--limit N]
   optimize.py cookbooks --purpose "Quick weeknight cooking"
   optimize.py maintenance duplicates|links|diet [--limit N]
@@ -44,9 +46,10 @@ AH = {
 MODEL = os.environ.get("MODEL", "claude-sonnet-4-6")
 
 PROMPTS = {
-    "recipe": "recipes.md", "foods": "foods.md", "units": "foods.md",
-    "organizers": "organizers.md", "cookbooks": "cookbooks.md",
-    "maintenance": "maintenance.md",
+    "recipe": "recipes.md", "foods": "foods.md", "units": "units.md",
+    "labels": "labels.md", "organizers": "organizers.md",
+    "cookbooks": "cookbooks.md", "maintenance": "maintenance.md",
+    "extras": "extras.md",
 }
 
 
@@ -187,7 +190,8 @@ def run(mode, task, user_msg, args, slug=None):
         return
     actions = data["actions"]
     destructive = sorted({a["op"] for a in actions if a["op"] in (
-        "merge_food", "merge_unit", "delete_organizer", "retag_recipe")})
+        "merge_food", "merge_unit", "delete_organizer", "delete_food",
+        "delete_unit", "retag_recipe")})
     if destructive:
         print(f"\n!! Destructive: {', '.join(destructive)} - recipes will be "
               "rewritten and objects deleted.")
@@ -242,10 +246,15 @@ def mode_table(args, kind):
     if task == "gaps":
         body = ctx("ctx", kind, "--limit", args.limit or 25)
         head = f"TASK: fill the gaps in {kind}"
+    elif task == "metric" and kind == "units":
+        body = ctx("audit", "units")
+        head = ("TASK: work through the non-metric units. One recipe per "
+                "plan, and every converted line carries its Original: note")
     else:
         body = ctx("audit", kind, "--limit", args.limit or 5)
         head = f"TASK: review the duplicates in {kind}"
-    run("foods", f"{kind}/{task}", f"{head}\n\n{body}\nStart with phase 1.", args)
+    mode = "units" if kind == "units" else "foods"
+    run(mode, f"{kind}/{task}", f"{head}\n\n{body}\nStart with phase 1.", args)
 
 
 def mode_organizers(args):
@@ -262,6 +271,30 @@ def mode_organizers(args):
     body = ctx("audit", kind, "--limit", args.limit or 5) + "\n" + ctx("ctx", kind)
     run("organizers", kind,
         f"TASK: consolidate {kind}\n\n{body}\nStart with phase 1.", args)
+
+
+def mode_labels(args):
+    """Work on the shopping-list labels and the foods that carry none.
+
+    Args:
+        args: Parsed arguments; --limit caps the food list.
+    """
+    body = ctx("audit", "labels") + "\n" + ctx("ctx", "foods", "--limit",
+                                               args.limit or 25)
+    run("labels", "labels",
+        f"TASK: bring the labels into shape\n\n{body}\nStart with phase 1.",
+        args)
+
+
+def mode_extras(args):
+    """Reconcile the extras keys against the register.
+
+    Args:
+        args: Parsed arguments; unused beyond the common flags.
+    """
+    run("extras", "extras", "TASK: reconcile the extras keys against the "
+        "register\n\n" + ctx("audit", "extras") + "\nStart with phase 1.",
+        args)
 
 
 def mode_cookbooks(args):
@@ -304,8 +337,9 @@ def main():
     """
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("mode", choices=["recipe", "foods", "units", "organizers",
-                                    "cookbooks", "maintenance"])
+    p.add_argument("mode", choices=["recipe", "foods", "units", "labels",
+                                    "organizers", "cookbooks", "maintenance",
+                                    "extras"])
     p.add_argument("targets", nargs="*")
     p.add_argument("--batch", action="store_true")
     p.add_argument("--limit", type=int)
@@ -317,7 +351,9 @@ def main():
     {"recipe": mode_recipe,
      "foods": lambda x: mode_table(x, "foods"),
      "units": lambda x: mode_table(x, "units"),
+     "labels": mode_labels,
      "organizers": mode_organizers,
+     "extras": mode_extras,
      "cookbooks": mode_cookbooks,
      "maintenance": mode_maintenance}[a.mode](a)
 

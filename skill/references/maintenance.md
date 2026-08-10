@@ -1,6 +1,20 @@
 # Maintenance
 
-Three checks that fit well into one session, but each gets its own plan.
+Corpus-wide checks. Each gets its own plan.
+
+**A corpus-wide sweep of the recipes is not worth it**, unlike the master
+data: the set is too large and the work too manual. Prioritise by impact -
+recipes actually cooked (`lastMade`, a high `rating`) first, then recipes
+with broken ingredient lines, since those break shopping lists and scaling,
+then the rest, occasionally.
+
+Run the master data first - foods, units, tags - or you tag with tags that
+are merged away afterwards.
+
+The headline number for the whole library is the **share of ingredient
+lines with a linked `food`**. `audit recipes` reports it; above 95 % is the
+target, and it is the one figure that says whether the library works as a
+database or only as a set of texts.
 
 ## Duplicate recipes
 
@@ -72,6 +86,31 @@ For a dead source URL:
 
 Recipes without an image can be handled in recipe mode; see
 `references/recipes.md`, section Image.
+
+## Repairing ingredient lines
+
+The highest-yield pass on the recipes themselves, and the one that raises
+the headline number. Typical damage from old imports:
+
+| Damage | Detection | Repair |
+|---|---|---|
+| line is raw text | no `food` linked | parse it, link `food` and `unit` |
+| preparation inside the food | `food` reads `onions, finely chopped` | preparation to `note` |
+| amount in the note | `note` reads `about 200 g` | into `quantity` and `unit` |
+| several foods on one line | `salt and pepper` | two lines |
+| invented amount | `1 piece salt` | `quantity: 0`, no unit, `note: to taste` |
+| homemade component as a food | `food` reads `pizza dough` | `referencedRecipe` |
+| unit contains a food | `unit` reads `garlic clove` | `unit: clove`, `food: garlic` |
+
+`originalText` stays untouched - in every repair it is the only evidence of
+what was there. Where it is missing, fill it from the current display value
+first, then repair.
+
+Converting the amounts comes **after** this: a line can only be converted
+once its food and unit are recognised at all. See `references/units.md`.
+
+Because these are whole-list writes, the one-recipe-per-plan rule applies;
+see `references/recipes.md`.
 
 ## Deriving diet tags from ingredients
 

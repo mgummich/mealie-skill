@@ -1,0 +1,558 @@
+[
+  {
+    "name": "milligram",
+    "pluralName": "milligrams",
+    "abbreviation": "mg",
+    "pluralAbbreviation": "mg",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Metric mass unit; 1000 mg = 1 g, used only for spices and additives.",
+    "aliases": [
+      {
+        "name": "mg."
+      },
+      {
+        "name": "milligramme"
+      },
+      {
+        "name": "milligrammes"
+      }
+    ],
+    "standardQuantity": 0.001,
+    "standardUnit": "gram"
+  },
+  {
+    "name": "gram",
+    "pluralName": "grams",
+    "abbreviation": "g",
+    "pluralAbbreviation": "g",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Metric base unit of mass; the standard for solid ingredients.",
+    "aliases": [
+      {
+        "name": "gr"
+      },
+      {
+        "name": "gm"
+      },
+      {
+        "name": "gramme"
+      },
+      {
+        "name": "grammes"
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "gram"
+  },
+  {
+    "name": "kilogram",
+    "pluralName": "kilograms",
+    "abbreviation": "kg",
+    "pluralAbbreviation": "kg",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "1000 grams; for larger amounts such as meat, potatoes or flour.",
+    "aliases": [
+      {
+        "name": "kilo"
+      },
+      {
+        "name": "kilos"
+      },
+      {
+        "name": "kilogramme"
+      },
+      {
+        "name": "kilogrammes"
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "kilogram"
+  },
+  {
+    "name": "millilitre",
+    "pluralName": "millilitres",
+    "abbreviation": "ml",
+    "pluralAbbreviation": "ml",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Metric base unit of volume; the standard for liquids.",
+    "aliases": [
+      {
+        "name": "mL"
+      },
+      {
+        "name": "milliliter"
+      },
+      {
+        "name": "milliliters"
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "milliliter"
+  },
+  {
+    "name": "litre",
+    "pluralName": "litres",
+    "abbreviation": "l",
+    "pluralAbbreviation": "l",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "1000 millilitres; for stock, milk and larger volumes.",
+    "aliases": [
+      {
+        "name": "liter"
+      },
+      {
+        "name": "liters"
+      },
+      {
+        "name": "ltr"
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "liter"
+  },
+  {
+    "name": "teaspoon",
+    "pluralName": "teaspoons",
+    "abbreviation": "tsp",
+    "pluralAbbreviation": "tsp",
+    "useAbbreviation": true,
+    "fraction": true,
+    "description": "Metrically defined spoon measure; 1 tsp = 5 ml.",
+    "aliases": [
+      {
+        "name": "tsp."
+      },
+      {
+        "name": "tsps"
+      },
+      {
+        "name": "teaspoonful"
+      },
+      {
+        "name": "tspn"
+      }
+    ],
+    "standardQuantity": 5,
+    "standardUnit": "milliliter"
+  },
+  {
+    "name": "tablespoon",
+    "pluralName": "tablespoons",
+    "abbreviation": "tbsp",
+    "pluralAbbreviation": "tbsp",
+    "useAbbreviation": true,
+    "fraction": true,
+    "description": "Metrically defined spoon measure; 1 tbsp = 15 ml = 3 tsp.",
+    "aliases": [
+      {
+        "name": "tbsp."
+      },
+      {
+        "name": "tbs"
+      },
+      {
+        "name": "tblsp"
+      },
+      {
+        "name": "tablespoonful"
+      }
+    ],
+    "standardQuantity": 15,
+    "standardUnit": "milliliter"
+  },
+  {
+    "name": "piece",
+    "pluralName": "pieces",
+    "abbreviation": "pc",
+    "pluralAbbreviation": "pcs",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Count measure for single objects; set only where the recipe really counts.",
+    "aliases": [
+      {
+        "name": "pc."
+      },
+      {
+        "name": "pcs."
+      },
+      {
+        "name": "pieces."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "pinch",
+    "pluralName": "pinches",
+    "abbreviation": "pn",
+    "pluralAbbreviation": "pn",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "Amount held between two fingers; for salt, sugar and spices, roughly 0.5 g.",
+    "aliases": [
+      {
+        "name": "pn."
+      },
+      {
+        "name": "pnch"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "dash",
+    "pluralName": "dashes",
+    "abbreviation": "dsh",
+    "pluralAbbreviation": "dsh",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "A few drops or a quick shake; for bitters, hot sauce or vinegar.",
+    "aliases": [
+      {
+        "name": "dsh."
+      },
+      {
+        "name": "dashes."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "bunch",
+    "pluralName": "bunches",
+    "abbreviation": "bn",
+    "pluralAbbreviation": "bn",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Shop-standard bundle of herbs or vegetables; size varies by season.",
+    "aliases": [
+      {
+        "name": "bn."
+      },
+      {
+        "name": "bnch"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "sprig",
+    "pluralName": "sprigs",
+    "abbreviation": "sprg",
+    "pluralAbbreviation": "sprg",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Single herb stem; for rosemary, thyme and parsley.",
+    "aliases": [
+      {
+        "name": "sprg."
+      },
+      {
+        "name": "sprigs."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "clove",
+    "pluralName": "cloves",
+    "abbreviation": "clv",
+    "pluralAbbreviation": "clv",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Single segment of a bulb; the food is stated separately on the line.",
+    "aliases": [
+      {
+        "name": "clv."
+      },
+      {
+        "name": "cloves."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "stick",
+    "pluralName": "sticks",
+    "abbreviation": "stk",
+    "pluralAbbreviation": "stk",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Long single piece; for celery, rhubarb or cinnamon, never for butter.",
+    "aliases": [
+      {
+        "name": "stk."
+      },
+      {
+        "name": "sticks."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "slice",
+    "pluralName": "slices",
+    "abbreviation": "sl",
+    "pluralAbbreviation": "sl",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Flat cut piece; for bread, cheese, cured meat or lemon.",
+    "aliases": [
+      {
+        "name": "sl."
+      },
+      {
+        "name": "slc"
+      },
+      {
+        "name": "slices."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "leaf",
+    "pluralName": "leaves",
+    "abbreviation": "lf",
+    "pluralAbbreviation": "lvs",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Single leaf; for gelatine, bay or lettuce.",
+    "aliases": [
+      {
+        "name": "lf."
+      },
+      {
+        "name": "lvs."
+      },
+      {
+        "name": "leafs"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "head",
+    "pluralName": "heads",
+    "abbreviation": "hd",
+    "pluralAbbreviation": "hd",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Whole head of a plant; for lettuce, cabbage or garlic.",
+    "aliases": [
+      {
+        "name": "hd."
+      },
+      {
+        "name": "heads."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "handful",
+    "pluralName": "handfuls",
+    "abbreviation": "hdfl",
+    "pluralAbbreviation": "hdfl",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "As much as one hand holds; a loose measure for herbs and leaves.",
+    "aliases": [
+      {
+        "name": "hdfl."
+      },
+      {
+        "name": "hand full"
+      },
+      {
+        "name": "handfulls"
+      },
+      {
+        "name": "handsful"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "splash",
+    "pluralName": "splashes",
+    "abbreviation": "spl",
+    "pluralAbbreviation": "spl",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "Short pour from the bottle; for vinegar, oil or wine, roughly 10 ml.",
+    "aliases": [
+      {
+        "name": "spl."
+      },
+      {
+        "name": "splashes."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "packet",
+    "pluralName": "packets",
+    "abbreviation": "pkt",
+    "pluralAbbreviation": "pkt",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Shop-standard packet; contents vary by brand, so check the amount.",
+    "aliases": [
+      {
+        "name": "pkt."
+      },
+      {
+        "name": "pkg"
+      },
+      {
+        "name": "pkg."
+      },
+      {
+        "name": "package"
+      },
+      {
+        "name": "packets."
+      },
+      {
+        "name": "sachet"
+      },
+      {
+        "name": "sachets"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "tin",
+    "pluralName": "tins",
+    "abbreviation": "tn",
+    "pluralAbbreviation": "tn",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Tinned goods; house assumption 400 g unless stated otherwise.",
+    "aliases": [
+      {
+        "name": "can"
+      },
+      {
+        "name": "cans"
+      },
+      {
+        "name": "tn."
+      },
+      {
+        "name": "tins."
+      },
+      {
+        "name": "canned"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "jar",
+    "pluralName": "jars",
+    "abbreviation": "jr",
+    "pluralAbbreviation": "jr",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Preserving jar; house assumption 350 g unless stated otherwise.",
+    "aliases": [
+      {
+        "name": "jr."
+      },
+      {
+        "name": "jars."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "bottle",
+    "pluralName": "bottles",
+    "abbreviation": "btl",
+    "pluralAbbreviation": "btl",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Shop-standard bottle; record the volume in the ingredient note.",
+    "aliases": [
+      {
+        "name": "btl."
+      },
+      {
+        "name": "bot."
+      },
+      {
+        "name": "bottles."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "punnet",
+    "pluralName": "punnets",
+    "abbreviation": "pnt",
+    "pluralAbbreviation": "pnt",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Shop-standard fruit punnet; for berries and cherry tomatoes, 250 to 500 g.",
+    "aliases": [
+      {
+        "name": "pnt."
+      },
+      {
+        "name": "punnets."
+      },
+      {
+        "name": "clamshell"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "rasher",
+    "pluralName": "rashers",
+    "abbreviation": "rsh",
+    "pluralAbbreviation": "rsh",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Single slice of bacon; thickness varies, so weigh where it matters.",
+    "aliases": [
+      {
+        "name": "rsh."
+      },
+      {
+        "name": "rashers."
+      },
+      {
+        "name": "slice of bacon"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  }
+]

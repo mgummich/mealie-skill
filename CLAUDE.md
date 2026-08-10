@@ -36,6 +36,20 @@ write. Changing the order means changing `references/actions.md` with it
 **No recipe deletion.** There is deliberately no operation for it. Duplicate
 recipes are presented; deleting happens by hand in the UI.
 
+**A write that changes nothing is not sent.** Every `update_*` and
+`patch_recipe` compares against the current record first and prints
+`UNCHANGED` instead — the rule set asks that a second run over a clean
+corpus produce zero changes, and comparing is what makes that true. A new
+writing operation follows suit.
+
+**Nothing is overwritten without a record.** Every write in `cmd_apply`
+reads the state it is about to replace and calls `log_change` before the
+next action runs — `.mealie.changelog.jsonl` is the only rollback path.
+A new writing operation is not finished until it logs its before-state.
+Mealie replaces list fields instead of merging them, so `patch_recipe`
+guards against a shortening list (`RECIPE_LISTS`, `_guard_recipe_lists`);
+an intended removal carries `"replace": true` on the action.
+
 **`actions.json` is database content, not chat.** Descriptions, steps, notes
 and cookbook texts always in full prose, even when the output style is
 compressed (caveman). This rule lives in `SKILL.md` and in
@@ -46,6 +60,23 @@ standalone prompts are rendered. Only `prompts/common.txt` (principles,
 output style) is hand-maintained. Several places in the references carry
 `<!-- agent-only -->`/`<!-- standalone: … -->` markers for text that has to
 differ per context.
+
+## Data, not prose
+
+`skill/data/<lang>/` holds what the model must not retype or misread:
+`conversions.json` (density table, rounding, oven and tin sizes),
+`lint.json` (note titles, caps, brand and casing vocabularies),
+`labels.json` and `units.json` (the fixed vocabularies, emitted as actions
+by `seed`) and `house.json` (the template for `.mealie.rules.json`, the
+per-instance decisions the rule set wants recorded). The script
+reads it as `../data` relative to itself, so `build._copy_data` keeps the
+two directories siblings in every target layout. `en` is the fallback for
+any language without a pack.
+
+A rule that can be checked mechanically belongs in `lint.json` and
+`lint_actions`, not in a reference: a checklist in the prompt costs tokens
+every session and is advisory, the same rule in the dry run is free and
+enforced. A rule needing judgement stays in `skill/references/`.
 
 ## Conventions
 
@@ -60,10 +91,14 @@ language into a prompt; the placeholder belongs in `skill/` and
 
 Line length 88, no external dependencies except `requests`. `ruff check .`
 enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
-runtime dependency.
+runtime dependency. CI also runs `mypy` on 3.12 — run it before pushing,
+`ruff` passing says nothing about it:
 
-New operations need: an entry in `ORDER`, a branch in `cmd_apply`, a row in
-the table in `references/actions.md`, a test in the dry run.
+    pip install mypy types-requests && mypy
+
+New operations need: an entry in `ORDER`, a branch in `cmd_apply` that logs
+its before-state, a row in the table in `references/actions.md`, a test in
+the dry run.
 
 New audits write nothing and read from the index instead of fetching one by
 one.
@@ -74,6 +109,11 @@ one.
 deleted after every writing `apply`. One pass over all recipes. Every
 evaluation (usage counts, duplicates, link rot) reads from it — never build
 your own recipe loops.
+
+Teaching `build_index` a new field means raising `INDEX_VERSION` with it.
+An index from an older version is rebuilt rather than audited on fields it
+does not carry, which would otherwise report zero and look like a clean
+result.
 
 ## Testing without an instance
 

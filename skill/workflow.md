@@ -76,7 +76,8 @@ Only after approval:
     ... apply actions.json --slug <slug>  # recipe mode
 
 If the script aborts, no speculative repair attempts - report the state
-reached and ask.
+reached and ask. It prints how many actions were applied; what they
+overwrote is in `.mealie.changelog.jsonl`.
 
 ## Step 5 - Report
 

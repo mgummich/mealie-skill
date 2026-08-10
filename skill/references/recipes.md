@@ -1,5 +1,10 @@
 # Recipe mode
 
+A recipe is not a text document but a **structured assembly**: ingredient
+lines with linked foods and units, steps, metadata. Only the structure
+makes shopping lists, scaling and search work. A recipe whose ingredients
+sit there as raw text is a picture made of letters.
+
 ## Phase 1 - Analysis
 
 <!-- agent-only -->
@@ -21,6 +26,14 @@ fetching the same recipe again only repeats it.
 If an ingredient is missing from the FOODS block, look it up specifically
 with `ctx recipe <slug> --search "<term>"`.
 <!-- standalone: If an ingredient is missing from the FOODS block you were given, first check the block for spelling variants and foreign-language equivalents; otherwise treat it as new. -->
+
+Before **creating** a recipe, check whether it is already there - search by
+dish name and by two or three characteristic ingredients. Duplicates cost
+more here than anywhere else, because rating, notes and `lastMade` split
+across both copies and neither holds the truth any more. Same dish with a
+small variation is a `Variation` note on the existing recipe, not a second
+recipe. Same dish from a different source with a clearly different method
+may coexist - then sharpen both titles.
 
 ## Phase 2 - Plan, then stop
 
@@ -48,11 +61,22 @@ values, contradictions) · OPEN (left empty, with a reason)
 
 # Content rules
 
+## Required
+
+`name`, at least one ingredient line with a linked `food`, at least one
+step, `recipeServings`, exactly one category. A recipe with no times never
+turns up in an effort-based search.
+
 ## Ingredients
+
+The ingredient list is written back **whole**: Mealie replaces the field
+rather than merging it, so a patch carrying three lines leaves a recipe of
+three lines. Same for steps and notes; see `references/actions.md`.
 
 Search the FOODS block you were given first: exact name -> alias ->
 singular/plural/spelling variant -> the ${CONTENT_LANG} equivalent of a
-foreign-language term. Only then create something new.
+foreign-language term. Only then create something new; the full cascade is
+in `references/foods.md`.
 
 Structure: `quantity` (number), `unit`, `food`, `note`.
 `food` is the plain ingredient without preparation hints; `note` takes
@@ -62,41 +86,120 @@ Those four fields, never `display`. Mealie composes the displayed line out
 of them itself and puts the amount in front of whatever `display` holds, so
 a `display` of "500 g flour" shows up as "500 500 g flour".
 
-Metric. Convert imperial and show it in the report: cup flour 125 g, cup
-sugar 200 g, cup liquid 240 ml, stick butter 113 g, oz 28 g, lb 454 g,
-°C = (°F-32)*5/9 rounded to 5. Mind densities, do not convert by a single
-factor.
+`originalText` holds the raw imported line and is **never overwritten** -
+it is the evidence that lets any parse error be proved. Where it is missing
+in an old recipe, write the current display value into it before repairing.
 
-Units from the existing list; new ones only with `name`, `pluralName`,
-`abbreviation`. For multi-part recipes, group ingredient sections via
-`title`.
+**One food per line.** `salt and pepper` is two lines, `2 carrots and 1
+stick of celery` is two lines. Only separate lines reach the shopping list.
 
-## New foods
+`salt to taste` is `quantity: 0`, no unit, `note: to taste` - never an
+invented amount, it ends up on the shopping list. `2 eggs` has no unit.
 
-`name` (singular, everyday term), `pluralName`, `description` (2-4
-wiki-style sentences: what it is, origin/variety, culinary use, storage or a
-common substitute - factual, no first person, no marketing language, no
-amounts), `labelId`, `aliases` (synonyms plus the English term, so future
-parsing matches).
+Homemade components - `pizza dough`, `chicken stock (homemade)` - are
+`referencedRecipe` on the line, not foods. If the sub-recipe does not exist
+yet, create it or list its components; never create a food called "mashed
+potato".
 
-If no suitable label exists, create one (name + hex color), modelled on
-supermarket aisles: Fruit & Vegetables, Meat & Fish, Dairy, Dry Goods &
-Baking, Cans & Jars, Spices & Herbs, Oils & Vinegars, Frozen, Drinks, Other.
+Order the lines by **use**, not by aisle. Sections (`title` on the first
+line of the section) from about eight ingredients or where there are
+genuine sub-preparations.
+
+Metric. A cup of flour and a cup of honey differ by almost a factor of
+three, so the density decides and never a single factor.
+
+<!-- agent-only -->
+Do not convert by hand - the table lives in the script:
+
+    convert "1 cup plain flour" "8 oz" "350 F"
+    120 g plain flour   [note: Original: 1 cup plain flour]
+
+`REVIEW` means the food is not in the density table: leave the line and
+list it under QUESTIONS, never estimate. `KEEP` means the unit is metric
+already. Details in `references/units.md`.
+<!-- standalone: Direct: 1 oz = 28 g, 1 lb = 450 g, 1 fl oz = 30 ml, 1 stick butter = 115 g, 1 inch = 2.5 cm, 1 US cup of liquid = 240 ml. Dry, per US cup: plain flour 120 g, wholemeal flour 130 g, white sugar 200 g, brown sugar 220 g, icing sugar 120 g, butter 227 g, oil 218 g, honey and syrup 340 g, rolled oats 90 g, rice 185 g, cocoa 85 g, breadcrumbs 108 g, grated cheese 100 g. Spoons: 1 tbsp flour 8 g, sugar 12 g, butter 14 g. °F: 350 -> 175 °C, 375 -> 190, 400 -> 200, 425 -> 220. A food that is not listed is NOT converted - leave the line and put it under QUESTIONS. tbsp and tsp are metric already and stay. -->
+
+Write both parts: the converted amount **and** the `Original: …` note on
+that ingredient line. The note is the evidence for a human and the marker
+that stops a later pass converting the same line twice. Keep an existing
+preparation note and append with `; `.
 
 ## Steps
 
-${CONTENT_LANG}, imperative, one step = one coherent action, no manual
-numbering in the text. Sections (`title` on the first step of the section)
-matching the ingredient sections: Preparation, Dough, Filling, Baking,
-Finishing. Only form sections from about five steps upwards. Temperatures in
-°C with the oven mode, times with a cue ("until the onions are translucent,
-about 5 min"). Ingredient names consistent with the ingredient list.
+${CONTENT_LANG}, imperative, one step = one coherent block of action - what
+you do in one go before touching something else. Not one sentence per step,
+not the whole recipe in one paragraph. No manual numbering in the text.
+
+Sections (`title` on the first step of the section) matching the ingredient
+sections: Preparation, Dough, Filling, Baking, Finishing. Only from about
+five steps upwards. Temperatures in °C with the oven mode and the original
+in brackets - `175 °C (Original: 350 °F)`. Times with a cue ("until the
+onions are translucent, about 5 min"). Ingredient names consistent with the
+ingredient list.
+
+Repeat an amount in the text only when an ingredient is used more than once
+or split - "stir in half the cheese" is necessary, "heat 2 tbsp olive oil"
+is redundant. Where it is repeated it must match the line.
+
+`ingredientReferences` link an ingredient to the step that uses it. An
+ingredient no step references is either superfluous or a hole in the
+method - it is the most reliable way to find a broken import.
 
 ## Notes
 
-At most four, each with a title: storage and shelf life, freezing and
-thawing, preparing ahead, substitutions (including vegan/gluten-free),
-common pitfalls, suitable side dishes. Only what you can support.
+Objects of `title` and `text`, not one lump. **Fixed vocabulary**, or after
+two years you have `Info`, `Note`, `Remark` and `Important!` side by side:
+
+| Title | Content |
+|---|---|
+| `Source` | book, person, page - where `orgURL` does not fit |
+| `Variation` | changes that do not justify a separate recipe |
+| `Get ahead` | what can be done the day before |
+| `Storage` | keeping, freezing, reheating |
+| `Serve with` | sides, drinks, place in a menu |
+| `Experience` | what did not work last time |
+
+`Experience` is the most valuable and the most often forgotten - the only
+place recording that the original was under-salted. Durable knowledge
+sitting in a comment belongs here; comments are conversation and ephemeral.
+
+One title once per recipe, at most five notes, text under roughly 400
+characters, full sentences.
+
+**Not in a note:** an action (that is a step, not even as a "tip"),
+anything about a single ingredient (that is the line's `note`), a reference
+like "see step 3" (steps get reordered), times and servings (they have
+fields), a complete alternative recipe, or an allergen assurance.
+
+Where text belongs, top to bottom, stop at the first yes: belongs to
+exactly one ingredient → the line's `note`; an action in the sequence →
+the step; applies to the whole recipe but is not an action → `notes[]`;
+the one-liner on what the dish is for → `description`.
+
+## Other fields
+
+`name` concise, max. 60 characters - the dish as you would say it, no
+superlative, no source, no time. `description` 1-2 sentences on what it is
+and when you cook it, not an echo of the title.
+
+`recipeServings` is the scaling basis; normalise to an everyday number.
+Baking and preserves also fill `recipeYieldQuantity` and `recipeYield`
+("12 muffins"), otherwise nobody knows whether one serving is one muffin or
+the tray.
+
+Times in one house format, resolved from the house rules - no ranges, take
+the lower figure and put the range in a step. Waiting time (proving,
+marinating, chilling) goes in `totalTime`, never in `prepTime`, or every
+effort-based search is wrong.
+
+`nutrition` only from the source, never estimated - an estimated figure is
+worse than none, because it looks like a measurement. `rating` after
+cooking, not at creation. `settings.public` false for text or images that
+are not yours.
+
+Organizers: `recipeCategory` 1-2 functional, `tags` at most eight each
+mapping to a facet, `tools` gating equipment only. Always check the
+existing lists first; see `references/organizers.md`.
 
 ## Image
 
@@ -109,23 +212,13 @@ in the report. Never the image of a different dish. Always name source and
 license.
 <!-- standalone: Without browser access, do not look for an image: use `set_image` only if an image URL is already present in the context you were given. Otherwise no image, note it in the report. Never the image of a different dish. -->
 
-## Organizers
+## After an import
 
-Always check the existing list first, including spelling variants and
-language versions. `recipeCategory`: 1-2, functional (main course, dessert,
-side dish, breakfast). `tags`: 3-8, lowercase - cuisine, diet (only when
-supported by the ingredients), method, occasion; no duplication of the
-category. `tools`: special equipment only (blender, 26 cm springform pan,
-thermometer, mortar), no pots, pans, knives, bowls.
-
-## Other fields
-
-`name` concise, max. 60 characters. `description` 1-2 sentences on the dish,
-flavour profile, occasion - not an echo of the title.
-`recipeYield`/`recipeServings` derived from the amounts.
-`prepTime`/`performTime`/`totalTime` as ISO-8601 ("PT25M"), resting times go
-into `totalTime`. `nutrition` per serving, only when all main ingredients
-come with amounts.
+A web import fills the fields, rarely correctly. Check five things: did the
+lines parse (a line with no linked `food` is raw text), are the units
+metric, did preparation land inside the food ("2 onions, finely chopped" as
+the food), are the steps sensibly cut, and are the source's tags SEO terms
+rather than taxonomy.
 
 ## Multiple recipes
 

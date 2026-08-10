@@ -1,0 +1,37 @@
+{
+  "_source": "Template for .mealie.rules.json. These are the decisions the rule set says must be recorded once and held to - without them the corpus drifts back into a mixture within months. Edit after `rules --init`; the tool never changes the file.",
+  "locale": "en-GB",
+  "categoryAxis": "dish type",
+  "timeFormat": "25 min, 1 hr 30 min",
+  "containerAssumptions": {
+    "tin": "400 g",
+    "packet": "",
+    "jar": ""
+  },
+  "defaultResolutions": {
+    "pepper": "black pepper [ground]",
+    "salt": "salt",
+    "garlic": "garlic [fresh]",
+    "onion": "onion [fresh]",
+    "ginger": "ginger [fresh]",
+    "parsley": "parsley [fresh]",
+    "oregano": "oregano [dried]",
+    "cinnamon": "cinnamon [ground]",
+    "milk": "whole milk",
+    "flour": "plain flour",
+    "stock": "review"
+  },
+  "unitVariants": {},
+  "tagFacets": {
+    "Cuisine": [],
+    "Diet": [],
+    "Occasion": [],
+    "Effort": [],
+    "Method": [],
+    "Season": [],
+    "Keeping": [],
+    "Audience": [],
+    "Source": []
+  },
+  "extrasRegister": []
+}

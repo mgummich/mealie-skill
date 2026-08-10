@@ -30,9 +30,19 @@ Mandatory, violations abort before the first write:
     create_label -> merge_food -> merge_unit -> create_food -> create_unit
     -> create_category -> create_tag -> create_tool -> update_food
     -> update_unit -> update_organizer -> retag_recipe -> delete_organizer
+    -> delete_food -> delete_unit
     -> create_cookbook -> update_cookbook -> patch_recipe -> set_image
 
 The reason: retag before deleting; create before referencing.
+
+**Deleting a food or unit is not merging one.** A merge repoints every
+recipe that used the loser; a delete strips it from them. So `delete_food`
+and `delete_unit` are for orphans only - a test artefact, a leftover of an
+old import, a non-metric unit whose last line has been converted - and the
+script refuses them while the index shows any recipe using the object. It
+also refuses them without an index, because it cannot check. Freeing the
+last reference and deleting it in the same run is refused too: audit again
+first, then delete.
 
 ## Operations
 
@@ -44,12 +54,13 @@ The reason: retag before deleting; create before referencing.
 | `create_category` / `create_tag` / `create_tool` | `name` |
 | `merge_food` / `merge_unit` | `from`, `to` (ids) |
 | `update_food` / `update_unit` | `id` + only the fields to set |
-| `update_organizer` | `kind` (`categories`/`tags`/`tools`), `id`, fields |
-| `retag_recipe` | `slug`, `kind`, `add` (ids), `remove` (ids) |
+| `update_organizer` | `kind` (`categories`/`tags`/`tools`/`labels`), `id`, fields |
+| `retag_recipe` | `slug`, `kind` (no labels - nothing to retag), `add` (ids), `remove` (ids) |
 | `delete_organizer` | `kind`, `id` |
+| `delete_food` / `delete_unit` | `id`; refused while any recipe uses it |
 | `create_cookbook` | `name`, `description`, `categories`/`tags`/`tools`, `requireAll*` |
 | `update_cookbook` | `id` + fields to change |
-| `patch_recipe` | only the changed recipe fields, plus `slug` for the recipe (or `--slug` for the whole run) |
+| `patch_recipe` | the changed recipe fields - list fields in full, see below - plus `slug` for the recipe (or `--slug` for the whole run) |
 | `set_image` | `url`, plus `slug` (or `--slug`) |
 
 A `slug` in the payload wins over `--slug`, so one file can patch many
@@ -80,6 +91,41 @@ change.
 
 Exception: list fields are **replaced**, not extended. For `aliases` always
 include the existing entries as well.
+
+The same holds for a recipe, where it costs more: `recipeIngredient`,
+`recipeInstructions`, `notes`, `tags`, `recipeCategory` and `tools` are
+replaced, so a `patch_recipe` carrying three ingredient lines leaves the
+recipe with three. **Send list fields back whole.** Scalars (`name`,
+`description`, times, yield) can be patched on their own.
+
+A patch whose list is shorter than the recipe's is refused. When the removal
+is meant - two lines merged, a note dropped - say so on the action, next to
+`"op"`:
+
+```json
+{"op": "patch_recipe", "replace": true,
+ "payload": {"slug": "lentil-curry", "notes": []}}
+```
+
+## What the dry run checks, what a run leaves behind
+
+`--dry-run` also lints the plan and prints `WARN` per finding: new food
+without label or aliases, over-long description, tag with two concepts or a
+`no X` phrasing, tool with a brand or an inch size, label on the default
+colour, over eight tags, note title outside the vocabulary, rename dropping
+the old name. One finding is fatal: a non-metric unit. Cup, ounce, pound,
+pint and stick are converted with `convert`, never stored.
+
+An update whose value is already there is not sent: the run prints
+`UNCHANGED` and logs nothing. So a plan applied twice - after a partial
+failure, or built from an audit that was already acted on - changes the
+instance once, and a second run over a clean corpus is provably a no-op.
+
+Every applied action is appended to `.mealie.changelog.jsonl` with the state
+it overwrote - whole object for merges and deletions, touched fields for
+updates. That file is the only way back; do not delete it mid-cleanup. A
+merge is verified afterwards against the recipes that used the source. A
+replaced image is the one thing the log cannot restore.
 
 <!-- agent-only -->
 ## Invocation

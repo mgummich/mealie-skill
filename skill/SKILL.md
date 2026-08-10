@@ -16,10 +16,13 @@ Read **only** the reference for the current mode, not all of them:
 | Task | Reference |
 |---|---|
 | Clean up a recipe, parse ingredients, fill fields | `references/recipes.md` |
-| Foods or units: gaps, duplicates | `references/foods.md` |
+| Foods: gaps, matching, duplicates | `references/foods.md` |
+| Units: gaps, duplicates, converting to metric | `references/units.md` |
+| Shopping-list labels: palette, gaps, axis | `references/labels.md` |
 | Consolidate categories, tags, tools | `references/organizers.md` |
 | Create or rework a cookbook | `references/cookbooks.md` |
-| Duplicate recipes, dead images/source URLs, diet tags | `references/maintenance.md` |
+| Duplicate recipes, broken ingredient lines, dead links, diet tags | `references/maintenance.md` |
+| The `extras` field on recipes, foods and units | `references/extras.md` |
 | Meal plan, recipe import from a URL, working with the MCP server | `references/mcp.md` |
 
 The ACTIONS format is the same for every mode: `references/actions.md`.
@@ -40,18 +43,38 @@ prefix every call with it, otherwise the command is not found:
 
     setup [--check]                    check the connection, store credentials
     index [--refresh]                  build the local recipe index
-    audit <what> [--limit N]           foods units categories tags tools
-                                       recipes links
+    audit <what> [--limit N]           foods units labels categories tags
+                                       tools recipes links extras
     ctx recipe <slug> [--search T]     recipe + matching foods + organizers
                       [--full]         unabridged JSON, rarely needed
     ctx <what> [--limit N] [--group G] foods units categories tags tools
                                        cookbooks diet
     usage <kind> <id>                  recipes using a food/unit/category/tag/tool
+    convert "<amount>" [...]           non-metric amount -> metric + the
+                                       Original: note; also °F and inch
+    rules [--init]                     house rules of this instance
+    seed labels|units|all [--out F]    actions for a fixed vocabulary
     apply <file> [--slug S] [--dry-run]
 
 The first `audit` call builds the index (one pass over all recipes, takes a
 while depending on the size of the instance). Every later audit reads from
 it. After each writing `apply` the index is discarded and rebuilt.
+
+Three of these replace things you would otherwise write out by hand, badly:
+
+- `convert` holds the density table and the rounding rules and returns the
+  `Original:` note. Never convert an imperial amount in your head.
+- `rules` prints this instance's decisions - locale, category axis,
+  container assumptions, the table resolving bare foods (`pepper` ->
+  `black pepper [ground]`). Read it before creating or renaming anything,
+  and add a row rather than deciding the same question twice.
+- `seed` writes the fixed vocabularies - the 29 labels with their zone
+  colours, the metric unit set - as an ACTIONS file, skipping what exists.
+
+`apply` logs every action to `.mealie.changelog.jsonl` with the state it
+overwrote, refuses a `patch_recipe` that would shorten a list field, and
+lints the plan - fatally for a non-metric unit. `--dry-run` runs the same
+checks. Details in `references/actions.md`.
 
 Context commands return filtered data already. Never load full tables
 unfiltered, never build recipe loops by hand - that is what the index is
