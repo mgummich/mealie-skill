@@ -12,6 +12,25 @@ Returns the existing cookbooks plus categories, tags and tools, each with a
 recipe count. From that you can estimate how large a planned cookbook would
 be.
 
+**Create cookbooks only after categories and tags are cleaned up.**
+Otherwise the filter is built on vocabulary that gets merged away in the
+next pass, and it quietly empties. A cookbook does not create order, it
+consumes it.
+
+Create one only when all three hold: it is **expressible** as a filter on
+existing categories, tags, tools, `rating` or `lastMade` (needs
+hand-picking → not a cookbook); it is **recurring** (a one-off search is a
+search); and it lands between roughly **5 and 50 hits**. Never invent a tag
+just to make a filter work - if it fails the tag test, the cookbook fails
+with it.
+
+Not cookbooks: one per category (the category view does that), `To Try`
+(that is the meal plan), one per person (that is households), `All
+Recipes`, `Miscellaneous`, or a single menu (that is a meal plan).
+
+`Never Cooked` - `lastMade` empty - is the most useful cookbook of all and
+needs no tags whatsoever.
+
 Ask about the purpose before designing rules. Typical patterns:
 
 - **Everyday** - quick, few ingredients, meal-prep
@@ -73,10 +92,41 @@ matches) · CHANGED · OPEN (discarded ideas with a reason).
 
 ## Reworking existing cookbooks
 
-Common findings: empty cookbooks (the rule points at deleted or renamed
-tags), oversized cookbooks (OR instead of AND), duplicates with a marginally
-different rule. `update_cookbook` changes the rule without recreating the
-cookbook - links to it stay valid.
+Cookbooks are the only entity that **breaks silently**. A merged tag, a
+deleted category, a renamed tool - and the filter grasps at nothing. The
+cookbook does not disappear, it empties, and nobody notices, because you do
+not open an empty cookbook. So: after every cleanup of categories, tags or
+tools, check the filters. This is the closing step of those runs, not a
+project of its own.
+
+The hit count per cookbook is the only metric that matters. For one at zero
+or with a collapsed count:
+
+| Cause | Repair |
+|---|---|
+| tag was merged | rewrite the filter onto the survivor |
+| tag moved to another entity | rewrite onto that entity |
+| category demoted to a tag | change the condition from category to tag |
+| tool deleted by the gating test | drop the condition or use the method tag |
+| filter references an id | switch to the name |
+| the vocabulary is gone entirely | delete the cookbook |
+
+The last row matters: if a tag was rightly removed, the cookbook built on
+it was not viable either. Never bring vocabulary back to rescue a cookbook.
+
+`update_cookbook` changes the rule without recreating the cookbook - links
+to it stay valid.
+
+Deleting a cookbook loses **no recipe**, only a saved filter. It is the one
+entity in the whole rule set where deletion is nearly consequence-free, so
+be generous: zero hits with an intact filter means the need was not one;
+over 30 % of the corpus is the corpus with an extra click. Two cookbooks
+with largely the same hit set are one.
+
+Filter on **names rather than ids** where possible - names survive a
+database rebuild. At most three conditions: a filter you cannot explain in
+one sentence will not be maintained. `extras` is not filterable at all, so
+anything meant to drive a selection belongs in a tag.
 
 ## With the MCP server
 

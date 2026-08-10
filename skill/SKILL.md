@@ -16,10 +16,13 @@ Read **only** the reference for the current mode, not all of them:
 | Task | Reference |
 |---|---|
 | Clean up a recipe, parse ingredients, fill fields | `references/recipes.md` |
-| Foods or units: gaps, duplicates | `references/foods.md` |
+| Foods: gaps, matching, duplicates | `references/foods.md` |
+| Units: gaps, duplicates, converting to metric | `references/units.md` |
+| Shopping-list labels: palette, gaps, axis | `references/labels.md` |
 | Consolidate categories, tags, tools | `references/organizers.md` |
 | Create or rework a cookbook | `references/cookbooks.md` |
-| Duplicate recipes, dead images/source URLs, diet tags | `references/maintenance.md` |
+| Duplicate recipes, broken ingredient lines, dead links, diet tags | `references/maintenance.md` |
+| The `extras` field on recipes, foods and units | `references/extras.md` |
 | Meal plan, recipe import from a URL, working with the MCP server | `references/mcp.md` |
 
 The ACTIONS format is the same for every mode: `references/actions.md`.
@@ -57,27 +60,21 @@ The first `audit` call builds the index (one pass over all recipes, takes a
 while depending on the size of the instance). Every later audit reads from
 it. After each writing `apply` the index is discarded and rebuilt.
 
-Never convert an imperial amount in your head - `convert` holds the density
-table and the rounding rules and returns the `Original:` note with it.
+Three of these replace things you would otherwise write out by hand, badly:
 
-`rules` prints the house rules of this instance: the locale, the category
-axis, the container assumptions and the table that resolves bare ambiguous
-foods (`pepper` -> `black pepper [ground]`). Read them before a plan that
-creates or renames anything, and add a row rather than deciding the same
-question twice. `rules --init` writes the template; the user edits it.
+- `convert` holds the density table and the rounding rules and returns the
+  `Original:` note. Never convert an imperial amount in your head.
+- `rules` prints this instance's decisions - locale, category axis,
+  container assumptions, the table resolving bare foods (`pepper` ->
+  `black pepper [ground]`). Read it before creating or renaming anything,
+  and add a row rather than deciding the same question twice.
+- `seed` writes the fixed vocabularies - the 29 labels with their zone
+  colours, the metric unit set - as an ACTIONS file, skipping what exists.
 
-`seed labels|units|all` writes the fixed vocabularies of the rule set - the
-29 labels with their zone colours, the closed set of metric units with
-aliases and standardisation - as an ACTIONS file. It skips what the
-instance already has, so it is safe to re-run. Never type those tables out
-by hand.
-
-`apply` writes every applied action to `.mealie.changelog.jsonl` with the
-state it overwrote - the only way back, since neither Mealie nor this tool
-has an undo. It refuses a `patch_recipe` that would shorten a list field
-(Mealie replaces those instead of merging), and lints the plan, fatally for
-a non-metric unit. `--dry-run` runs the same checks and says which it had
-to skip without a connection. Details in `references/actions.md`.
+`apply` logs every action to `.mealie.changelog.jsonl` with the state it
+overwrote, refuses a `patch_recipe` that would shorten a list field, and
+lints the plan - fatally for a non-metric unit. `--dry-run` runs the same
+checks. Details in `references/actions.md`.
 
 Context commands return filtered data already. Never load full tables
 unfiltered, never build recipe loops by hand - that is what the index is

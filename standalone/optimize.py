@@ -44,9 +44,10 @@ AH = {
 MODEL = os.environ.get("MODEL", "claude-sonnet-4-6")
 
 PROMPTS = {
-    "recipe": "recipes.md", "foods": "foods.md", "units": "foods.md",
-    "organizers": "organizers.md", "cookbooks": "cookbooks.md",
-    "maintenance": "maintenance.md",
+    "recipe": "recipes.md", "foods": "foods.md", "units": "units.md",
+    "labels": "labels.md", "organizers": "organizers.md",
+    "cookbooks": "cookbooks.md", "maintenance": "maintenance.md",
+    "extras": "extras.md",
 }
 
 

@@ -37,9 +37,12 @@ DEFAULT_LANG = os.environ.get("MEALIE_LANG") or "English"
 MODES = [
     ("recipes.md", "recipes"),
     ("foods.md", "foods"),
+    ("units.md", "units"),
+    ("labels.md", "labels"),
     ("organizers.md", "organizers"),
     ("cookbooks.md", "cookbooks"),
     ("maintenance.md", "maintenance"),
+    ("extras.md", "extras"),
     ("actions.md", "actions"),
     ("mcp.md", "mcp"),
 ]
@@ -232,7 +235,7 @@ def _mdc_frontmatter(desc):
 def mode_descriptions():
     """Derive one description per reference file from SKILL.md.
 
-    The five modes come from the router table, the files that are not modes
+    The modes come from the router table, the files that are not modes
     (actions.md, mcp.md) from the prose lines below it: "<description>:
     `references/<file>`". Descriptions live in SKILL.md only, so they cannot
     drift apart from the router.
