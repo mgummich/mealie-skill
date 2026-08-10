@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 dist/
 .mealie_index.json
+.mealie.changelog.jsonl
 .mealie.env
 .env
 .actions.json

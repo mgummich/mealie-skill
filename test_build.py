@@ -9,7 +9,11 @@ import types
 import build
 
 
-class FakeHTTPError(Exception):
+class FakeRequestException(Exception):
+    """Stand-in for requests.RequestException, the base of every HTTP error."""
+
+
+class FakeHTTPError(FakeRequestException):
     """Stand-in for requests.HTTPError, which carries the response."""
 
     def __init__(self, *args, response=None):
@@ -31,6 +35,7 @@ def load_ctx():
     """
     stub = types.ModuleType("requests")
     stub.HTTPError = FakeHTTPError    # type: ignore[attr-defined]
+    stub.RequestException = FakeRequestException  # type: ignore[attr-defined]
     sys.modules.setdefault("requests", stub)
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "skill", "scripts"))
@@ -263,16 +268,24 @@ with tempfile.TemporaryDirectory() as tmp:
         ]}))
     mealie_ctx.mreq = fake_mreq
     mealie_ctx.INDEX = os.path.join(tmp, "no-index.json")
+    mealie_ctx.CHANGELOG = os.path.join(tmp, "changelog.jsonl")
     args = types.SimpleNamespace(file=plan, slug="fallback-recipe", dry_run=False)
     mealie_ctx.cmd_apply(args)
+    logged = [json.loads(x) for x in
+              open(mealie_ctx.CHANGELOG, encoding="utf-8")]
 
-paths = [p for _, p in calls]
-assert paths[0] == "/recipes/lentil-curry", paths          # slug from the payload
-assert paths[1] == "/recipes/pumpkin-soup", paths          # a second recipe
-assert paths[2] == "/recipes/fallback-recipe", paths       # falls back to --slug
+writes = [p for m, p in calls if m != "GET"]
+assert writes[0] == "/recipes/lentil-curry", calls         # slug from the payload
+assert writes[1] == "/recipes/pumpkin-soup", calls         # a second recipe
+assert writes[2] == "/recipes/fallback-recipe", calls      # falls back to --slug
 # the rename is followed: the image lands on the new slug, not on a 404
-assert paths[3] == "/recipes/red-lentil-curry/image", paths
+assert writes[3] == "/recipes/red-lentil-curry/image", calls
 assert args.slug == "fallback-recipe"                      # never renamed itself
+# every patch reads the recipe first, so the changelog holds what it overwrote
+assert calls[0] == ("GET", "/recipes/lentil-curry"), calls
+assert [r["op"] for r in logged] == ["patch_recipe"] * 3 + ["set_image"]
+assert logged[1]["before"] == {"description": None}, logged[1]
+assert logged[1]["target"] == {"slug": "pumpkin-soup"}, logged[1]
 
 # an action file without any slug aborts instead of writing to nothing
 with tempfile.TemporaryDirectory() as tmp:
@@ -335,6 +348,121 @@ with tempfile.TemporaryDirectory() as tmp:
         raise AssertionError("a rename into an existing name did not abort")
     except SystemExit as e:
         assert "Merge" in str(e), e
+
+# 12c. A patch that shortens a list field is a deletion: Mealie replaces the
+#      field instead of merging, so the guard stops it before the write.
+def run_apply(actions, mreq, tmp, **kw):
+    """Run cmd_apply against a fake instance in a temporary directory.
+
+    Args:
+        actions: The action list, as it would sit in actions.json.
+        mreq: Replacement for mealie_ctx.mreq.
+        tmp: Directory for the plan, the index and the changelog.
+        **kw: Overrides for the parsed arguments, e.g. dry_run.
+
+    Returns:
+        The changelog as a list of decoded records.
+    """
+    plan = os.path.join(tmp, "actions.json")
+    with open(plan, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"actions": actions}))
+    mealie_ctx.mreq = mreq
+    mealie_ctx.INDEX = kw.pop("index", os.path.join(tmp, "no-index.json"))
+    mealie_ctx.CHANGELOG = os.path.join(tmp, "changelog.jsonl")
+    args = {"file": plan, "slug": None, "dry_run": False, **kw}
+    mealie_ctx.cmd_apply(types.SimpleNamespace(**args))
+    if not os.path.exists(mealie_ctx.CHANGELOG):
+        return []
+    return [json.loads(x) for x in
+            open(mealie_ctx.CHANGELOG, encoding="utf-8")]
+
+
+def three_line_recipe(method, path, **kw):
+    """Answer every GET with a recipe of three ingredient lines."""
+    calls.append((method, path))
+    return {"slug": "curry", "recipeIngredient": [{"a": 1}, {"a": 2}, {"a": 3}]}
+
+
+shrink = [{"op": "patch_recipe",
+           "payload": {"slug": "curry", "recipeIngredient": [{"a": 1}]}}]
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    try:
+        run_apply(shrink, three_line_recipe, tmp)
+        raise AssertionError("a shortening patch_recipe did not abort")
+    except SystemExit as e:
+        assert "recipeIngredient" in str(e) and "deleted" in str(e), e
+    assert not [m for m, _ in calls if m != "GET"], calls   # nothing was written
+
+# ... unless the plan says the removal is meant.
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    logged = run_apply([{**shrink[0], "replace": True}], three_line_recipe, tmp)
+    assert ("PATCH", "/recipes/curry") in calls, calls
+    assert len(logged[0]["before"]["recipeIngredient"]) == 3, logged
+
+# 12d. The same guards run under --dry-run. Without a connection the
+#      structural checks still pass and what could not be checked is named.
+def offline(method, path, **kw):
+    """Fail the way requests does when the instance is unreachable."""
+    raise mealie_ctx.requests.RequestException("connection refused")
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    assert run_apply(shrink, offline, tmp, dry_run=True) == []   # nothing logged
+
+# 12e. A merge is verified by reading the affected recipes back: Mealie
+#      answers a merge that lost references exactly like one that worked.
+with tempfile.TemporaryDirectory() as tmp:
+    index = os.path.join(tmp, "index.json")
+    with open(index, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"built": 0, "failed": [], "recipes": [
+            {"slug": "curry", "foods": ["f-old"], "units": [], "tags": [],
+             "tools": [], "categories": []}]}))
+
+    def stale_merge(method, path, **kw):
+        """Serve the source food, accept the merge, and leave the recipe as is."""
+        calls.append((method, path))
+        if path.startswith("/recipes/"):
+            return {"slug": "curry",
+                    "recipeIngredient": [{"food": {"id": "f-old"}}]}
+        return {"id": "f-old", "name": "Tomatoes"}
+
+    calls = []
+    try:
+        run_apply([{"op": "merge_food",
+                    "payload": {"from": "f-old", "to": "f-new"}}],
+                  stale_merge, tmp, index=index)
+        raise AssertionError("an unverified merge did not abort")
+    except SystemExit as e:
+        assert "still reference the source" in str(e), e
+    # the loser's record is in the changelog before the merge runs
+    logged = [json.loads(x) for x in
+              open(mealie_ctx.CHANGELOG, encoding="utf-8")]
+    assert logged[0]["before"]["source"]["name"] == "Tomatoes", logged
+
+# 12f. A failure mid-run reports how far it got instead of unwinding blindly.
+with tempfile.TemporaryDirectory() as tmp:
+    def die_on_second(method, path, **kw):
+        """Answer the first recipe, fail on the second."""
+        calls.append((method, path))
+        if path.endswith("/pumpkin-soup"):
+            raise mealie_ctx.requests.HTTPError("500", response=None)
+        return {"slug": "curry"}
+
+    calls = []
+    try:
+        run_apply([{"op": "patch_recipe",
+                    "payload": {"slug": "curry", "totalTime": "PT30M"}},
+                   {"op": "patch_recipe",
+                    "payload": {"slug": "pumpkin-soup", "totalTime": "PT20M"}}],
+                  die_on_second, tmp)
+        raise AssertionError("a failing write did not abort the run")
+    except SystemExit as e:
+        assert e.code == 1, e
+    logged = [json.loads(x) for x in
+              open(mealie_ctx.CHANGELOG, encoding="utf-8")]
+    assert [r["target"]["slug"] for r in logged] == ["curry"], logged
 
 # 13. AGENTS.md carries a pointer, not the router: the block is what every
 #     session pays for, so it stays small and names the file to read.

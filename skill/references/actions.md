@@ -49,7 +49,7 @@ The reason: retag before deleting; create before referencing.
 | `delete_organizer` | `kind`, `id` |
 | `create_cookbook` | `name`, `description`, `categories`/`tags`/`tools`, `requireAll*` |
 | `update_cookbook` | `id` + fields to change |
-| `patch_recipe` | only the changed recipe fields, plus `slug` for the recipe (or `--slug` for the whole run) |
+| `patch_recipe` | the changed recipe fields - list fields in full, see below - plus `slug` for the recipe (or `--slug` for the whole run) |
 | `set_image` | `url`, plus `slug` (or `--slug`) |
 
 A `slug` in the payload wins over `--slug`, so one file can patch many
@@ -80,6 +80,44 @@ change.
 
 Exception: list fields are **replaced**, not extended. For `aliases` always
 include the existing entries as well.
+
+## `patch_recipe` replaces list fields
+
+The same applies to a recipe, and it costs more there. A `patch_recipe`
+carrying `recipeIngredient` does not add lines, it leaves the recipe with
+exactly the lines in the payload - the rest are gone. That holds for
+`recipeIngredient`, `recipeInstructions`, `notes`, `tags`, `recipeCategory`,
+`tools`, `assets` and `extras`.
+
+So: **read the recipe, change what needs changing, send the whole list
+back.** Scalar fields (`name`, `description`, times, yield) are unaffected
+and may be patched on their own.
+
+The script refuses a patch whose list is shorter than what the recipe holds
+and names the field, both counts and the difference. When the removal is
+intended - two lines merged into one, a note dropped - say so on the action
+itself:
+
+```json
+{"op": "patch_recipe", "replace": true,
+ "payload": {"slug": "lentil-curry", "notes": []}}
+```
+
+`"replace": true` belongs next to `"op"`, not in the payload, and applies to
+that action only. Use it deliberately: it switches off the one guard that
+stands between a short list and a silent deletion.
+
+## What a run leaves behind
+
+Every applied action is appended to `.mealie.changelog.jsonl` with the state
+it overwrote, before the next action runs. Merges and deletions record the
+whole object, updates record just the fields they touch. Mealie has no undo
+and this tool has no rollback, so that file is the way back - do not delete
+it while a cleanup is still in progress.
+
+A merge is verified afterwards: the script reads the recipes the index said
+used the source and stops the run if any still points at it. A replaced
+image is the one thing the log cannot restore.
 
 <!-- agent-only -->
 ## Invocation

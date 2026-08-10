@@ -53,6 +53,13 @@ The first `audit` call builds the index (one pass over all recipes, takes a
 while depending on the size of the instance). Every later audit reads from
 it. After each writing `apply` the index is discarded and rebuilt.
 
+`apply` writes every applied action to `.mealie.changelog.jsonl` together
+with the state it overwrote - the only way back, since neither Mealie nor
+this tool has an undo. It also refuses a `patch_recipe` that would shorten
+a list field, because Mealie replaces those instead of merging them; see
+`references/actions.md`. `--dry-run` runs the same checks against the
+instance and says which it had to skip when there is no connection.
+
 Context commands return filtered data already. Never load full tables
 unfiltered, never build recipe loops by hand - that is what the index is
 for.

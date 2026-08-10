@@ -54,6 +54,10 @@ Search the FOODS block you were given first: exact name -> alias ->
 singular/plural/spelling variant -> the ${CONTENT_LANG} equivalent of a
 foreign-language term. Only then create something new.
 
+The ingredient list is written back **whole**: Mealie replaces the field
+rather than merging it, so a patch carrying three lines leaves a recipe of
+three lines. Same for steps and notes; see `references/actions.md`.
+
 Structure: `quantity` (number), `unit`, `food`, `note`.
 `food` is the plain ingredient without preparation hints; `note` takes
 "finely diced", "at room temperature", "drained", "to taste".

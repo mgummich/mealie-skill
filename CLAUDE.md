@@ -36,6 +36,14 @@ write. Changing the order means changing `references/actions.md` with it
 **No recipe deletion.** There is deliberately no operation for it. Duplicate
 recipes are presented; deleting happens by hand in the UI.
 
+**Nothing is overwritten without a record.** Every write in `cmd_apply`
+reads the state it is about to replace and calls `log_change` before the
+next action runs — `.mealie.changelog.jsonl` is the only rollback path.
+A new writing operation is not finished until it logs its before-state.
+Mealie replaces list fields instead of merging them, so `patch_recipe`
+guards against a shortening list (`RECIPE_LISTS`, `_guard_recipe_lists`);
+an intended removal carries `"replace": true` on the action.
+
 **`actions.json` is database content, not chat.** Descriptions, steps, notes
 and cookbook texts always in full prose, even when the output style is
 compressed (caveman). This rule lives in `SKILL.md` and in

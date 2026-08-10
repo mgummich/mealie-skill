@@ -14,6 +14,9 @@
 The index (.mealie_index.json) is used by every audit command and lives in
 the current directory. After changes to the instance: --refresh.
 
+Every applied action lands in .mealie.changelog.jsonl with the state it
+overwrote - there is no other way back from a merge or a delete.
+
 Env: MEALIE_URL, MEALIE_TOKEN — or a .mealie.env (written by "setup") or
 .env in the current directory.
 """
@@ -28,6 +31,10 @@ import time
 import requests
 
 INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
+# Every applied action with the state it overwrote. Mealie has no undo and
+# this tool has no rollback, so the changelog is the only way back: it is
+# written before the next action runs, not at the end of the run.
+CHANGELOG = os.environ.get("MEALIE_CHANGELOG", ".mealie.changelog.jsonl")
 ENV_FILE = os.environ.get("MEALIE_ENV", ".mealie.env")
 ENV_FALLBACK = ".env"           # read as well, never written by setup
 ENV_KEYS = ("MEALIE_URL", "MEALIE_TOKEN")
@@ -62,6 +69,13 @@ CREATE_EP = {
     "create_category": "categories", "create_tag": "tags",
     "create_tool": "tools", "create_cookbook": "cookbooks",
 }
+# Recipe fields Mealie replaces wholesale on a PATCH. A payload carrying
+# three ingredient lines does not add three lines, it leaves the recipe with
+# exactly those three. Shortening one of them is therefore a deletion, which
+# is what _guard_recipe_lists refuses without an explicit "replace".
+RECIPE_LISTS = ("recipeIngredient", "recipeInstructions", "notes", "tags",
+                "recipeCategory", "tools", "assets", "extras")
+
 ORDER = [
     "create_label", "merge_food", "merge_unit", "create_food", "create_unit",
     "create_category", "create_tag", "create_tool", "update_food",
@@ -854,14 +868,161 @@ def taken(kind, oid, payload):
     return None
 
 
+def log_change(run, op, target, before, payload, result=None):
+    """Append one applied action and the state it overwrote to CHANGELOG.
+
+    Written per action rather than per run, so a run that dies halfway
+    leaves the actions it did apply on record. "before" holds only the
+    fields the action touches - enough to put them back, small enough that
+    the file stays readable.
+
+    Args:
+        run: Identifier shared by every action of one apply run.
+        op: The operation name.
+        target: Ids or slug the action addressed.
+        before: The overwritten state, or None where nothing was overwritten.
+        payload: The payload as sent.
+        result: Optional response fragment, e.g. a created id.
+
+    Raises:
+        SystemExit: If the changelog cannot be written. Without it a
+            destructive run has no way back, so this aborts rather than
+            continuing unlogged.
+    """
+    rec = {"ts": time.time(), "run": run, "op": op, "target": target,
+           "before": before, "payload": payload}
+    if result is not None:
+        rec["result"] = result
+    try:
+        with open(CHANGELOG, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except OSError as e:
+        sys.exit(f"changelog {CHANGELOG} not writable ({e}). Refusing to "
+                 "write to the instance without a record of what changed.")
+
+
+def _recipe_before(slug, cache):
+    """Fetch a recipe once per run and remember it.
+
+    Args:
+        slug: Recipe slug.
+        cache: Slug to recipe mapping, filled as a side effect.
+
+    Returns:
+        The recipe as the instance currently holds it.
+
+    Raises:
+        requests.HTTPError: If the recipe cannot be read.
+    """
+    if slug not in cache:
+        cache[slug] = mreq("GET", f'{EP["recipes"]}/{slug}')
+    return cache[slug]
+
+
+def _guard_recipe_lists(actions, default_slug, cache):
+    """Refuse a patch_recipe that would shorten a list field.
+
+    Runs before the first write. Legitimate shortenings exist - merging two
+    ingredient lines, dropping a note - so the action can carry
+    "replace": true and say that the removal is meant.
+
+    Args:
+        actions: The parsed action list.
+        default_slug: The --slug fallback for actions without their own.
+        cache: Slug to recipe mapping, filled as recipes are fetched.
+
+    Raises:
+        SystemExit: On the first shortening list field without "replace".
+        requests.HTTPError: If a recipe cannot be read.
+    """
+    for x in actions:
+        if x["op"] != "patch_recipe":
+            continue
+        payload = x.get("payload", {})
+        fields = [f for f in RECIPE_LISTS if f in payload]
+        slug = payload.get("slug") or default_slug
+        if not fields or not slug:
+            continue            # a missing slug is reported by the run itself
+        cur = _recipe_before(slug, cache)
+        for f in fields:
+            have, want = len(cur.get(f) or []), len(payload[f] or [])
+            if want < have and not x.get("replace"):
+                sys.exit(
+                    f'patch_recipe {slug}: "{f}" holds {have} entries, the '
+                    f"payload has {want}. Mealie replaces the field instead "
+                    f"of merging, so {have - want} would be deleted. Pass "
+                    'the complete list, or add "replace": true to the '
+                    "action if the removal is intended.")
+
+
+def _merge_users(idx, kind, oid):
+    """List the slugs of the recipes that use one food or unit.
+
+    Args:
+        idx: Index dict, or None when no index exists.
+        kind: "foods" or "units".
+        oid: Id of the object about to be merged away.
+
+    Returns:
+        The slugs, or None when there is no index to read.
+    """
+    if not idx:
+        return None
+    return [r["slug"] for r in idx["recipes"] if oid in r[kind]]
+
+
+def _verify_merge(kind, src, dst, slugs, limit=25):
+    """Read the affected recipes back and confirm the merge relinked them.
+
+    Mealie answers a merge with a success status, not with a count, so a
+    merge that silently drops references looks exactly like one that
+    worked. This reads the recipes the index said were affected and checks
+    that none of them still points at the source.
+
+    Args:
+        kind: "foods" or "units".
+        src: Id of the merged-away object.
+        dst: Id of the survivor.
+        slugs: Slugs that used src before the merge, or None to skip.
+        limit: Most recipes to read back; beyond that a sample is checked.
+
+    Raises:
+        SystemExit: If a recipe still references the source.
+        requests.HTTPError: If a recipe cannot be read.
+    """
+    if slugs is None:
+        print("!! merge not verified: no index. Run an audit first so the "
+              "affected recipes are known.")
+        return
+    key = "food" if kind == "foods" else "unit"
+    checked, stale = slugs[:limit], []
+    for slug in checked:
+        rec = mreq("GET", f'{EP["recipes"]}/{slug}')
+        if any((i.get(key) or {}).get("id") == src
+               for i in rec.get("recipeIngredient") or []):
+            stale.append(slug)
+    if stale:
+        sys.exit(f"merge {kind} {src} -> {dst}: {len(stale)} recipe(s) still "
+                 f"reference the source: {', '.join(stale)}. Stopping before "
+                 f"the remaining actions; the overwritten state is in "
+                 f"{CHANGELOG}.")
+    sample = " (sample)" if len(slugs) > limit else ""
+    print(f"VERIFIED {len(checked)}/{len(slugs)} recipes relinked{sample}")
+
+
 def cmd_apply(a):
     """Execute an ACTIONS file against the instance. The only writing path.
 
-    Checks unknown operations, the order given by ORDER and the names a
-    food or unit update wants before the first write, so a violating plan
-    aborts without touching anything. Under
-    --dry-run every action is printed and references resolve to a
-    placeholder. After a writing run the index is deleted.
+    Checks unknown operations, the order given by ORDER, the names a food
+    or unit update wants and the recipe list fields a patch would shorten,
+    so a violating plan aborts without touching anything. The same checks
+    run under --dry-run, which needs the instance for them: without a
+    connection the structural checks still run and the rest is reported as
+    skipped. After a writing run the index is deleted.
+
+    Every applied action is written to CHANGELOG with the state it
+    overwrote, before the next action runs. That file is the only way back
+    from a merge or a delete.
 
     A rename changes the recipe slug; the new one is read back from the
     response so that a later set_image in the same run still finds the
@@ -874,11 +1035,12 @@ def cmd_apply(a):
 
     Raises:
         SystemExit: On unknown operations, violated order, a rename into a
-            name another food or unit already holds, or a
-            patch_recipe/set_image without any slug.
+            name another food or unit already holds, a patch_recipe that
+            would shorten a list field, a merge that left references
+            behind, a patch_recipe/set_image without any slug, or a failed
+            write. Actions already applied stay applied; there is no
+            rollback beyond CHANGELOG.
         KeyError: If a "$ref:" cannot be resolved.
-        requests.HTTPError: If a write fails. Actions already applied stay
-            applied; there is no rollback.
     """
     actions = json.load(open(a.file, encoding="utf-8"))["actions"]
     bad = [x["op"] for x in actions if x["op"] not in ORDER]
@@ -888,101 +1050,167 @@ def cmd_apply(a):
     seq = [idxmap[x["op"]] for x in actions]
     if seq != sorted(seq):
         sys.exit("Order violated – allowed is:\n  " + " -> ".join(ORDER))
-    for x in actions:
-        if x["op"] not in ("update_food", "update_unit") or a.dry_run:
-            continue
-        kind = "foods" if x["op"] == "update_food" else "units"
-        payload = x.get("payload", {})
-        clash = taken(kind, payload.get("id"), payload)
-        if clash:
-            sys.exit(f'{x["op"]} {payload.get("id")}: "{clash}" already '
-                     f"exists on another {kind[:-1]}. Merge the two instead "
-                     "of renaming one into the other's name.")
+
+    # The guards below read from the instance. A dry run is also the way to
+    # check a plan's structure offline, so there they are best effort: what
+    # cannot be checked is named rather than passed over in silence.
+    cache: dict = {}
+    guarded = not a.dry_run or all(read_cfg().get(k) for k in ENV_KEYS)
+    if not guarded:
+        print("[dry-run] nothing configured: name collisions and recipe list "
+              "fields NOT checked")
+    try:
+        for x in actions if guarded else []:
+            if x["op"] not in ("update_food", "update_unit"):
+                continue
+            kind = "foods" if x["op"] == "update_food" else "units"
+            payload = x.get("payload", {})
+            clash = taken(kind, payload.get("id"), payload)
+            if clash:
+                sys.exit(f'{x["op"]} {payload.get("id")}: "{clash}" already '
+                         f"exists on another {kind[:-1]}. Merge the two "
+                         "instead of renaming one into the other's name.")
+        if guarded:
+            _guard_recipe_lists(actions, a.slug, cache)
+    except requests.RequestException as e:
+        if not a.dry_run:
+            raise
+        print(f"[dry-run] instance not reachable ({e.__class__.__name__}): "
+              "name collisions and recipe list fields NOT checked")
+
     if any(x["op"] in ("merge_food", "merge_unit", "delete_organizer")
            for x in actions) and not a.dry_run:
         print("!! Contains destructive operations (merge/delete). "
               "Recipes will be rewritten, objects deleted.\n")
 
+    idx = (json.load(open(INDEX, encoding="utf-8"))
+           if os.path.exists(INDEX) else None)
+    run = f"{int(time.time())}"
     refs: dict = {}
     renamed: dict = {}          # old slug -> new one, after a rename
-    for x in actions:
-        op, payload = x["op"], x.get("payload", {})
-        if a.dry_run:
-            print(f"[dry-run] {op}: {json.dumps(payload, ensure_ascii=False)[:220]}")
-            if x.get("id_as"):
-                refs[x["id_as"]] = "<new-id>"
-            continue
-        payload = resolve(payload, refs)
+    done = 0
+    try:
+        for x in actions:
+            op, payload = x["op"], x.get("payload", {})
+            if a.dry_run:
+                shown = json.dumps(payload, ensure_ascii=False)[:220]
+                print(f"[dry-run] {op}: {shown}")
+                if x.get("id_as"):
+                    refs[x["id_as"]] = "<new-id>"
+                continue
+            payload = resolve(payload, refs)
 
-        if op in CREATE_EP:
-            res = mreq("POST", EP[CREATE_EP[op]], json=payload)
-            if x.get("id_as"):
-                refs[x["id_as"]] = res.get("id")
-            print(f'CREATED {op[7:]} – {payload.get("name")} – {res.get("id")}')
-        elif op in ("merge_food", "merge_unit"):
-            kind = "foods" if op == "merge_food" else "units"
-            mreq("PUT", f"{EP[kind]}/merge",
-                 json={"fromFood" if kind == "foods" else "fromUnit": payload["from"],
-                       "toFood" if kind == "foods" else "toUnit": payload["to"]})
-            print(f'MERGED {kind} {payload["from"]} -> {payload["to"]}')
-        elif op in ("update_food", "update_unit"):
-            kind = "foods" if op == "update_food" else "units"
-            fid = payload.pop("id")
-            cur = mreq("GET", f"{EP[kind]}/{fid}")
-            mreq("PUT", f"{EP[kind]}/{fid}", json={**cur, **payload})
-            print(f'UPDATED {kind} – {cur.get("name")} – ' + ", ".join(payload))
-        elif op == "update_organizer":
-            kind = payload.pop("kind")
-            oid = payload.pop("id")
-            cur = mreq("GET", f"{EP[kind]}/{oid}")
-            mreq("PUT", f"{EP[kind]}/{oid}", json={**cur, **payload})
-            print(f'UPDATED {kind} – {cur.get("name")} – ' + ", ".join(payload))
-        elif op == "retag_recipe":
-            kind = payload["kind"]
-            field = ORG[kind]
-            rec = mreq("GET", f'{EP["recipes"]}/{payload["slug"]}')
-            cur = rec.get(field) or []
-            rm = set(payload.get("remove", []))
-            new = [c for c in cur if c["id"] not in rm]
-            have = {c["id"] for c in new}
-            for add_id in payload.get("add", []):
-                if add_id not in have:
-                    obj = mreq("GET", f"{EP[kind]}/{add_id}")
-                    new.append(obj)
-            mreq("PATCH", f'{EP["recipes"]}/{payload["slug"]}', json={field: new})
-            print(f'RETAGGED {payload["slug"]} {kind}: '
-                  f'+{len(payload.get("add", []))} -{len(rm)}')
-        elif op == "delete_organizer":
-            mreq("DELETE", f'{EP[payload["kind"]]}/{payload["id"]}')
-            print(f'DELETED {payload["kind"]} {payload["id"]}')
-        elif op == "update_cookbook":
-            cid = payload.pop("id")
-            cur = mreq("GET", f'{EP["cookbooks"]}/{cid}')
-            mreq("PUT", f'{EP["cookbooks"]}/{cid}', json={**cur, **payload})
-            print(f'UPDATED cookbook – {cur.get("name")}')
-        elif op == "patch_recipe":
-            slug = payload.pop("slug", None) or a.slug
-            if not slug:
-                sys.exit("patch_recipe needs --slug or a slug in the payload")
-            res = mreq("PATCH", f'{EP["recipes"]}/{slug}', json=payload)
-            print(f"PATCHED {slug} – " + ", ".join(payload))
-            # Mealie re-derives the slug from the name. Every later action on
-            # this recipe – set_image above all – has to follow it, otherwise
-            # it hits a 404 on a recipe that was just written.
-            fresh = res.get("slug") if isinstance(res, dict) else res
-            if isinstance(fresh, str) and fresh and fresh != slug:
-                print(f"SLUG {slug} -> {fresh} (renamed)")
-                renamed[slug] = fresh
-                if slug == a.slug:
-                    a.slug = fresh
-        elif op == "set_image":
-            slug = payload.get("slug") or a.slug
-            slug = renamed.get(slug, slug)
-            if not slug:
-                sys.exit("set_image needs --slug or a slug in the payload")
-            mreq("POST", f'{EP["recipes"]}/{slug}/image',
-                 json={"url": payload["url"], "includeTags": False})
-            print(f'IMAGE {slug} – {payload["url"]}')
+            if op in CREATE_EP:
+                res = mreq("POST", EP[CREATE_EP[op]], json=payload)
+                if x.get("id_as"):
+                    refs[x["id_as"]] = res.get("id")
+                print(f'CREATED {op[7:]} – {payload.get("name")} – {res.get("id")}')
+                log_change(run, op, {"id": res.get("id")}, None, payload,
+                           {"id": res.get("id")})
+            elif op in ("merge_food", "merge_unit"):
+                kind = "foods" if op == "merge_food" else "units"
+                # The loser is gone after the merge, so its record is read
+                # first: the changelog is the only place it survives.
+                src = mreq("GET", f'{EP[kind]}/{payload["from"]}')
+                users = _merge_users(idx, kind, payload["from"])
+                fkey = "fromFood" if kind == "foods" else "fromUnit"
+                tkey = "toFood" if kind == "foods" else "toUnit"
+                mreq("PUT", f"{EP[kind]}/merge",
+                     json={fkey: payload["from"], tkey: payload["to"]})
+                print(f'MERGED {kind} {payload["from"]} -> {payload["to"]}')
+                log_change(run, op, {"kind": kind, **payload},
+                           {"source": src, "recipes": users}, payload)
+                _verify_merge(kind, payload["from"], payload["to"], users)
+            elif op in ("update_food", "update_unit"):
+                kind = "foods" if op == "update_food" else "units"
+                fid = payload.pop("id")
+                cur = mreq("GET", f"{EP[kind]}/{fid}")
+                mreq("PUT", f"{EP[kind]}/{fid}", json={**cur, **payload})
+                print(f'UPDATED {kind} – {cur.get("name")} – ' + ", ".join(payload))
+                log_change(run, op, {"kind": kind, "id": fid},
+                           {k: cur.get(k) for k in payload}, payload)
+            elif op == "update_organizer":
+                kind = payload.pop("kind")
+                oid = payload.pop("id")
+                cur = mreq("GET", f"{EP[kind]}/{oid}")
+                mreq("PUT", f"{EP[kind]}/{oid}", json={**cur, **payload})
+                print(f'UPDATED {kind} – {cur.get("name")} – ' + ", ".join(payload))
+                log_change(run, op, {"kind": kind, "id": oid},
+                           {k: cur.get(k) for k in payload}, payload)
+            elif op == "retag_recipe":
+                kind = payload["kind"]
+                field = ORG[kind]
+                rec = mreq("GET", f'{EP["recipes"]}/{payload["slug"]}')
+                cur = rec.get(field) or []
+                rm = set(payload.get("remove", []))
+                new = [c for c in cur if c["id"] not in rm]
+                have = {c["id"] for c in new}
+                for add_id in payload.get("add", []):
+                    if add_id not in have:
+                        obj = mreq("GET", f"{EP[kind]}/{add_id}")
+                        new.append(obj)
+                mreq("PATCH", f'{EP["recipes"]}/{payload["slug"]}', json={field: new})
+                print(f'RETAGGED {payload["slug"]} {kind}: '
+                      f'+{len(payload.get("add", []))} -{len(rm)}')
+                log_change(run, op, {"slug": payload["slug"], "kind": kind},
+                           {field: cur}, payload)
+            elif op == "delete_organizer":
+                kind = payload["kind"]
+                gone = mreq("GET", f'{EP[kind]}/{payload["id"]}')
+                mreq("DELETE", f'{EP[kind]}/{payload["id"]}')
+                print(f'DELETED {kind} {payload["id"]}')
+                log_change(run, op, {"kind": kind, "id": payload["id"]},
+                           gone, payload)
+            elif op == "update_cookbook":
+                cid = payload.pop("id")
+                cur = mreq("GET", f'{EP["cookbooks"]}/{cid}')
+                mreq("PUT", f'{EP["cookbooks"]}/{cid}', json={**cur, **payload})
+                print(f'UPDATED cookbook – {cur.get("name")}')
+                log_change(run, op, {"id": cid},
+                           {k: cur.get(k) for k in payload}, payload)
+            elif op == "patch_recipe":
+                slug = payload.pop("slug", None) or a.slug
+                if not slug:
+                    sys.exit("patch_recipe needs --slug or a slug in the payload")
+                # Read before writing, even for a single scalar field: a PATCH
+                # overwrites without saying what was there, and the changelog is
+                # what makes it reversible.
+                cur = _recipe_before(slug, cache)
+                res = mreq("PATCH", f'{EP["recipes"]}/{slug}', json=payload)
+                print(f"PATCHED {slug} – " + ", ".join(payload))
+                log_change(run, op, {"slug": slug},
+                           {k: cur.get(k) for k in payload}, payload)
+                # Mealie re-derives the slug from the name. Every later action on
+                # this recipe – set_image above all – has to follow it, otherwise
+                # it hits a 404 on a recipe that was just written.
+                fresh = res.get("slug") if isinstance(res, dict) else res
+                if isinstance(fresh, str) and fresh and fresh != slug:
+                    print(f"SLUG {slug} -> {fresh} (renamed)")
+                    renamed[slug] = fresh
+                    if slug == a.slug:
+                        a.slug = fresh
+            elif op == "set_image":
+                slug = payload.get("slug") or a.slug
+                slug = renamed.get(slug, slug)
+                if not slug:
+                    sys.exit("set_image needs --slug or a slug in the payload")
+                mreq("POST", f'{EP["recipes"]}/{slug}/image',
+                     json={"url": payload["url"], "includeTags": False})
+                print(f'IMAGE {slug} – {payload["url"]}')
+                # The replaced image itself is not recoverable - Mealie serves it
+                # under a fixed path that the new one takes over. The log records
+                # that there was one, not what it looked like.
+                log_change(run, op, {"slug": slug},
+                           {"hadImage": bool((cache.get(slug) or {}).get("image"))},
+                           payload)
+            done += 1
+    except requests.RequestException as e:
+        print(f"\n!! ABORTED after {done}/{len(actions)} actions: {e}")
+        print(f"applied actions and what they overwrote: {CHANGELOG}")
+        rest = [y["op"] for y in actions[done:]]
+        print("not applied: " + ", ".join(rest))
+        print("No repair attempt is made. Report the state reached and ask.")
+        raise SystemExit(1) from e
 
     if not a.dry_run and os.path.exists(INDEX):
         os.remove(INDEX)
