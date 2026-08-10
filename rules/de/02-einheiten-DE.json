@@ -1,0 +1,646 @@
+[
+  {
+    "name": "Milligramm",
+    "pluralName": "Milligramm",
+    "abbreviation": "mg",
+    "pluralAbbreviation": "mg",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Metrische Masseneinheit; 1000 mg = 1 g, in der Küche nur für Gewürze und Zusätze.",
+    "aliases": [
+      {
+        "name": "mg."
+      },
+      {
+        "name": "Milligr."
+      }
+    ],
+    "standardQuantity": 0.001,
+    "standardUnit": "gram"
+  },
+  {
+    "name": "Gramm",
+    "pluralName": "Gramm",
+    "abbreviation": "g",
+    "pluralAbbreviation": "g",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Metrische Basiseinheit für Masse; Standard für feste Zutaten.",
+    "aliases": [
+      {
+        "name": "gr"
+      },
+      {
+        "name": "gr."
+      },
+      {
+        "name": "g."
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "gram"
+  },
+  {
+    "name": "Kilogramm",
+    "pluralName": "Kilogramm",
+    "abbreviation": "kg",
+    "pluralAbbreviation": "kg",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "1000 Gramm; für große Mengen wie Fleisch, Kartoffeln oder Mehl.",
+    "aliases": [
+      {
+        "name": "kg."
+      },
+      {
+        "name": "Kilo"
+      },
+      {
+        "name": "Kilogr."
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "kilogram"
+  },
+  {
+    "name": "Milliliter",
+    "pluralName": "Milliliter",
+    "abbreviation": "ml",
+    "pluralAbbreviation": "ml",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Metrische Basiseinheit für Volumen; Standard für Flüssigkeiten.",
+    "aliases": [
+      {
+        "name": "mL"
+      },
+      {
+        "name": "ml."
+      },
+      {
+        "name": "Milli."
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "milliliter"
+  },
+  {
+    "name": "Liter",
+    "pluralName": "Liter",
+    "abbreviation": "l",
+    "pluralAbbreviation": "l",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "1000 Milliliter; für Brühe, Milch und größere Flüssigkeitsmengen.",
+    "aliases": [
+      {
+        "name": "l."
+      },
+      {
+        "name": "ltr"
+      },
+      {
+        "name": "Ltr."
+      }
+    ],
+    "standardQuantity": 1,
+    "standardUnit": "liter"
+  },
+  {
+    "name": "Teelöffel",
+    "pluralName": "Teelöffel",
+    "abbreviation": "TL",
+    "pluralAbbreviation": "TL",
+    "useAbbreviation": true,
+    "fraction": true,
+    "description": "Metrisch definiertes Löffelmaß; 1 TL = 5 ml.",
+    "aliases": [
+      {
+        "name": "TL."
+      },
+      {
+        "name": "Tl"
+      },
+      {
+        "name": "Teel."
+      },
+      {
+        "name": "Teelöffeln"
+      }
+    ],
+    "standardQuantity": 5,
+    "standardUnit": "milliliter"
+  },
+  {
+    "name": "Esslöffel",
+    "pluralName": "Esslöffel",
+    "abbreviation": "EL",
+    "pluralAbbreviation": "EL",
+    "useAbbreviation": true,
+    "fraction": true,
+    "description": "Metrisch definiertes Löffelmaß; 1 EL = 15 ml = 3 TL.",
+    "aliases": [
+      {
+        "name": "EL."
+      },
+      {
+        "name": "El"
+      },
+      {
+        "name": "Essl."
+      },
+      {
+        "name": "Eßlöffel"
+      },
+      {
+        "name": "Eßl."
+      },
+      {
+        "name": "Esslöffeln"
+      }
+    ],
+    "standardQuantity": 15,
+    "standardUnit": "milliliter"
+  },
+  {
+    "name": "Stück",
+    "pluralName": "Stück",
+    "abbreviation": "St.",
+    "pluralAbbreviation": "St.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Zählmaß für einzelne Objekte; nur setzen, wenn das Rezept wirklich zählt.",
+    "aliases": [
+      {
+        "name": "Stk"
+      },
+      {
+        "name": "Stk."
+      },
+      {
+        "name": "Stck."
+      },
+      {
+        "name": "St"
+      },
+      {
+        "name": "Stueck"
+      },
+      {
+        "name": "Stuecke"
+      },
+      {
+        "name": "Stücke"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Prise",
+    "pluralName": "Prisen",
+    "abbreviation": "Pr.",
+    "pluralAbbreviation": "Pr.",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "Menge zwischen zwei Fingern; für Salz, Zucker und Gewürze, etwa 0,5 g.",
+    "aliases": [
+      {
+        "name": "Pr"
+      },
+      {
+        "name": "Prisen."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Messerspitze",
+    "pluralName": "Messerspitzen",
+    "abbreviation": "Msp.",
+    "pluralAbbreviation": "Msp.",
+    "useAbbreviation": true,
+    "fraction": false,
+    "description": "Menge auf der Messerspitze; für stark wirksame Gewürze, etwa 0,2 g.",
+    "aliases": [
+      {
+        "name": "Msp"
+      },
+      {
+        "name": "Messersp."
+      },
+      {
+        "name": "Messerspitzen."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Bund",
+    "pluralName": "Bund",
+    "abbreviation": "Bd.",
+    "pluralAbbreviation": "Bd.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Handelsübliches Bündel Kräuter oder Gemüse; Größe schwankt nach Saison.",
+    "aliases": [
+      {
+        "name": "Bd."
+      },
+      {
+        "name": "Bündel"
+      },
+      {
+        "name": "Bd"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Zweig",
+    "pluralName": "Zweige",
+    "abbreviation": "Zw.",
+    "pluralAbbreviation": "Zw.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Einzelner Kräuterzweig; für Rosmarin, Thymian und Petersilie.",
+    "aliases": [
+      {
+        "name": "Zw"
+      },
+      {
+        "name": "Zweiglein"
+      },
+      {
+        "name": "Stiel"
+      },
+      {
+        "name": "Stiele"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Zehe",
+    "pluralName": "Zehen",
+    "abbreviation": "Zh.",
+    "pluralAbbreviation": "Zh.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Einzelne Zehe einer Knolle; das Lebensmittel steht getrennt in der Zeile.",
+    "aliases": [
+      {
+        "name": "Zh"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Stange",
+    "pluralName": "Stangen",
+    "abbreviation": "Stg.",
+    "pluralAbbreviation": "Stg.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Längliches Einzelstück; für Sellerie, Lauch, Zimt oder Rhabarber.",
+    "aliases": [
+      {
+        "name": "Stg"
+      },
+      {
+        "name": "Stangen."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Scheibe",
+    "pluralName": "Scheiben",
+    "abbreviation": "Schb.",
+    "pluralAbbreviation": "Schb.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Abgeschnittenes flaches Stück; für Brot, Käse, Wurst oder Zitrone.",
+    "aliases": [
+      {
+        "name": "Schb"
+      },
+      {
+        "name": "Schei."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Blatt",
+    "pluralName": "Blätter",
+    "abbreviation": "Bl.",
+    "pluralAbbreviation": "Bl.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Einzelnes Blatt; für Gelatine, Lorbeer oder Salat.",
+    "aliases": [
+      {
+        "name": "Bl"
+      },
+      {
+        "name": "Blaetter"
+      },
+      {
+        "name": "Blättchen"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Kopf",
+    "pluralName": "Köpfe",
+    "abbreviation": "Kpf.",
+    "pluralAbbreviation": "Kpf.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Ganzer Kopf eines Gewächses; für Salat, Kohl oder Knoblauch.",
+    "aliases": [
+      {
+        "name": "Kpf"
+      },
+      {
+        "name": "Koepfe"
+      },
+      {
+        "name": "Köpfchen"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Knolle",
+    "pluralName": "Knollen",
+    "abbreviation": "Kn.",
+    "pluralAbbreviation": "Kn.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Ganze Knolle; für Sellerie, Fenchel oder Ingwer.",
+    "aliases": [
+      {
+        "name": "Kn"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Würfel",
+    "pluralName": "Würfel",
+    "abbreviation": "Wfl.",
+    "pluralAbbreviation": "Wfl.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Gepresstes Einzelstück; für Brühwürfel oder Hefewürfel.",
+    "aliases": [
+      {
+        "name": "Wfl"
+      },
+      {
+        "name": "Wuerfel"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Handvoll",
+    "pluralName": "Handvoll",
+    "abbreviation": "Hd.",
+    "pluralAbbreviation": "Hd.",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "So viel, wie in eine Hand passt; ungenaues Maß für Kräuter und Blattsalat.",
+    "aliases": [
+      {
+        "name": "Hand voll"
+      },
+      {
+        "name": "Hd"
+      },
+      {
+        "name": "Haende voll"
+      },
+      {
+        "name": "Hände voll"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Schuss",
+    "pluralName": "Schuss",
+    "abbreviation": "Sch.",
+    "pluralAbbreviation": "Sch.",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "Kurzer Guss aus der Flasche; für Essig, Öl oder Wein, etwa 10 ml.",
+    "aliases": [
+      {
+        "name": "Schuß"
+      },
+      {
+        "name": "Schuesse"
+      },
+      {
+        "name": "Schüsse"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Spritzer",
+    "pluralName": "Spritzer",
+    "abbreviation": "Spr.",
+    "pluralAbbreviation": "Spr.",
+    "useAbbreviation": false,
+    "fraction": false,
+    "description": "Wenige Tropfen; für Zitronensaft, Tabasco oder Aroma.",
+    "aliases": [
+      {
+        "name": "Spr"
+      },
+      {
+        "name": "Sprtz."
+      },
+      {
+        "name": "Tropfen"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Packung",
+    "pluralName": "Packungen",
+    "abbreviation": "Pkg.",
+    "pluralAbbreviation": "Pkg.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Handelsübliche Packung; Inhalt schwankt nach Marke, daher Menge prüfen.",
+    "aliases": [
+      {
+        "name": "Pack"
+      },
+      {
+        "name": "Pckg."
+      },
+      {
+        "name": "Pack."
+      },
+      {
+        "name": "Packg."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Päckchen",
+    "pluralName": "Päckchen",
+    "abbreviation": "Pck.",
+    "pluralAbbreviation": "Pck.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Kleine Portionspackung; für Backpulver, Vanillezucker oder Trockenhefe.",
+    "aliases": [
+      {
+        "name": "Päckch."
+      },
+      {
+        "name": "Paeckchen"
+      },
+      {
+        "name": "Pkchn."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Dose",
+    "pluralName": "Dosen",
+    "abbreviation": "Ds.",
+    "pluralAbbreviation": "Ds.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Konservendose; Hausannahme 400 g Füllgewicht, sofern nicht anders angegeben.",
+    "aliases": [
+      {
+        "name": "Ds"
+      },
+      {
+        "name": "Konserve"
+      },
+      {
+        "name": "Konserven"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Glas",
+    "pluralName": "Gläser",
+    "abbreviation": "Gl.",
+    "pluralAbbreviation": "Gl.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Konservenglas; Hausannahme 350 g Füllgewicht, sofern nicht anders angegeben.",
+    "aliases": [
+      {
+        "name": "Gl"
+      },
+      {
+        "name": "Glaeser"
+      },
+      {
+        "name": "Gläser."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Flasche",
+    "pluralName": "Flaschen",
+    "abbreviation": "Fl.",
+    "pluralAbbreviation": "Fl.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Handelsübliche Flasche; Inhalt in der Zutatennotiz festhalten.",
+    "aliases": [
+      {
+        "name": "Fl"
+      },
+      {
+        "name": "Fl."
+      },
+      {
+        "name": "Flaschen."
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Becher",
+    "pluralName": "Becher",
+    "abbreviation": "Bch.",
+    "pluralAbbreviation": "Bch.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Handelsüblicher Becher; für Joghurt, Sahne oder Schmand, meist 150 bis 250 g.",
+    "aliases": [
+      {
+        "name": "Bch"
+      },
+      {
+        "name": "Becherchen"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  },
+  {
+    "name": "Tüte",
+    "pluralName": "Tüten",
+    "abbreviation": "Tt.",
+    "pluralAbbreviation": "Tt.",
+    "useAbbreviation": false,
+    "fraction": true,
+    "description": "Handelsübliche Tüte; für Backmischungen, Nüsse oder Tiefkühlware.",
+    "aliases": [
+      {
+        "name": "Tt"
+      },
+      {
+        "name": "Tuete"
+      },
+      {
+        "name": "Tueten"
+      },
+      {
+        "name": "Beutel"
+      }
+    ],
+    "standardQuantity": null,
+    "standardUnit": null
+  }
+]
