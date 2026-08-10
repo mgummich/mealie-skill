@@ -326,6 +326,10 @@ Four more, because Mealie has no undo:
   `notes` and the rest instead of merging them, so a patch carrying fewer
   lines than the recipe holds would delete the difference. It aborts unless
   the action says `"replace": true`.
+- **A cookbook filter written for Mealie 1.x is refused.** The three name
+  lists and their `requireAll*` switches became one `queryFilterString` in
+  Mealie 2.0, and Mealie ignores the old keys rather than rejecting them -
+  which would leave a cookbook matching every recipe.
 - **Merges are verified.** The affected recipes are read back afterwards;
   if any still points at the merged-away object, the run stops.
 - **Plans are linted** against the rules that can be checked mechanically -

@@ -42,6 +42,13 @@ recipes are presented; deleting happens by hand in the UI.
 corpus produce zero changes, and comparing is what makes that true. A new
 writing operation follows suit.
 
+**A field Mealie ignores is worse than one it rejects.** Writes are
+validated against the shape of the current API (3.22.0, checked against its
+OpenAPI spec); unknown keys are dropped silently, so a payload in an
+outdated shape succeeds and does the wrong thing. Where that is possible -
+`COOKBOOK_LEGACY`, `_guard_cookbooks` - the plan is refused before the
+first write instead.
+
 **Nothing is overwritten without a record.** Every write in `cmd_apply`
 reads the state it is about to replace and calls `log_change` before the
 next action runs — `.mealie.changelog.jsonl` is the only rollback path.

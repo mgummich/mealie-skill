@@ -72,6 +72,13 @@ write, so a malformed filter is refused with a 422 rather than saved:
 
 Operators: `IN`, `NOT IN`, `CONTAINS ALL`, `LIKE`, `NOT LIKE`, `=`, `<>`,
 `>`, `<`, `>=`, `<=`, joined with `AND` / `OR` and grouped with brackets.
+Filterable are the recipe fields and their relations - categories, tags,
+tools, `rating`, `lastMade`, `createdAt`, household and user.
+
+The syntax is version-dependent. Where the user can reach the interface,
+the safest filter is the one built there and copied out of the cookbook
+editor; a hand-written one that a later Mealie stops understanding empties
+the cookbook without saying so.
 
 Choose the joining operator deliberately:
 

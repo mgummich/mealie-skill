@@ -260,8 +260,9 @@ unasked.
 /mealie cookbooks
 ```
 
-Mealie cookbooks are filter rules, not folders — you pick categories, tags
-and tools, and the cookbook fills itself. Give it a purpose:
+Mealie cookbooks are filter rules, not folders — you name the categories,
+tags and tools it should match, the plan writes them into one filter string,
+and the cookbook fills itself. Give it a purpose:
 
 ```
 /mealie cookbooks
@@ -270,8 +271,8 @@ and tools, and the cookbook fills itself. Give it a purpose:
 
 ```
 COOKBOOK "Weeknight, under 30"
-  tags        quick, weeknight        requireAllTags: false
-  categories  main                    requireAllCategories: true
+  filter      tags.name IN ["quick", "weeknight"]
+              AND recipeCategory.name IN ["Main"]
   matches     23 recipes today
 ```
 
