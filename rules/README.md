@@ -91,18 +91,26 @@ Both are validated against the rules: no non-metric unit, no abbreviation collis
 
 ## Prüfung gegen das Mealie-Schema / Checked against the Mealie schema
 
-Die Regeln wurden gegen `mealie-next` geprüft. Zwei Annahmen erwiesen sich als falsch und sind korrigiert:
+Zuletzt gegen **Mealie 3.22.0** geprüft (OpenAPI-Spezifikation und Schema-Quellen, 2026-08-10). Zwei Annahmen erwiesen sich als falsch und sind korrigiert:
 
-The rules were checked against `mealie-next`. Two assumptions turned out to be wrong and have been corrected:
+Last checked against **Mealie 3.22.0** (OpenAPI specification and schema sources, 2026-08-10). Two assumptions turned out to be wrong and have been corrected:
 
 - **Einheiten haben Aliasse.** `CreateIngredientUnit` enthält ein `aliases`-Feld. Schreibvarianten gehören deshalb in die Datenbank, nicht in eine Parser-Konfiguration.
 - **Units have aliases.** `CreateIngredientUnit` carries an `aliases` field. Spelling variants therefore belong in the database, not in a parser configuration.
-- **Es gibt eine eingebaute Standardisierung.** `standardQuantity` und `standardUnit` mit dem Enum `gram, kilogram, milliliter, liter`. Im JSON für alle sieben metrischen Einheiten gesetzt; bei Zähl- und Behältermaßen bewusst `null`, weil eine standardisierte `Prise` sonst in Einkaufslisten aufaddiert würde.
-- **There is a built-in standardisation.** `standardQuantity` and `standardUnit`, with the enum `gram, kilogram, milliliter, liter`. Set in the JSON for all seven metric units; deliberately `null` for count and container measures, because a standardised `pinch` would otherwise add up across shopping lists.
+- **Es gibt eine eingebaute Standardisierung.** `standardQuantity` und `standardUnit`. Das Feld ist ein freier String; `StandardizedUnitType` listet acht anerkannte Werte, vier metrische (`gram`, `kilogram`, `milliliter`, `liter`) und vier imperiale, und dient der Übereinstimmung mit dem Frontend, nicht der Validierung. Das Regelwerk verwendet ausschließlich die vier metrischen. Im JSON für alle sieben metrischen Einheiten gesetzt; bei Zähl- und Behältermaßen bewusst `null`, weil eine standardisierte `Prise` sonst in Einkaufslisten aufaddiert würde.
+- **There is a built-in standardisation.** `standardQuantity` and `standardUnit`. The field is a plain string; `StandardizedUnitType` lists eight recognised values, four metric (`gram`, `kilogram`, `milliliter`, `liter`) and four imperial, and exists for consistency with the frontend rather than for validation. The rule set uses the four metric ones only. Set in the JSON for all seven metric units; deliberately `null` for count and container measures, because a standardised `pinch` would otherwise add up across shopping lists.
+
+Die beiden Felder gehören zusammen: Ohne `standardUnit` oder mit einer `standardQuantity` von 0 oder weniger setzt Mealie beide auf `null` zurück, ohne das zu melden.
+
+The two fields belong together: without a `standardUnit`, or with a `standardQuantity` of zero or less, Mealie resets both to `null` and does not say so.
 
 Bestätigt hat sich: **Utensilien haben keine Aliasse** (`RecipeToolCreate` kennt nur `name` und `households_with_tool`). Deshalb ist die Namensdisziplin dort strenger als überall sonst.
 
 Confirmed: **tools have no aliases** (`RecipeToolCreate` knows only `name` and `households_with_tool`). That is why naming discipline is stricter there than anywhere else.
+
+Ebenfalls seit Mealie 2.0 und für 08 maßgeblich: Kochbücher hängen am Haushalt, nicht an der Gruppe, und ihr Filter ist ein einziger `queryFilterString`.
+
+Also since Mealie 2.0, and decisive for 08: cookbooks hang off the household rather than the group, and their filter is a single `queryFilterString`.
 
 ---
 
