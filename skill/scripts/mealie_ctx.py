@@ -7,7 +7,7 @@
   ctx <what> [--limit N] [--group G]   fetch a work package
        what: foods units categories tags tools cookbooks diet
   audit <what> [--limit N]             gaps, duplicates, usage
-       what: foods units categories tags tools recipes links
+       what: foods units labels categories tags tools recipes links extras
   usage <kind> <id>                    recipes using a food/unit/category/tag/tool
   apply <actions.json> [--slug S] [--dry-run]
 
@@ -31,6 +31,9 @@ import time
 import requests
 
 INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
+# Raised whenever build_index learns a field an audit reads. An older index
+# is rebuilt rather than silently audited on fields it does not carry.
+INDEX_VERSION = 2
 # Every applied action with the state it overwrote. Mealie has no undo and
 # this tool has no rollback, so the changelog is the only way back: it is
 # written before the next action runs, not at the end of the run.
@@ -390,9 +393,25 @@ def build_index():
                       file=sys.stderr)
                 continue
             ings = f.get("recipeIngredient") or []
+            notes = f.get("notes") or []
             recipes.append({
                 "slug": f["slug"],
                 "name": f.get("name"),
+                "notes": [(n.get("title") or "") for n in notes
+                          if isinstance(n, dict)],
+                "extras": sorted((f.get("extras") or {}).keys()),
+                "rating": f.get("rating"),
+                "lastMade": bool(f.get("lastMade")),
+                # lines whose amount ended up as prose in the note, and
+                # lines with no evidence of what was imported
+                "amountInNote": sum(
+                    1 for i in ings
+                    if not (i.get("unit") or {}).get("id")
+                    and re.search(r"\d", i.get("note") or "")),
+                "noOriginalText": sum(
+                    1 for i in ings if not (i.get("originalText") or "").strip()),
+                "converted": sum(
+                    1 for i in ings if "Original:" in (i.get("note") or "")),
                 "categories": [c["id"] for c in f.get("recipeCategory") or []],
                 "tags": [t["id"] for t in f.get("tags") or []],
                 "tools": [t["id"] for t in f.get("tools") or []],
@@ -410,7 +429,8 @@ def build_index():
                 "description": bool((f.get("description") or "").strip()),
             })
         page += 1
-    data = {"built": time.time(), "recipes": recipes, "failed": failed}
+    data = {"built": time.time(), "version": INDEX_VERSION,
+            "recipes": recipes, "failed": failed}
     with open(INDEX, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
     return data
@@ -427,7 +447,12 @@ def load_index(refresh=False):
     """
     if refresh or not os.path.exists(INDEX):
         return build_index()
-    return json.load(open(INDEX, encoding="utf-8"))
+    idx = json.load(open(INDEX, encoding="utf-8"))
+    if idx.get("version") != INDEX_VERSION:
+        print("(index predates the current fields – rebuilding)",
+              file=sys.stderr)
+        return build_index()
+    return idx
 
 
 def counts(idx, field):
@@ -542,6 +567,82 @@ def food_line(f, kind="foods"):
 
 
 # ---------- audit ----------
+def alias_collisions(items):
+    """Find strings that are a lookup key on more than one object.
+
+    An alias reachable from two foods makes matching non-deterministic:
+    the parser picks one arbitrarily, and which one can change between
+    runs. The rule set calls this a hard error rather than a finding.
+
+    Args:
+        items: Foods or units with "name", "pluralName" and "aliases".
+
+    Returns:
+        Mapping of the colliding string to the names holding it, sorted.
+    """
+    by: dict = {}
+    for it in items:
+        keys = {(it.get(k) or "").strip().casefold()
+                for k in ("name", "pluralName")}
+        keys |= {(al.get("name") or "").strip().casefold()
+                 for al in it.get("aliases") or []}
+        for key in keys - {""}:
+            by.setdefault(key, set()).add(it.get("name") or it["id"])
+    return {k: sorted(v) for k, v in sorted(by.items()) if len(v) > 1}
+
+
+def abbrev_collisions(units):
+    """Find abbreviations that sit on more than one unit.
+
+    Args:
+        units: Unit records.
+
+    Returns:
+        Mapping of the abbreviation to the unit names holding it.
+    """
+    by: dict = {}
+    for u in units:
+        for key in {(u.get(k) or "").strip().casefold()
+                    for k in ("abbreviation", "pluralAbbreviation")} - {""}:
+            by.setdefault(key, set()).add(u.get("name") or u["id"])
+    return {k: sorted(v) for k, v in sorted(by.items()) if len(v) > 1}
+
+
+def non_metric(units, conv):
+    """List the units that the rule set converts rather than stores.
+
+    Args:
+        units: Unit records from the instance.
+        conv: Conversions data for the content language.
+
+    Returns:
+        The matching unit records.
+    """
+    canons = list(conv["forbidden"]) + list(conv.get("forbiddenAmbiguous", []))
+    spellings = {c.casefold() for c in canons}
+    for canon in canons:
+        spellings |= {v.casefold()
+                      for v in conv["unitVariants"].get(canon, [canon])}
+    return [u for u in units
+            if {(u.get(k) or "").strip().casefold()
+                for k in ("name", "pluralName", "abbreviation")} & spellings]
+
+
+def _share(part, whole):
+    """Format a count as "n (x %)" against a total.
+
+    Args:
+        part: The counted subset.
+        whole: The total; zero yields "0".
+
+    Returns:
+        The formatted string.
+    """
+    if not whole:
+        return "0"
+    return f"{part} ({round(100 * part / whole)} %)"
+
+
 def cmd_audit(a):
     """Print gaps, duplicate suspicions and usage figures. Writes nothing.
 
@@ -567,13 +668,50 @@ def cmd_audit(a):
     if what in ("foods", "units"):
         items = mget(EP[what])
         used = counts(idx, what)
+        lint = load_data("lint.json", getattr(a, "lang", None))
         print(f"{len(items)} {what} in total, {len(used)} of them in use")
+        clash = alias_collisions(items)
+        if clash:
+            print(f"!! ALIAS COLLISIONS ({len(clash)}, hard error – matching "
+                  "is non-deterministic until these are resolved):")
+            for key, names in list(clash.items())[: a.limit]:
+                print(f'   "{key}" on {", ".join(names)}')
         if what == "foods":
             g: dict = {}
             for f in items:
                 for x in gaps(f, what):
                     g[x] = g.get(x, 0) + 1
             print("GAPS: " + ", ".join(f"{k}={v}" for k, v in sorted(g.items())))
+            no_label = [f for f in items if not f.get("labelId")]
+            print("WITHOUT LABEL: " + _share(len(no_label), len(items))
+                  + " – they land unsorted at the end of every shopping list")
+            limit = lint["foodDescriptionMax"]
+            long_desc = [f["name"] for f in items
+                         if len(f.get("description") or "") > limit]
+            if long_desc:
+                print(f"DESCRIPTION OVER {limit} CHARACTERS: {len(long_desc)}")
+            if lint["foodNameCase"] == "lower":
+                wrong = [f["name"] for f in items
+                         if f["name"] != (f["name"] or "").lower()]
+                print(f"NAME NOT LOWERCASE: {len(wrong)}" + (
+                    " – " + ", ".join(wrong[:10]) if wrong else ""))
+        else:
+            conv = load_data("conversions.json", getattr(a, "lang", None))
+            bad = non_metric(items, conv)
+            print(f"NON-METRIC ({len(bad)}, the conversion worklist):" if bad
+                  else "NON-METRIC: 0")
+            for u in sorted(bad, key=lambda u: -used.get(u["id"], 0)):
+                n = used.get(u["id"], 0)
+                print(f'   {u["name"]} – {n} recipe' + ("s" if n != 1 else ""))
+            abbr = abbrev_collisions(items)
+            if abbr:
+                print(f"!! ABBREVIATION COLLISIONS ({len(abbr)}, hard error):")
+                for key, names in abbr.items():
+                    print(f'   "{key}" on {", ".join(names)}')
+            missing = [u["name"] for u in items
+                       if not (u.get("abbreviation") or "").strip()]
+            print(f"WITHOUT ABBREVIATION: {len(missing)}" + (
+                " – " + ", ".join(missing[:10]) if missing else ""))
         unused = [i for i in items if not used.get(i["id"])]
         print(f"UNUSED: {len(unused)}" + (
             " – " + ", ".join(i["name"] for i in unused[:15]) if unused else ""))
@@ -609,12 +747,71 @@ def cmd_audit(a):
             f'{i["name"]}({used.get(i["id"], 0)})'
             for i in sorted(items, key=lambda x: -used.get(x["id"], 0))[:10]))
 
+        lint = load_data("lint.json", getattr(a, "lang", None))
+        cap = {"categories": "maxCategories", "tags": "maxTags",
+               "tools": "maxTools"}[what]
+        over = [r["slug"] for r in R if len(r[what]) > lint[cap]]
+        print(f"OVER THE CAP OF {lint[cap]}: {len(over)} recipes" + (
+            " – " + ", ".join(over[:10]) if over else ""))
+        if what == "categories":
+            avg = sum(len(r["categories"]) for r in R) / (len(R) or 1)
+            note = " – above 1.5 the axis has collapsed" if avg > 1.5 else ""
+            print(f"AVERAGE PER RECIPE: {avg:.2f}{note}")
+            none = [r["slug"] for r in R if not r["categories"]]
+            print(f"WITHOUT A CATEGORY: {len(none)}")
+        if what == "tags":
+            everywhere = [i["name"] for i in items
+                          if used.get(i["id"], 0) > 0.9 * len(R)]
+            if everywhere:
+                print("ON OVER 90 % OF RECIPES (filters nothing): "
+                      + ", ".join(everywhere))
+        if what == "tools":
+            everyday = {e.casefold() for e in lint.get("everydayEquipment", [])}
+            fails = [i["name"] for i in items
+                     if (i["name"] or "").casefold() in everyday]
+            print(f"FAILS THE GATING TEST: {len(fails)}" + (
+                " – " + ", ".join(fails) if fails else ""))
+
     elif what == "recipes":
         by: dict = {}
         for r in R:
             by.setdefault(norm(r["name"]), []).append(r)
         name_dupes = [v for v in by.values() if len(v) > 1]
         print(f"{len(R)} recipes, {len(name_dupes)} name duplicates")
+
+        lines = sum(r["ings"] for r in R)
+        linked = lines - sum(r["unparsed"] for r in R)
+        print(f"LINES WITH A LINKED FOOD: {_share(linked, lines)} of {lines}"
+              " – the headline number, target above 95 %")
+        amount_in_note = [r["slug"] for r in R if r.get("amountInNote")]
+        if amount_in_note:
+            print(f"AMOUNT STRANDED IN THE NOTE: {len(amount_in_note)} recipes"
+                  " – " + ", ".join(amount_in_note[:10]))
+        no_orig = [r["slug"] for r in R if r.get("noOriginalText")]
+        if no_orig:
+            print(f"LINES WITHOUT originalText: {len(no_orig)} recipes – fill "
+                  "it from the display value before repairing them")
+        converted = sum(r.get("converted", 0) for r in R)
+        print(f"LINES CARRYING Original:: {converted}")
+
+        lint = load_data("lint.json", getattr(a, "lang", None))
+        allowed = set(lint["noteTitles"])
+        odd = sorted({t for r in R for t in r.get("notes", [])
+                      if t not in allowed})
+        if odd:
+            print("NOTE TITLES OUTSIDE THE VOCABULARY: " + ", ".join(odd[:15]))
+        many = [r["slug"] for r in R
+                if len(r.get("notes", [])) > lint["maxNotes"]]
+        if many:
+            print(f"OVER {lint['maxNotes']} NOTES: {len(many)} recipes")
+        one_step = [r["slug"] for r in R if r.get("steps") == 1]
+        long_steps = [r["slug"] for r in R if (r.get("steps") or 0) > 15]
+        print(f"ONE SINGLE STEP: {len(one_step)} · OVER 15 STEPS: "
+              f"{len(long_steps)}")
+        cooked = sum(1 for r in R if r.get("lastMade"))
+        rated = sum(1 for r in R if r.get("rating"))
+        print(f"COOKED (lastMade set): {cooked} · RATED: {rated}"
+              " – work these first, they are the ones in use")
         broken = idx.get("failed") or []
         if broken:
             print(f"UNREADABLE ({len(broken)}, the instance answers with an "
@@ -640,6 +837,74 @@ def cmd_audit(a):
                  if not r["ings"] and not r.get("steps")]
         print(f"\nSTUBS (no ingredients, no steps): {len(stubs)}" + (
             " – " + ", ".join(stubs[: a.limit]) if stubs else ""))
+
+    elif what == "labels":
+        labels = mget(EP["labels"])
+        foods = mget(EP["foods"])
+        lint = load_data("lint.json", getattr(a, "lang", None))
+        per: dict = {}
+        for f in foods:
+            per[f.get("labelId")] = per.get(f.get("labelId"), 0) + 1
+        print(f"{len(labels)} labels, {len(foods)} foods")
+        print("FOODS WITHOUT A LABEL: "
+              + _share(per.get(None, 0), len(foods))
+              + " – the most important number here")
+        default = lint["defaultLabelColor"].casefold()
+        plain = [x["name"] for x in labels
+                 if not (x.get("color") or "").strip()
+                 or (x.get("color") or "").casefold() == default]
+        print(f"ON THE DEFAULT COLOUR: {len(plain)}" + (
+            " – " + ", ".join(plain[:10]) if plain else ""))
+        hues: dict = {}
+        for x in labels:
+            hues.setdefault((x.get("color") or "").casefold(), []).append(
+                x["name"])
+        dupe_hue = {k: v for k, v in hues.items() if k and len(v) > 1}
+        if dupe_hue:
+            print(f"HUE USED TWICE: {len(dupe_hue)}")
+            for colour, names in dupe_hue.items():
+                print(f"   {colour}: {', '.join(names)}")
+        small = [(x["name"], per.get(x["id"], 0)) for x in labels
+                 if per.get(x["id"], 0) < 10]
+        if small:
+            print("UNDER TEN FOODS: " + ", ".join(
+                f"{n}({c})" for n, c in sorted(small, key=lambda p: p[1])))
+        other = next((x for x in labels
+                      if (x["name"] or "").casefold() in ("other",
+                                                          "sonstiges")), None)
+        if other:
+            share = per.get(other["id"], 0)
+            note = " – over 5 %, it is being used as a dumping ground" if (
+                foods and share > 0.05 * len(foods)) else ""
+            print(f'"{other["name"]}": {_share(share, len(foods))}{note}')
+
+    elif what == "extras":
+        keys: dict = {}
+        for r in R:
+            for k in r.get("extras", []):
+                keys.setdefault(k, {"recipes": 0})["recipes"] += 1
+        for kind in ("foods", "units"):
+            for it in mget(EP[kind]):
+                for k in (it.get("extras") or {}):
+                    keys.setdefault(k, {})[kind] = keys.get(
+                        k, {}).get(kind, 0) + 1
+        house = read_house() or {}
+        registered = {e.get("key") for e in house.get("extrasRegister") or []}
+        print(f"{len(keys)} distinct extras keys across recipes, foods and "
+              "units")
+        if not keys:
+            print("nothing to reconcile")
+            return
+        for key in sorted(keys):
+            where = ", ".join(f"{v} {k}" for k, v in sorted(keys[key].items()))
+            mark = "" if key in registered else "   !! not in the register"
+            print(f"   {key}: {where}{mark}")
+        unused = registered - set(keys)
+        if unused:
+            print("REGISTERED BUT UNUSED: " + ", ".join(sorted(unused)))
+        print("\nAnything that fits a real field is moved there, not kept. A "
+              "key you might filter by is dead here: cookbook filters cannot "
+              "read extras.")
 
     elif what == "links":
         no_img = [r["slug"] for r in R if not r["image"]]
@@ -2021,6 +2286,7 @@ def main():
     d.add_argument("--limit", type=int, default=25)
     d.add_argument("--refresh", action="store_true")
     d.add_argument("--check-urls", action="store_true")
+    d.add_argument("--lang", help="content language for the vocabularies")
     d.set_defaults(func=cmd_audit)
 
     u = sub.add_parser("usage", help="recipes using one object")

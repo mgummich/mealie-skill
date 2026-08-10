@@ -560,6 +560,52 @@ seeded, skipped = mealie_ctx.seed_actions(
 assert any("gram" in s for s in skipped), skipped   # caught on the alias
 assert not any(x["payload"]["name"] == "gram" for x in seeded), seeded
 
+# 12l. Audit metrics: the findings the rule set calls hard errors.
+foods = [{"id": "f1", "name": "lentils", "aliases": [{"name": "puy"}]},
+         {"id": "f2", "name": "Tomato", "pluralName": "Tomatoes",
+          "aliases": [{"name": "PUY"}]},
+         {"id": "f3", "name": "tomatoes", "aliases": []}]
+clash = mealie_ctx.alias_collisions(foods)
+assert clash["puy"] == ["Tomato", "lentils"], clash      # case-insensitive
+assert clash["tomatoes"] == ["Tomato", "tomatoes"], clash  # name vs plural
+assert "lentils" not in clash
+
+units = [{"id": "u1", "name": "litre", "abbreviation": "l"},
+         {"id": "u2", "name": "leaf", "abbreviation": "L"},
+         {"id": "u3", "name": "gram", "abbreviation": "g"}]
+assert mealie_ctx.abbrev_collisions(units) == {"l": ["leaf", "litre"]}
+
+conv = mealie_ctx.load_data("conversions.json", "en")
+bad = mealie_ctx.non_metric(
+    [{"id": "u1", "name": "cup"}, {"id": "u2", "name": "Ounces"},
+     {"id": "u3", "name": "gram"}, {"id": "u4", "name": "tin"}], conv)
+assert [u["name"] for u in bad] == ["cup", "Ounces"], bad
+assert mealie_ctx._share(13, 16) == "13 (81 %)"
+assert mealie_ctx._share(0, 0) == "0"
+
+# an index written before the current fields is rebuilt, not audited blind
+with tempfile.TemporaryDirectory() as tmp:
+    mealie_ctx.INDEX = os.path.join(tmp, ".mealie_index.json")
+    with open(mealie_ctx.INDEX, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"built": 0, "recipes": [], "failed": []}))
+    rebuilt = {"n": 0}
+
+    def fake_build():
+        """Stand in for build_index and count the calls."""
+        rebuilt["n"] += 1
+        return {"built": 1, "version": mealie_ctx.INDEX_VERSION,
+                "recipes": [], "failed": []}
+
+    real_build, mealie_ctx.build_index = mealie_ctx.build_index, fake_build
+    mealie_ctx.load_index()                       # no version: rebuilds
+    assert rebuilt["n"] == 1
+    with open(mealie_ctx.INDEX, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"built": 0, "version": mealie_ctx.INDEX_VERSION,
+                             "recipes": [], "failed": []}))
+    mealie_ctx.load_index()                       # current version: kept
+    assert rebuilt["n"] == 1
+    mealie_ctx.build_index = real_build
+
 # 12k. House rules: a decision nobody wrote down is remade differently next
 #      month, so the file is the record and the tool never rewrites it.
 with tempfile.TemporaryDirectory() as tmp:

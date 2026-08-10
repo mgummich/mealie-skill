@@ -42,5 +42,24 @@
     "kg",
     "ml",
     "l"
+  ],
+  "everydayEquipment": [
+    "Messer",
+    "Schneidebrett",
+    "Topf",
+    "Pfanne",
+    "Schüssel",
+    "Sieb",
+    "Kochlöffel",
+    "Backblech",
+    "Schneebesen",
+    "Reibe",
+    "Sparschäler",
+    "Backofen",
+    "Herd",
+    "Kühlschrank",
+    "Rührschüssel",
+    "Teigschaber",
+    "Nudelholz"
   ]
 }

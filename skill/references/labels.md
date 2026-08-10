@@ -33,8 +33,7 @@ the real structure.
 
 ## Phase 1 - Analysis
 
-    ctx foods --limit 25        # foods with their labels
-    audit foods                 # counts the gaps
+    audit labels
 
 The numbers that matter, in this order:
 

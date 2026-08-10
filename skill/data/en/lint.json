@@ -42,5 +42,27 @@
     "kg",
     "ml",
     "l"
+  ],
+  "everydayEquipment": [
+    "Knife",
+    "Chopping Board",
+    "Saucepan",
+    "Frying Pan",
+    "Bowl",
+    "Sieve",
+    "Wooden Spoon",
+    "Baking Tray",
+    "Whisk",
+    "Grater",
+    "Peeler",
+    "Oven",
+    "Hob",
+    "Fridge",
+    "Pot",
+    "Pan",
+    "Colander",
+    "Mixing Bowl",
+    "Spatula",
+    "Rolling Pin"
   ]
 }

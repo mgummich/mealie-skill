@@ -101,6 +101,11 @@ deleted after every writing `apply`. One pass over all recipes. Every
 evaluation (usage counts, duplicates, link rot) reads from it — never build
 your own recipe loops.
 
+Teaching `build_index` a new field means raising `INDEX_VERSION` with it.
+An index from an older version is rebuilt rather than audited on fields it
+does not carry, which would otherwise report zero and look like a clean
+result.
+
 ## Testing without an instance
 
 An artificial index covers everything except HTTP:

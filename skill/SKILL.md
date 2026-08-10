@@ -43,8 +43,8 @@ prefix every call with it, otherwise the command is not found:
 
     setup [--check]                    check the connection, store credentials
     index [--refresh]                  build the local recipe index
-    audit <what> [--limit N]           foods units categories tags tools
-                                       recipes links
+    audit <what> [--limit N]           foods units labels categories tags
+                                       tools recipes links extras
     ctx recipe <slug> [--search T]     recipe + matching foods + organizers
                       [--full]         unabridged JSON, rarely needed
     ctx <what> [--limit N] [--group G] foods units categories tags tools
