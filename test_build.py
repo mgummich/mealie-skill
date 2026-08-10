@@ -287,6 +287,55 @@ with tempfile.TemporaryDirectory() as tmp:
     except SystemExit as e:
         assert "slug" in str(e), e
 
+# 12b. writes are sanitized, reads paginate only on collections, and a
+#      rename into a name another food holds aborts before the first write.
+dirty = {"name": "Flour", "description": "", "createdAt": "2024-01-01",
+         "label": {"id": "l1"}, "labelId": "l1",
+         "aliases": [{"name": "wheat flour", "updatedAt": "2024-01-01"}]}
+clean = mealie_ctx.sanitize(dirty)
+assert "createdAt" not in clean and "label" not in clean, clean
+assert clean["labelId"] == "l1"                  # the id survives, the object goes
+assert clean["description"] == ""                # empty is an answer, not noise
+assert clean["aliases"] == [{"name": "wheat flour"}], clean["aliases"]
+
+seen: list = []
+
+
+def spy_mreq(method, path, **kw):
+    """Record method, path and params, and answer with an empty envelope."""
+    seen.append((method, path, kw.get("params")))
+    return {"items": []}
+
+
+mealie_ctx.mreq = spy_mreq
+mealie_ctx.mget("/foods")
+mealie_ctx.mget("/foods/f-1")
+assert seen[0][2] == {"perPage": 200}, seen[0]   # a collection paginates
+assert seen[1][2] == {}, seen[1]                 # a single object does not
+
+foods = [{"id": "f-1", "name": "Flour", "aliases": []},
+         {"id": "f-2", "name": "Wheat flour",
+          "aliases": [{"name": "Type 550"}]}]
+mealie_ctx._TAKEN.clear()
+mealie_ctx._TAKEN["foods"] = foods
+assert mealie_ctx.taken("foods", "f-1", {"name": "wheat FLOUR "}) == "wheat flour"
+assert mealie_ctx.taken("foods", "f-1", {"aliases": [{"name": "Type 550"}]})
+assert mealie_ctx.taken("foods", "f-2", {"name": "Wheat flour"}) is None  # itself
+assert mealie_ctx.taken("foods", "f-1", {"name": "Rye flour"}) is None
+
+with tempfile.TemporaryDirectory() as tmp:
+    plan = os.path.join(tmp, "actions.json")
+    with open(plan, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"actions": [
+            {"op": "update_food",
+             "payload": {"id": "f-1", "name": "Wheat flour"}}]}))
+    try:
+        mealie_ctx.cmd_apply(
+            types.SimpleNamespace(file=plan, slug=None, dry_run=False))
+        raise AssertionError("a rename into an existing name did not abort")
+    except SystemExit as e:
+        assert "Merge" in str(e), e
+
 # 13. AGENTS.md carries a pointer, not the router: the block is what every
 #     session pays for, so it stays small and names the file to read.
 block = build.agents_md_block("X")

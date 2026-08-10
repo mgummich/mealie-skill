@@ -58,6 +58,9 @@ Structure: `quantity` (number), `unit`, `food`, `note`.
 `food` is the plain ingredient without preparation hints; `note` takes
 "finely diced", "at room temperature", "drained", "to taste".
 "1 can (400 g) tomatoes" becomes `400 | g | tomato | canned`.
+Those four fields, never `display`. Mealie composes the displayed line out
+of them itself and puts the amount in front of whatever `display` holds, so
+a `display` of "500 g flour" shows up as "500 500 g flour".
 
 Metric. Convert imperial and show it in the report: cup flour 125 g, cup
 sugar 200 g, cup liquid 240 ml, stick butter 113 g, oz 28 g, lb 454 g,

@@ -201,7 +201,7 @@ def mreq(method, path, **kw):
     A 429 is retried up to RETRIES times, waiting for Retry-After or an
     exponential backoff. Every other status is left to the caller. This is
     the single choke point for the API, so reads and writes alike are
-    covered.
+    covered - including the sanitize() pass on every writing body.
 
     Returns:
         The parsed JSON body, or an empty dict for an empty response.
@@ -211,6 +211,8 @@ def mreq(method, path, **kw):
             included once the retries are used up.
     """
     base, headers = conn()
+    if method in ("POST", "PUT", "PATCH") and "json" in kw:
+        kw["json"] = sanitize(kw["json"])
     for attempt in range(RETRIES):
         r = requests.request(method, f"{base}/api{path}", headers=headers,
                              timeout=45, **kw)
@@ -230,7 +232,7 @@ def mget(path, **params):
 
     Args:
         path: Path below /api, starting with a slash.
-        **params: Query parameters; perPage defaults to 200.
+        **params: Query parameters; perPage defaults to 200 on collections.
 
     Returns:
         The "items" list for paginated endpoints, otherwise the body itself.
@@ -238,7 +240,11 @@ def mget(path, **params):
     Raises:
         requests.HTTPError: If the response status is 4xx or 5xx.
     """
-    d = mreq("GET", path, params={"perPage": 200, **params})
+    # Only collections paginate. A single object answers under its own path,
+    # and pagination parameters on that path are at best ignored.
+    if path in EP.values():
+        params = {"perPage": 200, **params}
+    d = mreq("GET", path, params=params)
     return d.get("items", d) if isinstance(d, dict) else d
 
 
@@ -255,6 +261,37 @@ NOISE = {
     "householdsWithIngredientFood", "onHand", "labelId", "label",
     "aliases", "fraction", "useAbbreviation", "slug",
 }
+
+
+# Fields the API returns but refuses to take back. Mealie serves objects
+# with their own bookkeeping attached; sending that bookkeeping into a write
+# makes the backend validate a shape it never accepts and answer 500 rather
+# than 422. Every write that starts from a GET - retag_recipe, the update_*
+# operations - would otherwise carry them.
+WRITE_NOISE = {
+    "createdAt", "updatedAt", "update_at", "dateAdded", "dateUpdated",
+    "householdsWithIngredientFood", "label",
+}
+
+
+def sanitize(value):
+    """Drop fields no write accepts, recursively.
+
+    Unlike slim() this keeps empty and null values: a write body says what a
+    field should become, and "" or null is a legitimate answer.
+
+    Args:
+        value: Any fragment of a request body.
+
+    Returns:
+        The fragment without the WRITE_NOISE keys, at every depth.
+    """
+    if isinstance(value, dict):
+        return {k: sanitize(v) for k, v in value.items()
+                if k not in WRITE_NOISE}
+    if isinstance(value, list):
+        return [sanitize(v) for v in value]
+    return value
 
 
 def slim(value, keep_slug=False):
@@ -774,11 +811,55 @@ def resolve(value, refs):
     return value
 
 
+_TAKEN: dict = {}
+
+
+def taken(kind, oid, payload):
+    """Find a name or alias in the payload that another object already owns.
+
+    Mealie holds a unique constraint over food and unit names including
+    their aliases, and answers a rename into an existing name with a
+    constraint error instead of a usable message. The right move there is a
+    merge, not a rename, so the check runs before the write.
+
+    Args:
+        kind: "foods" or "units".
+        oid: Id of the object being updated, excluded from the comparison.
+        payload: The update payload, read for "name", "pluralName" and
+            "aliases".
+
+    Returns:
+        The first colliding string, or None when the payload is free.
+
+    Raises:
+        requests.HTTPError: If the list request fails.
+    """
+    if kind not in _TAKEN:
+        _TAKEN[kind] = mget(EP[kind])
+    wanted = {(payload.get(k) or "").strip().casefold()
+              for k in ("name", "pluralName")}
+    wanted |= {(x.get("name") or "").strip().casefold()
+               for x in payload.get("aliases") or []}
+    wanted.discard("")
+    for other in _TAKEN[kind]:
+        if other["id"] == oid:
+            continue
+        names = {(other.get(k) or "").strip().casefold()
+                 for k in ("name", "pluralName")}
+        names |= {(x.get("name") or "").strip().casefold()
+                  for x in other.get("aliases") or []}
+        hit = wanted & (names - {""})
+        if hit:
+            return min(hit)
+    return None
+
+
 def cmd_apply(a):
     """Execute an ACTIONS file against the instance. The only writing path.
 
-    Checks unknown operations and the order given by ORDER before the first
-    write, so a violating plan aborts without touching anything. Under
+    Checks unknown operations, the order given by ORDER and the names a
+    food or unit update wants before the first write, so a violating plan
+    aborts without touching anything. Under
     --dry-run every action is printed and references resolve to a
     placeholder. After a writing run the index is deleted.
 
@@ -792,7 +873,8 @@ def cmd_apply(a):
             their own) and dry_run.
 
     Raises:
-        SystemExit: On unknown operations, violated order, or a
+        SystemExit: On unknown operations, violated order, a rename into a
+            name another food or unit already holds, or a
             patch_recipe/set_image without any slug.
         KeyError: If a "$ref:" cannot be resolved.
         requests.HTTPError: If a write fails. Actions already applied stay
@@ -806,6 +888,16 @@ def cmd_apply(a):
     seq = [idxmap[x["op"]] for x in actions]
     if seq != sorted(seq):
         sys.exit("Order violated – allowed is:\n  " + " -> ".join(ORDER))
+    for x in actions:
+        if x["op"] not in ("update_food", "update_unit") or a.dry_run:
+            continue
+        kind = "foods" if x["op"] == "update_food" else "units"
+        payload = x.get("payload", {})
+        clash = taken(kind, payload.get("id"), payload)
+        if clash:
+            sys.exit(f'{x["op"]} {payload.get("id")}: "{clash}" already '
+                     f"exists on another {kind[:-1]}. Merge the two instead "
+                     "of renaming one into the other's name.")
     if any(x["op"] in ("merge_food", "merge_unit", "delete_organizer")
            for x in actions) and not a.dry_run:
         print("!! Contains destructive operations (merge/delete). "
