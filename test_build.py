@@ -327,6 +327,27 @@ mealie_ctx.mget("/foods/f-1")
 assert seen[0][2] == {"perPage": 200}, seen[0]   # a collection paginates
 assert seen[1][2] == {}, seen[1]                 # a single object does not
 
+# a page is not the table: an instance with 225 foods answers 200 and says
+# so, and every audit worked on the subset until this followed the rest
+pages: list = []
+
+
+def paged_mreq(method, path, **kw):
+    """Serve two pages of a 225-entry collection."""
+    page = (kw.get("params") or {}).get("page", 1)
+    pages.append(page)
+    items = [{"id": f"f{i}"} for i in range(25 if page == 2 else 200)]
+    return {"items": items, "total": 225, "total_pages": 2, "page": page}
+
+
+mealie_ctx.mreq = paged_mreq
+assert len(mealie_ctx.mget("/foods")) == 225, "second page not followed"
+assert pages == [1, 2], pages
+pages.clear()
+# a caller driving pagination itself keeps control (build_index does)
+assert len(mealie_ctx.mget("/foods", page=1)) == 200
+assert pages == [1], pages
+
 foods = [{"id": "f-1", "name": "Flour", "aliases": []},
          {"id": "f-2", "name": "Wheat flour",
           "aliases": [{"name": "Type 550"}]}]

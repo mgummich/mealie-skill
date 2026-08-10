@@ -270,7 +270,19 @@ def mget(path, **params):
     if path in EP.values():
         params = {"perPage": 200, **params}
     d = mreq("GET", path, params=params)
-    return d.get("items", d) if isinstance(d, dict) else d
+    if not isinstance(d, dict) or "items" not in d:
+        return d
+    items = d["items"]
+    # A page is not the table. An instance with 225 foods answers the first
+    # 200 and says so in total_pages; without following it every audit,
+    # every duplicate check and every name collision guard silently works
+    # on a subset. Callers that drive pagination themselves (build_index)
+    # pass "page" and keep control.
+    if "page" not in params:
+        for page in range(2, (d.get("total_pages") or 1) + 1):
+            nxt = mreq("GET", path, params={**params, "page": page})
+            items += (nxt or {}).get("items", [])
+    return items
 
 
 # Fields of a recipe that no mode reads and none writes: bookkeeping,
@@ -854,6 +866,17 @@ def cmd_audit(a):
         print("FOODS WITHOUT A LABEL: "
               + _share(per.get(None, 0), len(foods))
               + " – the most important number here")
+        # A label belongs to a group. A food carrying the id of a label
+        # this token cannot see is unlabelled in practice, and no amount
+        # of relabelling here will move it.
+        known = {x["id"] for x in labels}
+        dangling = [f["name"] for f in foods
+                    if f.get("labelId") and f["labelId"] not in known]
+        if dangling:
+            print(f"LABEL NOT REACHABLE: {len(dangling)} foods carry a "
+                  "labelId that is not in this group's label list – they "
+                  "sort nowhere until they are relabelled: "
+                  + ", ".join(dangling[:10]))
         default = lint["defaultLabelColor"].casefold()
         plain = [x["name"] for x in labels
                  if not (x.get("color") or "").strip()
@@ -1153,6 +1176,20 @@ RE_TEMP = re.compile(r"^\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*(f|fahrenheit)\b",
                      re.IGNORECASE)
 
 
+def _house_lang():
+    """Derive the data-pack language from the house rules, if there are any.
+
+    The locale is the decision the rule set wants recorded once, so it
+    outranks the environment: an instance whose foods are German is
+    audited against the German vocabularies even in an English shell.
+
+    Returns:
+        A two-letter code, or None when no house rules are configured.
+    """
+    house = read_house() or {}
+    return (house.get("locale") or "")[:2].lower() or None
+
+
 def data_dir():
     """Locate the data directory that ships beside this script.
 
@@ -1179,7 +1216,8 @@ def load_data(name, lang=None):
         SystemExit: If neither the language file nor the English one is
             readable.
     """
-    lang = (lang or os.environ.get("MEALIE_LANG") or "en").lower()[:2]
+    lang = (lang or _house_lang() or os.environ.get("MEALIE_LANG")
+            or "en").lower()[:2]
     for candidate in dict.fromkeys((lang, "en")):
         path = os.path.join(data_dir(), candidate, name)
         if os.path.exists(path):
