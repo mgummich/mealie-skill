@@ -174,6 +174,10 @@ note.
 
 `create_recipe` takes free text directly and runs ingredient lines through
 Mealie's parser — for a recipe the user pastes or dictates, not for a URL.
+A recipe Mealie creates starts with one placeholder ingredient ("1 Cup
+Flour"). Since the ingredient list replaces rather than merges, pass the
+complete list on the next update and the placeholder is gone; append to it
+and it stays in the recipe.
 Anything with a URL goes through the scraper. `parse_ingredients` shows how Mealie would read a line
 without writing anything — useful to check a parse before committing it.
 
