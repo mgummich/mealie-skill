@@ -15,7 +15,7 @@ built also never goes stale.
 
 | Question | Call |
 |---|---|
-| What exists, and how often is it used? | `library_stats(resource)` — `tags`, `categories`, `tools`, `foods`, `units`; every entry with its `recipe_count`, unused included |
+| What exists, and how often is it used? | `library_stats(resource)` — `tags`, `categories`, `tools`, `foods`, `units`; each entry with its `recipe_count`, unused included |
 | Is this food safe to delete? | `library_stats("foods")` — `recipe_count: 0` |
 | Same recipe imported twice? | `find_duplicate_recipes()` |
 | Is this dish already in the library? | `search_recipes(query="lentil curry")` — before an import |
@@ -31,9 +31,14 @@ ingredients, so that sweep is one request per recipe and honors
 `max_recipes`. Tags, categories and tools come off the recipe list in a
 handful of requests.
 
+`library_stats` lists at most `top` used and `top` unused entries, 50 each by
+default, and the totals are in `used` and `unused`. A library with more than
+50 unused foods hands you fifty of them, so the deletion worklist is a page,
+not the list: raise `top` before calling it complete.
+
 `find_duplicate_recipes` and `check_recipe_links` take `max_recipes` too and
-say in a `note` when they stopped short — read that line before reporting a
-count as complete.
+say in a `note` when they stopped short — as does `library_stats`. Read that
+line before reporting a count as complete.
 
 `search_recipes` carries no ingredients, instructions or notes; those need
 `get_recipe`. Never build a rollup by hand with one `search_recipes` per
@@ -62,10 +67,10 @@ Tagging many recipes has its own batch:
 
     bulk_tag_recipes(slugs=[...], tags=["Quick"], categories=["Dinner"])
 
-Names are plain text and are created if they do not exist. It **only adds**.
-Removing a tag, or setting one recipe's list exactly, is `update_recipe`
-with `replace_tags` / `replace_categories` (there is no bulk form for
-tools).
+Names are plain text and are created if they do not exist. It **only adds**,
+and it covers tags and categories only. Removing one, or setting a recipe's
+list exactly, is `update_recipe` with `replace_tags` / `replace_categories` /
+`replace_tools` — tools have no bulk form at all.
 
 Keep `actions.json` and `apply` for what the batch form cannot do: **order**
 (a label must exist before the food referencing it), **a dry run over the
@@ -176,7 +181,7 @@ the loser. Tags and categories have no merge — retag first, then delete the
 leftover. Deleting a duplicate food instead of merging it strips it from
 those recipes.
 
-`manage_taxonomy("...", "list")` is paged at 200 and reports the `total`. A
+`manage_taxonomy("...", "list")` is paged at 50 and reports the `total`. A
 partial first page is not the whole table — `library_stats` is cheaper and
 carries the counts. `update` is a patch: unmentioned fields keep their
 value.
