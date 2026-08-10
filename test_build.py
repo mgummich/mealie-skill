@@ -2,6 +2,7 @@
 """Tests for build.py — plain asserts, run with: python3 test_build.py."""
 import json
 import os
+import re
 import sys
 import tempfile
 import types
@@ -693,6 +694,47 @@ with tempfile.TemporaryDirectory() as tmp:
         beside = os.path.join(os.path.dirname(os.path.join(built, script)),
                               "..", "data", "en", "conversions.json")
         assert os.path.exists(os.path.normpath(beside)), target
+
+# 12n. The standalone frontend: every mode has a prompt, every prompt a
+#      mode, and no rendered prompt tells the model to run a tool it has
+#      no access to.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "standalone"))
+optimize_src = open(os.path.join("standalone", "optimize.py"),
+                    encoding="utf-8").read()
+prompts = set(re.findall(r'"(\w+)": "([\w.]+\.md)"', optimize_src))
+mapped = {ref for _, ref in prompts}
+for ref, _ in build.MODES:
+    if ref in ("actions.md", "mcp.md"):
+        continue                                  # not modes of the frontend
+    assert ref in mapped, f"{ref} has no standalone prompt"
+# every mode of the CLI resolves to a prompt, and units gets its own -
+# it ran on the foods prompt until units.md existed
+cli = set(re.search(r"choices=\[(.*?)\]", optimize_src, re.DOTALL).group(1)
+          .replace('"', "").replace("\n", " ").replace(" ", "").split(","))
+by_mode = dict(prompts)
+for mode in cli - {""}:
+    assert mode in by_mode, f"CLI mode {mode} has no prompt"
+assert by_mode["units"] == "units.md", by_mode
+
+for ref, _ in build.MODES:
+    raw = build._read("references", ref)
+    # a standalone replacement may name a command on purpose (test 7); what
+    # must not survive is a tool line the agent-only text left behind
+    kept = {build.set_language(m.group(1), "X")
+            for m in (build.RE_STANDALONE.match(line)
+                      for line in raw.splitlines()) if m}
+    rendered = build.render_standalone(raw, "X")
+    for line in rendered.splitlines():
+        words = line.split()
+        assert not (line.startswith("    ") and words
+                    and words[0] in build.TOOL_WORDS
+                    and line not in kept), (ref, line)
+# the density figures survive into the standalone prompt, which has no
+# convert command to fall back on
+units_prompt = build.render_standalone(build._read("references", "units.md"))
+assert "plain flour 120 g" in units_prompt
+assert "Never estimate a density." in units_prompt
 
 # 13. AGENTS.md carries a pointer, not the router: the block is what every
 #     session pays for, so it stays small and names the file to read.

@@ -105,19 +105,24 @@ Order the lines by **use**, not by aisle. Sections (`title` on the first
 line of the section) from about eight ingredients or where there are
 genuine sub-preparations.
 
-Metric. Do not convert by hand - a cup of flour and a cup of honey differ
-by almost a factor of three, and the density table lives in the script:
+Metric. A cup of flour and a cup of honey differ by almost a factor of
+three, so the density decides and never a single factor.
+
+<!-- agent-only -->
+Do not convert by hand - the table lives in the script:
 
     convert "1 cup plain flour" "8 oz" "350 F"
     120 g plain flour   [note: Original: 1 cup plain flour]
 
+`REVIEW` means the food is not in the density table: leave the line and
+list it under QUESTIONS, never estimate. `KEEP` means the unit is metric
+already. Details in `references/units.md`.
+<!-- standalone: Direct: 1 oz = 28 g, 1 lb = 450 g, 1 fl oz = 30 ml, 1 stick butter = 115 g, 1 inch = 2.5 cm, 1 US cup of liquid = 240 ml. Dry, per US cup: plain flour 120 g, wholemeal flour 130 g, white sugar 200 g, brown sugar 220 g, icing sugar 120 g, butter 227 g, oil 218 g, honey and syrup 340 g, rolled oats 90 g, rice 185 g, cocoa 85 g, breadcrumbs 108 g, grated cheese 100 g. Spoons: 1 tbsp flour 8 g, sugar 12 g, butter 14 g. °F: 350 -> 175 °C, 375 -> 190, 400 -> 200, 425 -> 220. A food that is not listed is NOT converted - leave the line and put it under QUESTIONS. tbsp and tsp are metric already and stay. -->
+
 Write both parts: the converted amount **and** the `Original: …` note on
 that ingredient line. The note is the evidence for a human and the marker
 that stops a later pass converting the same line twice. Keep an existing
-preparation note and append with `; `. `REVIEW` means the food is not in
-the density table: leave the line and list it under QUESTIONS, never
-estimate. `KEEP` means the unit is metric already. Details in
-`references/units.md`.
+preparation note and append with `; `.
 
 ## Steps
 

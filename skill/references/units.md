@@ -49,6 +49,7 @@ count measures: a standardised `pinch` would be added up in shopping lists.
 
 ## Converting
 
+<!-- agent-only -->
     convert "1 cup plain flour" "8 oz" "350 F"
     120 g plain flour   [note: Original: 1 cup plain flour]
 
@@ -59,6 +60,9 @@ script.
 - `REVIEW` - the food is not in the density table. Leave the line, list it
   under QUESTIONS. **Never estimate.**
 - `KEEP` - the unit is metric already (tbsp, tsp) and the line stays.
+<!-- standalone: Direct: 1 oz = 28 g, 1 lb = 450 g, 1 fl oz = 30 ml, 1 pint (US) = 475 ml, 1 stick butter = 115 g, 1 inch = 2.5 cm. Liquids by volume: 1 US cup = 240 ml. Dry ingredients per US cup, by density and never by a single factor: plain flour 120 g, wholemeal flour 130 g, white sugar 200 g, brown sugar 220 g, icing sugar 120 g, butter 227 g, oil 218 g, yoghurt 245 g, honey and syrup 340 g, rolled oats 90 g, rice 185 g, cocoa 85 g, chopped nuts 120 g, breadcrumbs 108 g, chocolate chips 170 g, grated cheese 100 g. Spoons: 1 tbsp flour 8 g, sugar 12 g, butter 14 g, honey 21 g; 1 tsp salt 6 g. Round to 1 below 20, to 5 up to 100, to 10 up to 1000, and never more than 2 % off the exact figure. °F: 300/150, 325/160, 350/175, 375/190, 400/200, 425/220, 450/230; fan is 20 °C lower. tbsp and tsp are metric already (15 ml, 5 ml) and stay. A food that is not in this table is NOT converted: leave the line and list it under QUESTIONS. Never estimate a density. -->
+
+
 
 Write both parts into the recipe: the converted amount and the `Original:`
 note. Keep an existing preparation note and append with `; ` -

@@ -19,5 +19,17 @@ roux, ganache) stay as they are. Metric units. Mark estimates in the report;
 when in doubt leave a field empty instead of guessing. Search before
 creating - check spelling variants, singular/plural and foreign-language
 equivalents too. Mark destructive operations (merge_*, delete_organizer,
-retag_recipe) in the plan, with the number of affected recipes and the note
-that they cannot be undone.
+delete_food, delete_unit, retag_recipe) in the plan, with the number of
+affected recipes and the note that they cannot be undone.
+
+A converted amount always carries its original as a note on that ingredient
+line, prefixed exactly `Original:` - `Original: 1 cup`, or
+`finely chopped; Original: 1 cup` where a note is already there. It is the
+evidence a human can check and the marker that stops the next pass
+converting the same line a second time. A line that already carries
+`Original:` is never converted again. Where a density is not given to you,
+the line stays as it is and goes into the questions - never estimate one.
+
+List fields replace rather than merge, in the ACTIONS and in Mealie:
+ingredients, steps, notes, tags, categories, tools and aliases are always
+sent back complete, never as the part that changed.
