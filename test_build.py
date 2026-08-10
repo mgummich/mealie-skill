@@ -357,6 +357,10 @@ assert mealie_ctx.taken("foods", "f-1", {"name": "wheat FLOUR "}) == "wheat flou
 assert mealie_ctx.taken("foods", "f-1", {"aliases": [{"name": "Type 550"}]})
 assert mealie_ctx.taken("foods", "f-2", {"name": "Wheat flour"}) is None  # itself
 assert mealie_ctx.taken("foods", "f-1", {"name": "Rye flour"}) is None
+# an object an earlier merge removes does not hold its name any more: taking
+# the loser's name over as an alias is what the rules ask for
+assert mealie_ctx.taken("foods", "f-1", {"aliases": [{"name": "Wheat flour"}]},
+                        ignore={"f-2"}) is None
 
 with tempfile.TemporaryDirectory() as tmp:
     plan = os.path.join(tmp, "actions.json")

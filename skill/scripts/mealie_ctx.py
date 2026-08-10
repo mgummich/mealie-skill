@@ -1127,7 +1127,7 @@ def resolve(value, refs):
 _TAKEN: dict = {}
 
 
-def taken(kind, oid, payload):
+def taken(kind, oid, payload, ignore=()):
     """Find a name or alias in the payload that another object already owns.
 
     Mealie holds a unique constraint over food and unit names including
@@ -1135,11 +1135,18 @@ def taken(kind, oid, payload):
     constraint error instead of a usable message. The right move there is a
     merge, not a rename, so the check runs before the write.
 
+    The check runs before the first write, so it sees the instance as it is
+    now. Objects an earlier merge in the same plan removes are therefore
+    passed in as "ignore": taking the loser's name over as an alias on the
+    survivor is what the rules ask for, and it must not be refused because
+    the loser still holds that name at this moment.
+
     Args:
         kind: "foods" or "units".
         oid: Id of the object being updated, excluded from the comparison.
         payload: The update payload, read for "name", "pluralName" and
             "aliases".
+        ignore: Ids that an earlier action of the same plan removes.
 
     Returns:
         The first colliding string, or None when the payload is free.
@@ -1155,7 +1162,7 @@ def taken(kind, oid, payload):
                for x in payload.get("aliases") or []}
     wanted.discard("")
     for other in _TAKEN[kind]:
-        if other["id"] == oid:
+        if other["id"] == oid or other["id"] in ignore:
             continue
         names = {(other.get(k) or "").strip().casefold()
                  for k in ("name", "pluralName")}
@@ -2062,12 +2069,18 @@ def cmd_apply(a):
         print("[dry-run] nothing configured: name collisions and recipe list "
               "fields NOT checked")
     try:
+        merged_away = {x["op"]: set() for x in actions}
         for x in actions if guarded else []:
+            if x["op"] in ("merge_food", "merge_unit"):
+                merged = "foods" if x["op"] == "merge_food" else "units"
+                merged_away.setdefault(merged, set()).add(
+                    x.get("payload", {}).get("from"))
             if x["op"] not in ("update_food", "update_unit"):
                 continue
             kind = "foods" if x["op"] == "update_food" else "units"
             payload = x.get("payload", {})
-            clash = taken(kind, payload.get("id"), payload)
+            clash = taken(kind, payload.get("id"), payload,
+                          merged_away.get(kind, set()))
             if clash:
                 sys.exit(f'{x["op"]} {payload.get("id")}: "{clash}" already '
                          f"exists on another {kind[:-1]}. Merge the two "
