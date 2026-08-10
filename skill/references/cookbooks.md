@@ -8,9 +8,10 @@ recipes imported later. Almost everything else follows from that.
 
     ctx cookbooks
 
-Returns the existing cookbooks plus categories, tags and tools, each with a
-recipe count. From that you can estimate how large a planned cookbook would
-be.
+Returns the existing cookbooks - each with its filter and the number of
+recipes it currently matches - plus categories, tags and tools with a recipe
+count each. From that you can estimate how large a planned cookbook would
+be, and see which of the existing ones have run empty.
 
 **Create cookbooks only after categories and tags are cleaned up.**
 Otherwise the filter is built on vocabulary that gets merged away in the
@@ -45,7 +46,7 @@ Ask about the purpose before designing rules. Typical patterns:
 Plan per cookbook:
 
     Cookbook: Quick weeknight cooking
-      RULE     tags: quick AND one-pot
+      RULE     tags.name CONTAINS ALL ["Quick", "One-pot"]
       MATCHES  about 18 recipes
       DESCR.   Dishes for under 30 minutes, mostly in a single pot.
       GAP      "quick" has only 6 recipes – check its assignment?
@@ -56,15 +57,33 @@ first.
 
 ### Designing rules
 
-`requireAllCategories`, `requireAllTags`, `requireAllTools` switch between
-AND and OR. The default is OR - which quickly produces cookbooks containing
-half of everything. Set them deliberately:
+The rule is a single string in `queryFilterString`. Mealie validates it on
+write, so a malformed filter is refused with a 422 rather than saved:
+
+| Pattern | Example |
+|---|---|
+| Match any of | `tags.name IN ["Dinner", "Lunch"]` |
+| Match all of | `tags.name CONTAINS ALL ["Vegan", "Quick"]` |
+| Exclude | `tags.name NOT IN ["Dessert"]` |
+| Combine | `recipeCategory.name IN ["Dessert"] AND rating > 3` |
+| By date | `createdAt > "2026-01-01"` |
+| By equipment | `tools.name IN ["Air Fryer"]` |
+| Never cooked | `lastMade = null` |
+
+Operators: `IN`, `NOT IN`, `CONTAINS ALL`, `LIKE`, `NOT LIKE`, `=`, `<>`,
+`>`, `<`, `>=`, `<=`, joined with `AND` / `OR` and grouped with brackets.
+
+Choose the joining operator deliberately:
 
 - **OR** for collections: desserts = category Dessert OR tag sweets
 - **AND** for intersections: quick AND vegetarian
 
-More than two or three conditions makes a cookbook unpredictable. Build two
-cookbooks instead.
+An `IN` list is itself an OR and quickly produces cookbooks containing half
+of everything. More than two or three conditions makes a cookbook
+unpredictable. Build two cookbooks instead.
+
+An empty `queryFilterString` is not a neutral default: a cookbook without a
+filter matches every recipe.
 
 Use only objects that already exist. If the rule needs a new tag, that is a
 separate task: create the tag and assign it to recipes first (see
@@ -99,8 +118,8 @@ not open an empty cookbook. So: after every cleanup of categories, tags or
 tools, check the filters. This is the closing step of those runs, not a
 project of its own.
 
-The hit count per cookbook is the only metric that matters. For one at zero
-or with a collapsed count:
+The hit count per cookbook is the only metric that matters; `ctx cookbooks`
+prints it next to the filter. For one at zero or with a collapsed count:
 
 | Cause | Repair |
 |---|---|
@@ -145,16 +164,8 @@ cookbook that should not exist at all; it removes the rule, not the recipes,
 but any link to the cookbook dies with it - so it belongs in the plan and
 needs approval like any other destructive step.
 
-Reach for `query_filter` only for what names cannot express; it cannot be
-combined with the name lists:
-
-| Pattern | Example |
-|---|---|
-| Match any of | `tags.name IN ["Dinner", "Lunch"]` |
-| Match all of | `tags.name CONTAINS ALL ["Vegan", "Quick"]` |
-| Combine | `recipeCategory.name IN ["Dessert"] AND rating > 3` |
-| By date | `createdAt > "2026-01-01"` |
-| By equipment | `tools.name IN ["Air Fryer"]` |
+Reach for `query_filter` - the same filter string as above - only for what
+the name lists cannot express; the two cannot be combined.
 
 Verify with `get_cookbook_recipes(cookbook_id)` afterwards - an overly narrow
 filter matches nothing, which is easy to miss.

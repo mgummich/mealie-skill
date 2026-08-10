@@ -104,11 +104,15 @@ MCP servers. The canonical names win when both are set.
 
 Take a backup before the first run: Mealie → Site Settings → Backups.
 
-Check the endpoint paths, they differ between Mealie versions:
+The paths are the ones Mealie 3.22.0 serves, checked against its OpenAPI
+spec. They differ between Mealie versions — cookbooks moved from
+`/api/groups/cookbooks` to `/api/households/cookbooks` in Mealie 2.0, and
+their filter became a single `queryFilterString` in the same release. Check
+what your instance answers:
 
 ```bash
 for p in foods units groups/labels organizers/categories \
-         organizers/tags organizers/tools groups/cookbooks; do
+         organizers/tags organizers/tools households/cookbooks; do
   printf '%-26s ' "$p"
   curl -s -o /dev/null -w '%{http_code}\n' \
     -H "Authorization: Bearer $MEALIE_TOKEN" "$MEALIE_URL/api/$p?perPage=1"

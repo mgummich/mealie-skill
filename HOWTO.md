@@ -45,11 +45,12 @@ its `MEALIE_API_TOKEN` is read as well, so one env file serves both.
 use, work too.
 
 Check that the token works and that your Mealie version uses the endpoint
-paths the tool expects:
+paths the tool expects — they are the ones Mealie 3.22.0 serves, and
+cookbooks in particular moved with Mealie 2.0:
 
 ```bash
 for p in foods units groups/labels organizers/categories \
-         organizers/tags organizers/tools groups/cookbooks; do
+         organizers/tags organizers/tools households/cookbooks; do
   printf '%-26s ' "$p"
   curl -s -o /dev/null -w '%{http_code}\n' \
     -H "Authorization: Bearer $MEALIE_TOKEN" "$MEALIE_URL/api/$p?perPage=1"
@@ -386,6 +387,7 @@ source research, allow the domains of your recipe sources plus
 | `401` on every call | token wrong or expired | new token in Mealie → Profile → API Tokens |
 | `404` on one endpoint | Mealie version uses a different path | adjust `EP` in `mealie_ctx.py` |
 | merge endpoint fails | `PUT` vs `POST` differs by version | check `/api/foods/merge` and `/api/units/merge` |
+| `422` on a cookbook | Mealie refused the filter string | test it as `queryFilter` on `/api/recipes` first |
 | `apply` aborts on order | the plan violates the enforced order | let it rewrite the plan — do not patch by hand |
 | the same duplicates come back | aliases missing after a merge | add the old names as `aliases` on the target |
 | `/mealie` unknown in the IDE | installed globally, workflow needs a project | `build.py --install <target> --into <project>` |
