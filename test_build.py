@@ -560,6 +560,61 @@ seeded, skipped = mealie_ctx.seed_actions(
 assert any("gram" in s for s in skipped), skipped   # caught on the alias
 assert not any(x["payload"]["name"] == "gram" for x in seeded), seeded
 
+# 12m. delete_food is not a merge: it strips the food from every recipe that
+#      used it, so it is refused while anything still references it.
+with tempfile.TemporaryDirectory() as tmp:
+    index = os.path.join(tmp, "index.json")
+    with open(index, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"built": 0, "version": mealie_ctx.INDEX_VERSION,
+                             "failed": [], "recipes": [
+            {"slug": "curry", "foods": ["f-used"], "units": [], "tags": [],
+             "tools": [], "categories": []}]}))
+
+    def deleting(method, path, **kw):
+        """Serve the object being deleted and record the call."""
+        calls.append((method, path))
+        return {"id": path.rsplit("/", 1)[-1], "name": "Test artefact"}
+
+    calls = []
+    try:
+        run_apply([{"op": "delete_food", "payload": {"id": "f-used"}}],
+                  deleting, tmp, index=index)
+        raise AssertionError("deleting a referenced food did not abort")
+    except SystemExit as e:
+        assert "still use it" in str(e) and "curry" in str(e), e
+    assert not calls, calls                       # aborted before any request
+
+    # an orphan goes, and the record it deleted is in the changelog
+    calls = []
+    logged = run_apply([{"op": "delete_food", "payload": {"id": "f-orphan"}}],
+                       deleting, tmp, index=index)
+    assert ("DELETE", "/foods/f-orphan") in calls, calls
+    assert logged[0]["before"]["name"] == "Test artefact", logged
+
+    # without an index there is nothing to check against, so it refuses
+    try:
+        run_apply([{"op": "delete_unit", "payload": {"id": "u-1"}}],
+                  deleting, tmp)
+        raise AssertionError("deleting without an index did not abort")
+    except SystemExit as e:
+        assert "index" in str(e), e
+
+# labels are organizers to this format; an unknown kind is named, not a
+# KeyError halfway through the run
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    run_apply([{"op": "update_organizer",
+                "payload": {"kind": "labels", "id": "l1",
+                            "color": "#43A047"}}], deleting, tmp)
+    assert ("PUT", "/groups/labels/l1") in calls, calls
+    try:
+        run_apply([{"op": "delete_organizer",
+                    "payload": {"kind": "recipes", "id": "x"}}],
+                  deleting, tmp)
+        raise AssertionError("an unknown organizer kind did not abort")
+    except SystemExit as e:
+        assert "unknown kind" in str(e), e
+
 # 12l. Audit metrics: the findings the rule set calls hard errors.
 foods = [{"id": "f1", "name": "lentils", "aliases": [{"name": "puy"}]},
          {"id": "f2", "name": "Tomato", "pluralName": "Tomatoes",

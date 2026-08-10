@@ -179,7 +179,9 @@ disagree, not to make the taxonomy elegant.
 
 `audit` lists foods no recipe uses - mostly harmless leftovers, and good
 merge sources, since removing one touches no recipe. Propose, never delete
-unasked. A food with references is deprecated in place rather than deleted.
+unasked; `delete_food` is for those orphans, and the script refuses it
+while any recipe still uses the food. A food that is still referenced is
+kept, not deleted - merge it into the survivor instead.
 
 ## Phase 3 - Execution
 

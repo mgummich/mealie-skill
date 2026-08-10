@@ -30,9 +30,19 @@ Mandatory, violations abort before the first write:
     create_label -> merge_food -> merge_unit -> create_food -> create_unit
     -> create_category -> create_tag -> create_tool -> update_food
     -> update_unit -> update_organizer -> retag_recipe -> delete_organizer
+    -> delete_food -> delete_unit
     -> create_cookbook -> update_cookbook -> patch_recipe -> set_image
 
 The reason: retag before deleting; create before referencing.
+
+**Deleting a food or unit is not merging one.** A merge repoints every
+recipe that used the loser; a delete strips it from them. So `delete_food`
+and `delete_unit` are for orphans only - a test artefact, a leftover of an
+old import, a non-metric unit whose last line has been converted - and the
+script refuses them while the index shows any recipe using the object. It
+also refuses them without an index, because it cannot check. Freeing the
+last reference and deleting it in the same run is refused too: audit again
+first, then delete.
 
 ## Operations
 
@@ -44,9 +54,10 @@ The reason: retag before deleting; create before referencing.
 | `create_category` / `create_tag` / `create_tool` | `name` |
 | `merge_food` / `merge_unit` | `from`, `to` (ids) |
 | `update_food` / `update_unit` | `id` + only the fields to set |
-| `update_organizer` | `kind` (`categories`/`tags`/`tools`), `id`, fields |
-| `retag_recipe` | `slug`, `kind`, `add` (ids), `remove` (ids) |
+| `update_organizer` | `kind` (`categories`/`tags`/`tools`/`labels`), `id`, fields |
+| `retag_recipe` | `slug`, `kind` (no labels - nothing to retag), `add` (ids), `remove` (ids) |
 | `delete_organizer` | `kind`, `id` |
+| `delete_food` / `delete_unit` | `id`; refused while any recipe uses it |
 | `create_cookbook` | `name`, `description`, `categories`/`tags`/`tools`, `requireAll*` |
 | `update_cookbook` | `id` + fields to change |
 | `patch_recipe` | the changed recipe fields - list fields in full, see below - plus `slug` for the recipe (or `--slug` for the whole run) |

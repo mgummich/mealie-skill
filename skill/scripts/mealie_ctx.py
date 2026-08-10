@@ -86,8 +86,13 @@ ORDER = [
     "create_label", "merge_food", "merge_unit", "create_food", "create_unit",
     "create_category", "create_tag", "create_tool", "update_food",
     "update_unit", "update_organizer", "retag_recipe", "delete_organizer",
+    "delete_food", "delete_unit",
     "create_cookbook", "update_cookbook", "patch_recipe", "set_image",
 ]
+# Kinds update_organizer and delete_organizer accept. Labels are organizers
+# to this format even though they hang off a food rather than a recipe;
+# retag_recipe deliberately does not take them, there is nothing to retag.
+ORG_KINDS = ("categories", "tags", "tools", "labels")
 
 # Duplicate matching is tuned for German and English recipe data: umlaut
 # folding, German plural endings (which cover the English "s" and "es") and
@@ -1878,6 +1883,40 @@ def _guard_recipe_lists(actions, default_slug, cache):
                     "action if the removal is intended.")
 
 
+def _guard_deletes(actions, idx):
+    """Refuse to delete a food or unit that recipes still reference.
+
+    Deleting a referenced food strips it from those recipes silently -
+    unlike a merge, which repoints them. The count comes from the index,
+    which is built before the run, so a plan that frees the last reference
+    and deletes in the same run is refused too: audit again afterwards.
+
+    Args:
+        actions: The parsed action list.
+        idx: Index dict, or None when no index exists.
+
+    Raises:
+        SystemExit: If a target is still referenced, or if there is no
+            index to check against.
+    """
+    targets = [x for x in actions
+               if x["op"] in ("delete_food", "delete_unit")]
+    if not targets:
+        return
+    if not idx:
+        sys.exit("delete_food/delete_unit needs the index to check that "
+                 "nothing references the object. Run an audit first.")
+    for x in targets:
+        kind = "foods" if x["op"] == "delete_food" else "units"
+        oid = x.get("payload", {}).get("id")
+        users = _merge_users(idx, kind, oid)
+        if users:
+            sys.exit(f'{x["op"]} {oid}: {len(users)} recipe(s) still use it '
+                     f"({', '.join(users[:5])}). Deleting strips it from "
+                     "them; merge it into the survivor instead, or retag "
+                     "those recipes first.")
+
+
 def _merge_users(idx, kind, oid):
     """List the slugs of the recipes that use one food or unit.
 
@@ -1974,6 +2013,8 @@ def cmd_apply(a):
     if seq != sorted(seq):
         sys.exit("Order violated – allowed is:\n  " + " -> ".join(ORDER))
 
+    idx = (json.load(open(INDEX, encoding="utf-8"))
+           if os.path.exists(INDEX) else None)
     # The guards below read from the instance. A dry run is also the way to
     # check a plan's structure offline, so there they are best effort: what
     # cannot be checked is named rather than passed over in silence.
@@ -2008,13 +2049,21 @@ def cmd_apply(a):
         print(f"[dry-run] instance not reachable ({e.__class__.__name__}): "
               "name collisions and recipe list fields NOT checked")
 
-    if any(x["op"] in ("merge_food", "merge_unit", "delete_organizer")
+    for x in actions:
+        if x["op"] not in ("update_organizer", "delete_organizer"):
+            continue
+        kind = x.get("payload", {}).get("kind")
+        if kind not in ORG_KINDS:
+            sys.exit(f'{x["op"]}: unknown kind {kind!r} - one of '
+                     f"{', '.join(ORG_KINDS)}")
+    _guard_deletes(actions, idx)
+
+    if any(x["op"] in ("merge_food", "merge_unit", "delete_organizer",
+                       "delete_food", "delete_unit")
            for x in actions) and not a.dry_run:
         print("!! Contains destructive operations (merge/delete). "
               "Recipes will be rewritten, objects deleted.\n")
 
-    idx = (json.load(open(INDEX, encoding="utf-8"))
-           if os.path.exists(INDEX) else None)
     run = f"{int(time.time())}"
     refs: dict = {}
     renamed: dict = {}          # old slug -> new one, after a rename
@@ -2089,6 +2138,14 @@ def cmd_apply(a):
                 gone = mreq("GET", f'{EP[kind]}/{payload["id"]}')
                 mreq("DELETE", f'{EP[kind]}/{payload["id"]}')
                 print(f'DELETED {kind} {payload["id"]}')
+                log_change(run, op, {"kind": kind, "id": payload["id"]},
+                           gone, payload)
+            elif op in ("delete_food", "delete_unit"):
+                kind = "foods" if op == "delete_food" else "units"
+                gone = mreq("GET", f'{EP[kind]}/{payload["id"]}')
+                mreq("DELETE", f'{EP[kind]}/{payload["id"]}')
+                print(f'DELETED {kind[:-1]} – {gone.get("name")} – '
+                      f'{payload["id"]}')
                 log_change(run, op, {"kind": kind, "id": payload["id"]},
                            gone, payload)
             elif op == "update_cookbook":
