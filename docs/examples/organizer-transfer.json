@@ -1,0 +1,13 @@
+{"actions": [
+  {"op": "create_tag", "id_as": "tag_italian",
+   "payload": {"name": "italian"}},
+  {"op": "retag_recipe",
+   "payload": {"slug": "ragu-bolognese", "kind": "tags",
+               "add": ["$ref:tag_italian"]}},
+  {"op": "retag_recipe",
+   "payload": {"slug": "ragu-bolognese", "kind": "categories",
+               "remove": ["8f2b1c40-0000-4000-8000-000000000030"]}},
+  {"op": "delete_organizer",
+   "payload": {"kind": "categories",
+               "id": "8f2b1c40-0000-4000-8000-000000000030"}}
+]}

@@ -1,0 +1,28 @@
+{"actions": [
+  {"op": "patch_recipe", "replace": true,
+   "payload": {
+     "slug": "red-lentil-curry",
+     "name": "Red Lentil Curry",
+     "description": "A quick lentil curry with coconut milk and tomatoes, ready in half an hour and better the next day.",
+     "recipeServings": 4,
+     "totalTime": "35 min",
+     "prepTime": "10 min",
+     "recipeIngredient": [
+       {"quantity": 200,
+        "unit": {"id": "8f2b1c40-0000-4000-8000-000000000010"},
+        "food": {"id": "8f2b1c40-0000-4000-8000-000000000011"},
+        "note": "Original: 1 cup red lentils",
+        "originalText": "1 cup red lentils"},
+       {"quantity": 400,
+        "unit": {"id": "8f2b1c40-0000-4000-8000-000000000012"},
+        "food": {"id": "8f2b1c40-0000-4000-8000-000000000013"},
+        "note": "Original: 14 oz coconut milk",
+        "originalText": "1 can (14 oz) coconut milk"}
+     ],
+     "notes": [
+       {"title": "Variation", "text": "With spinach stirred in at the end it stretches to five servings."}
+     ]}},
+  {"op": "set_image",
+   "payload": {"slug": "red-lentil-curry",
+               "url": "https://upload.wikimedia.org/wikipedia/commons/example.jpg"}}
+]}

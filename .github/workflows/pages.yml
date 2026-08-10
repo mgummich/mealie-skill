@@ -6,6 +6,7 @@ on:
     paths:
       - "*.md"
       - "rules/**"
+      - "docs/**"
       - "_config.yml"
       - "_layouts/**"
       - ".github/workflows/pages.yml"
@@ -13,6 +14,7 @@ on:
     paths:
       - "*.md"
       - "rules/**"
+      - "docs/**"
       - "_config.yml"
       - "_layouts/**"
       - ".github/workflows/pages.yml"

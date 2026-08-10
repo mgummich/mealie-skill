@@ -1,0 +1,12 @@
+{"actions": [
+  {"op": "merge_food",
+   "payload": {"from": "8f2b1c40-0000-4000-8000-000000000001",
+               "to": "8f2b1c40-0000-4000-8000-000000000002"}},
+  {"op": "update_food",
+   "payload": {"id": "8f2b1c40-0000-4000-8000-000000000002",
+               "name": "tomato",
+               "pluralName": "tomatoes",
+               "description": "Fresh tomatoes, raw weight.",
+               "aliases": [{"name": "tomatoes"}, {"name": "Tomate"},
+                           {"name": "Tomaten"}]}}
+]}

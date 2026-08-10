@@ -30,8 +30,11 @@ Both share: a local recipe index instead of repeated API loops, a plan
 before every write, deterministic execution through an ACTIONS list.
 
 New here? [**HOWTO.md**](HOWTO.md) walks through a full session per mode,
-with examples. Both files are also served as a site:
-[mgummich.github.io/mealie-skill](https://mgummich.github.io/mealie-skill/).
+with examples. Everything else is on the site:
+[**documentation**](https://mgummich.github.io/mealie-skill/docs/) — guides,
+CLI and format reference, the decisions behind the design, Mealie best
+practices — and the
+[**rule set**](https://mgummich.github.io/mealie-skill/rules/) it all serves.
 
 ## Contents
 

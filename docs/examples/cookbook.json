@@ -1,0 +1,10 @@
+{"actions": [
+  {"op": "create_cookbook",
+   "payload": {"name": "Weeknight, under 30",
+               "description": "Dishes for evenings when time is short - under half an hour, mostly in a single pot.",
+               "queryFilterString": "tags.name CONTAINS ALL [\"quick\", \"one-pot\"]",
+               "public": false}},
+  {"op": "update_cookbook",
+   "payload": {"id": "8f2b1c40-0000-4000-8000-000000000020",
+               "queryFilterString": "recipeCategory.name IN [\"Dessert\"] AND rating > 3"}}
+]}
