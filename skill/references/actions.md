@@ -116,6 +116,11 @@ colour, over eight tags, note title outside the vocabulary, rename dropping
 the old name. One finding is fatal: a non-metric unit. Cup, ounce, pound,
 pint and stick are converted with `convert`, never stored.
 
+An update whose value is already there is not sent: the run prints
+`UNCHANGED` and logs nothing. So a plan applied twice - after a partial
+failure, or built from an audit that was already acted on - changes the
+instance once, and a second run over a clean corpus is provably a no-op.
+
 Every applied action is appended to `.mealie.changelog.jsonl` with the state
 it overwrote - whole object for merges and deletions, touched fields for
 updates. That file is the only way back; do not delete it mid-cleanup. A

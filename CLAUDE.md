@@ -36,6 +36,12 @@ write. Changing the order means changing `references/actions.md` with it
 **No recipe deletion.** There is deliberately no operation for it. Duplicate
 recipes are presented; deleting happens by hand in the UI.
 
+**A write that changes nothing is not sent.** Every `update_*` and
+`patch_recipe` compares against the current record first and prints
+`UNCHANGED` instead — the rule set asks that a second run over a clean
+corpus produce zero changes, and comparing is what makes that true. A new
+writing operation follows suit.
+
 **Nothing is overwritten without a record.** Every write in `cmd_apply`
 reads the state it is about to replace and calls `log_change` before the
 next action runs — `.mealie.changelog.jsonl` is the only rollback path.

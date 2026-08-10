@@ -586,6 +586,42 @@ seeded, skipped = mealie_ctx.seed_actions(
 assert any("gram" in s for s in skipped), skipped   # caught on the alias
 assert not any(x["payload"]["name"] == "gram" for x in seeded), seeded
 
+# 12o. Idempotency: the rule set wants a second run over a clean corpus to
+#      produce zero changes, so a write whose value is already there is not
+#      sent at all.
+assert mealie_ctx.unchanged({"name": "Salz", "labelId": "l1"},
+                            {"name": "Salz"})
+assert not mealie_ctx.unchanged({"name": "Salz"}, {"name": "salz"})
+assert not mealie_ctx.unchanged({}, {"labelId": "l1"})
+
+with tempfile.TemporaryDirectory() as tmp:
+    def already_set(method, path, **kw):
+        """Answer every GET with the value the plan wants to write."""
+        calls.append((method, path))
+        return {"id": "f-1", "name": "Salz", "labelId": "l1",
+                "slug": "curry", "totalTime": "PT30M"}
+
+    plan = [{"op": "update_food",
+             "payload": {"id": "f-1", "labelId": "l1"}},
+            {"op": "patch_recipe",
+             "payload": {"slug": "curry", "totalTime": "PT30M"}}]
+    calls = []
+    logged = run_apply(plan, already_set, tmp)
+    assert not [m for m, _ in calls if m in ("PUT", "PATCH")], calls
+    assert logged == [], logged        # nothing overwritten, nothing logged
+
+    # and the same plan against a record that differs does write
+    def differs(method, path, **kw):
+        """Answer every GET with a value the plan would change."""
+        calls.append((method, path))
+        return {"id": "f-1", "name": "Salz", "labelId": "other",
+                "slug": "curry", "totalTime": "PT10M"}
+
+    calls = []
+    logged = run_apply(plan, differs, tmp)
+    assert [m for m, _ in calls if m in ("PUT", "PATCH")], calls
+    assert len(logged) == 2, logged
+
 # 12m. delete_food is not a merge: it strips the food from every recipe that
 #      used it, so it is refused while anything still references it.
 with tempfile.TemporaryDirectory() as tmp:

@@ -1841,6 +1841,29 @@ def lint_actions(actions, lang=None):
     return out
 
 
+def unchanged(cur, payload):
+    """Report whether every field of the payload already holds its value.
+
+    The rule set asks that a second run over an already-clean corpus
+    produce zero changes. Comparing before writing is what makes that true
+    rather than hoped for: a plan built from a stale audit, or re-run after
+    a partial failure, then writes nothing instead of touching timestamps
+    and filling the changelog with noise.
+
+    Strict equality on purpose. An API object carries bookkeeping inside
+    its list entries, so a list rarely compares equal even when it is the
+    same list - that costs a needless write, never a skipped one.
+
+    Args:
+        cur: The record as the instance holds it.
+        payload: The fields the action would set.
+
+    Returns:
+        True when nothing would change.
+    """
+    return all(cur.get(k) == v for k, v in payload.items())
+
+
 def log_change(run, op, target, before, payload, result=None):
     """Append one applied action and the state it overwrote to CHANGELOG.
 
@@ -2155,18 +2178,26 @@ def cmd_apply(a):
                 kind = "foods" if op == "update_food" else "units"
                 fid = payload.pop("id")
                 cur = mreq("GET", f"{EP[kind]}/{fid}")
-                mreq("PUT", f"{EP[kind]}/{fid}", json={**cur, **payload})
-                print(f'UPDATED {kind} – {cur.get("name")} – ' + ", ".join(payload))
-                log_change(run, op, {"kind": kind, "id": fid},
-                           {k: cur.get(k) for k in payload}, payload)
+                if unchanged(cur, payload):
+                    print(f'UNCHANGED {kind} – {cur.get("name")}')
+                else:
+                    mreq("PUT", f"{EP[kind]}/{fid}", json={**cur, **payload})
+                    print(f'UPDATED {kind} – {cur.get("name")} – '
+                          + ", ".join(payload))
+                    log_change(run, op, {"kind": kind, "id": fid},
+                               {k: cur.get(k) for k in payload}, payload)
             elif op == "update_organizer":
                 kind = payload.pop("kind")
                 oid = payload.pop("id")
                 cur = mreq("GET", f"{EP[kind]}/{oid}")
-                mreq("PUT", f"{EP[kind]}/{oid}", json={**cur, **payload})
-                print(f'UPDATED {kind} – {cur.get("name")} – ' + ", ".join(payload))
-                log_change(run, op, {"kind": kind, "id": oid},
-                           {k: cur.get(k) for k in payload}, payload)
+                if unchanged(cur, payload):
+                    print(f'UNCHANGED {kind} – {cur.get("name")}')
+                else:
+                    mreq("PUT", f"{EP[kind]}/{oid}", json={**cur, **payload})
+                    print(f'UPDATED {kind} – {cur.get("name")} – '
+                          + ", ".join(payload))
+                    log_change(run, op, {"kind": kind, "id": oid},
+                               {k: cur.get(k) for k in payload}, payload)
             elif op == "retag_recipe":
                 kind = payload["kind"]
                 field = ORG[kind]
@@ -2202,10 +2233,14 @@ def cmd_apply(a):
             elif op == "update_cookbook":
                 cid = payload.pop("id")
                 cur = mreq("GET", f'{EP["cookbooks"]}/{cid}')
-                mreq("PUT", f'{EP["cookbooks"]}/{cid}', json={**cur, **payload})
-                print(f'UPDATED cookbook – {cur.get("name")}')
-                log_change(run, op, {"id": cid},
-                           {k: cur.get(k) for k in payload}, payload)
+                if unchanged(cur, payload):
+                    print(f'UNCHANGED cookbook – {cur.get("name")}')
+                else:
+                    mreq("PUT", f'{EP["cookbooks"]}/{cid}',
+                         json={**cur, **payload})
+                    print(f'UPDATED cookbook – {cur.get("name")}')
+                    log_change(run, op, {"id": cid},
+                               {k: cur.get(k) for k in payload}, payload)
             elif op == "patch_recipe":
                 slug = payload.pop("slug", None) or a.slug
                 if not slug:
@@ -2214,6 +2249,10 @@ def cmd_apply(a):
                 # overwrites without saying what was there, and the changelog is
                 # what makes it reversible.
                 cur = _recipe_before(slug, cache)
+                if unchanged(cur, payload):
+                    print(f"UNCHANGED {slug}")
+                    done += 1
+                    continue
                 res = mreq("PATCH", f'{EP["recipes"]}/{slug}', json=payload)
                 print(f"PATCHED {slug} – " + ", ".join(payload))
                 log_change(run, op, {"slug": slug},
