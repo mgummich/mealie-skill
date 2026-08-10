@@ -35,6 +35,9 @@ INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
 # this tool has no rollback, so the changelog is the only way back: it is
 # written before the next action runs, not at the end of the run.
 CHANGELOG = os.environ.get("MEALIE_CHANGELOG", ".mealie.changelog.jsonl")
+# Per-instance decisions the rule set wants recorded once: locale,
+# category axis, container assumptions, the bare-food default table.
+HOUSE_FILE = os.environ.get("MEALIE_RULES", ".mealie.rules.json")
 ENV_FILE = os.environ.get("MEALIE_ENV", ".mealie.env")
 ENV_FALLBACK = ".env"           # read as well, never written by setup
 ENV_KEYS = ("MEALIE_URL", "MEALIE_TOKEN")
@@ -555,6 +558,9 @@ def cmd_audit(a):
             URLs under --check-urls are reported, not raised.
     """
     what = a.what
+    line = house_line()
+    if line:
+        print(line)
     idx = load_index(a.refresh)
     R = idx["recipes"]
 
@@ -1132,6 +1138,197 @@ def cmd_convert(a):
             print(f'{out["text"]}   [note: {out["note"]}]')
 
 
+# ---------- house rules ----------
+def read_house():
+    """Read the house rules of this working directory.
+
+    Returns:
+        The decoded file, or None when there is none.
+
+    Raises:
+        SystemExit: If the file exists but is not valid JSON.
+    """
+    if not os.path.exists(HOUSE_FILE):
+        return None
+    try:
+        with open(HOUSE_FILE, encoding="utf-8") as fh:
+            return json.load(fh)
+    except ValueError as e:
+        sys.exit(f"{HOUSE_FILE} is not valid JSON: {e}")
+
+
+def house_line():
+    """Summarize the house rules in one line for a command header.
+
+    Returns:
+        The line, or None when no house rules are configured.
+    """
+    house = read_house()
+    if not house:
+        return None
+    defaults = len(house.get("defaultResolutions") or {})
+    parts = [f"locale={house.get('locale', '?')}",
+             f"category axis={house.get('categoryAxis', '?')}",
+             f"{defaults} default resolutions"]
+    return "house rules: " + ", ".join(parts)
+
+
+def cmd_rules(a):
+    """Show the house rules, or write the template to start from.
+
+    These are the decisions the rule set wants recorded once - the locale,
+    the category axis, the container assumptions, the table that resolves
+    bare ambiguous foods. Kept in a file rather than in a session, because
+    a decision nobody wrote down is remade differently next month.
+
+    Args:
+        a: Parsed arguments with the init flag, force and lang.
+
+    Raises:
+        SystemExit: If the file exists and --force was not given, or if
+            there is nothing to show.
+        OSError: If the file cannot be written.
+    """
+    if not a.init:
+        house = read_house()
+        if not house:
+            sys.exit(f"no {HOUSE_FILE} here. Write the template with:\n"
+                     f"  python3 {os.path.basename(__file__)} rules --init")
+        print(json.dumps(house, ensure_ascii=False, indent=2))
+        return
+    if os.path.exists(HOUSE_FILE) and not a.force:
+        sys.exit(f"{HOUSE_FILE} already exists - overwrite with --force")
+    template = load_data("house.json", a.lang)
+    _write_text(HOUSE_FILE, json.dumps(template, ensure_ascii=False, indent=2)
+                + "\n")
+    print(f"written: {HOUSE_FILE}. Go through it once - the locale and the "
+          "category axis are decisions, not defaults.")
+
+
+# ---------- seeding ----------
+SEEDABLE = ("labels", "units")
+
+
+def _unit_keys(unit):
+    """Collect every string a unit can be recognised by.
+
+    Args:
+        unit: A unit record, from the instance or from the data pack.
+
+    Returns:
+        A set of casefolded names, plurals, abbreviations and aliases.
+    """
+    keys = {(unit.get(k) or "").strip().casefold()
+            for k in ("name", "pluralName", "abbreviation",
+                      "pluralAbbreviation")}
+    keys |= {(al.get("name") or "").strip().casefold()
+             for al in unit.get("aliases") or []}
+    return keys - {""}
+
+
+def seed_actions(what, lang=None, existing=None):
+    """Build the actions that create the missing part of a data pack.
+
+    The packs are the fixed vocabularies of the rule set - 29 labels with
+    their zone colours, the closed set of metric units with aliases and
+    standardisation. Seeding them is a plan like any other: it goes through
+    apply, which lints it, orders it and logs it.
+
+    Args:
+        what: "labels" or "units".
+        lang: Content language of the pack.
+        existing: What the instance already holds, or None to seed the
+            whole pack.
+
+    Returns:
+        A (actions, skipped) tuple; skipped names are already present.
+    """
+    pack = load_data(f"{what}.json", lang)[what]
+    actions, skipped = [], []
+    if what == "labels":
+        have = {(x.get("name") or "").strip().casefold()
+                for x in existing or []}
+        for label in pack:
+            if label["name"].casefold() in have:
+                skipped.append(label["name"])
+                continue
+            actions.append({"op": "create_label",
+                            "payload": {"name": label["name"],
+                                        "color": label["color"]}})
+        return actions, skipped
+
+    have = set()
+    for unit in existing or []:
+        have |= _unit_keys(unit)
+    for unit in pack:
+        clash = _unit_keys(unit) & have
+        if clash:
+            skipped.append(f'{unit["name"]} ({min(clash)} exists)')
+            continue
+        actions.append({"op": "create_unit",
+                        "payload": {k: v for k, v in unit.items()
+                                    if not k.startswith("_")}})
+    return actions, skipped
+
+
+def cmd_seed(a):
+    """Write the actions for a fixed vocabulary of the rule set.
+
+    Writes nothing to the instance: the output is an ACTIONS file, checked
+    with apply --dry-run and executed after approval like any other plan.
+    What the instance already holds is skipped, so a second run on a seeded
+    instance produces an empty plan.
+
+    Args:
+        a: Parsed arguments with what (labels, units or all), lang, out and
+            the all flag.
+
+    Raises:
+        SystemExit: If "what" is unknown or the pack is missing.
+        requests.HTTPError: If the instance cannot be read; --all skips
+            that call.
+    """
+    kinds = SEEDABLE if a.what == "all" else (a.what,)
+    for kind in kinds:
+        if kind not in SEEDABLE:
+            sys.exit(f"seed: unknown pack {kind!r} - one of "
+                     f"{', '.join(SEEDABLE)} or all")
+    actions, report = [], []
+    for kind in kinds:
+        existing = None if a.all else mget(EP[kind])
+        made, skipped = seed_actions(kind, a.lang, existing)
+        actions += made
+        report.append(f"{kind}: {len(made)} to create, {len(skipped)} already "
+                      "there" + (" – " + ", ".join(skipped[:8]) if skipped
+                                 else ""))
+    text = json.dumps({"actions": actions}, ensure_ascii=False, indent=2)
+    if a.out:
+        _write_text(a.out, text + "\n")
+        print(f"{len(actions)} actions -> {a.out}")
+    else:
+        print(text)
+    for line in report:
+        print(line, file=sys.stderr)
+    if not actions:
+        print("nothing to seed", file=sys.stderr)
+
+
+def _write_text(path, text):
+    """Write a file, creating the directory when it is missing.
+
+    Args:
+        path: Target path.
+        text: Content to write.
+
+    Raises:
+        OSError: If the file cannot be written.
+    """
+    parent = os.path.dirname(os.path.abspath(path))
+    os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
 # ---------- plan lint ----------
 RE_EMOJI = re.compile("[\U0001f300-\U0001faff☀-➿]")
 
@@ -1156,16 +1353,30 @@ def _lint_unit(payload, conv, lint, out):
         lint: Lint data for the content language.
         out: List the findings are appended to as (level, message).
     """
-    forbidden = {v.casefold() for canon in conv["forbidden"]
-                 for v in conv["unitVariants"].get(canon, [canon])}
-    forbidden |= {c.casefold() for c in conv["forbidden"]}
+    def spellings(canons):
+        out = {c.casefold() for c in canons}
+        for canon in canons:
+            out |= {v.casefold()
+                    for v in conv["unitVariants"].get(canon, [canon])}
+        return out
+
     names = [payload.get(k) or "" for k in ("name", "pluralName",
                                             "abbreviation")]
-    hit = next((n for n in names if n.casefold() in forbidden), None)
+    hit = next((n for n in names
+                if n.casefold() in spellings(conv["forbidden"])), None)
     if hit:
         _finding(out, "ERROR", f'create_unit "{hit}" is not metric. The rules '
                  "convert these amounts instead of storing the "
                  "unit - see convert.")
+    # "stick" is a butter stick to convert and a celery stick to keep. The
+    # name cannot tell them apart, the description can - so this warns.
+    hit = next((n for n in names
+                if n.casefold() in spellings(conv.get("forbiddenAmbiguous", []))),
+               None)
+    if hit and not hit.casefold() in spellings(conv["forbidden"]):
+        _finding(out, "WARN", f'create_unit "{hit}": permitted only as the '
+                 "count measure (a stick of celery). The US butter "
+                 "stick is converted - say which in the description.")
     abbr = payload.get("abbreviation") or ""
     if (len(abbr) == 1
             and abbr not in lint["singleLetterAbbreviations"]):
@@ -1173,9 +1384,10 @@ def _lint_unit(payload, conv, lint, out):
                  f'single-letter abbreviation "{abbr}" is '
                  "ambiguous - T/t have ruined recipes before")
     plural_abbr = payload.get("pluralAbbreviation")
-    if abbr and plural_abbr and plural_abbr != abbr:
+    if (abbr and plural_abbr and plural_abbr != abbr
+            and abbr.casefold() in lint["symbolAbbreviations"]):
         _finding(out, "WARN", f'create_unit "{payload.get("name")}": '
-                 "abbreviations are not pluralised, so "
+                 "metric symbols are not pluralised, so "
                  "pluralAbbreviation should equal abbreviation")
 
 
@@ -1815,6 +2027,21 @@ def main():
     u.add_argument("kind", choices=["food", "unit", "category", "tag", "tool"])
     u.add_argument("id")
     u.set_defaults(func=cmd_usage)
+
+    ru = sub.add_parser("rules", help="house rules of this instance")
+    ru.add_argument("--init", action="store_true",
+                    help=f"write the template to {HOUSE_FILE}")
+    ru.add_argument("--force", action="store_true")
+    ru.add_argument("--lang", help="content language of the template")
+    ru.set_defaults(func=cmd_rules)
+
+    sd = sub.add_parser("seed", help="actions for a fixed vocabulary")
+    sd.add_argument("what", help="labels, units or all")
+    sd.add_argument("--lang", help="content language of the pack")
+    sd.add_argument("--out", help="write the ACTIONS file here")
+    sd.add_argument("--all", action="store_true",
+                    help="seed the whole pack without asking the instance")
+    sd.set_defaults(func=cmd_seed)
 
     cv = sub.add_parser("convert", help="non-metric amount -> metric + note")
     cv.add_argument("lines", nargs="+",

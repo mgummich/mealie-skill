@@ -49,6 +49,8 @@ prefix every call with it, otherwise the command is not found:
     usage <kind> <id>                  recipes using a food/unit/category/tag/tool
     convert "<amount>" [...]           non-metric amount -> metric + the
                                        Original: note; also °F and inch
+    rules [--init]                     house rules of this instance
+    seed labels|units|all [--out F]    actions for a fixed vocabulary
     apply <file> [--slug S] [--dry-run]
 
 The first `audit` call builds the index (one pass over all recipes, takes a
@@ -57,6 +59,18 @@ it. After each writing `apply` the index is discarded and rebuilt.
 
 Never convert an imperial amount in your head - `convert` holds the density
 table and the rounding rules and returns the `Original:` note with it.
+
+`rules` prints the house rules of this instance: the locale, the category
+axis, the container assumptions and the table that resolves bare ambiguous
+foods (`pepper` -> `black pepper [ground]`). Read them before a plan that
+creates or renames anything, and add a row rather than deciding the same
+question twice. `rules --init` writes the template; the user edits it.
+
+`seed labels|units|all` writes the fixed vocabularies of the rule set - the
+29 labels with their zone colours, the closed set of metric units with
+aliases and standardisation - as an ACTIONS file. It skips what the
+instance already has, so it is safe to re-run. Never type those tables out
+by hand.
 
 `apply` writes every applied action to `.mealie.changelog.jsonl` with the
 state it overwrote - the only way back, since neither Mealie nor this tool

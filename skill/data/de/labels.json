@@ -1,0 +1,181 @@
+{
+  "_source": "rules/de/03-labels-anlegen-DE.md §4.2 und §5",
+  "labels": [
+    {
+      "name": "Gemüse",
+      "color": "#43A047",
+      "zone": "Frisch"
+    },
+    {
+      "name": "Obst",
+      "color": "#7CB342",
+      "zone": "Frisch"
+    },
+    {
+      "name": "Frische Kräuter",
+      "color": "#1B5E20",
+      "zone": "Frisch"
+    },
+    {
+      "name": "Kartoffeln & Knollen",
+      "color": "#9CCC65",
+      "zone": "Frisch"
+    },
+    {
+      "name": "Fleisch",
+      "color": "#B71C1C",
+      "zone": "Fleisch & Fisch"
+    },
+    {
+      "name": "Geflügel",
+      "color": "#E53935",
+      "zone": "Fleisch & Fisch"
+    },
+    {
+      "name": "Fisch & Meeresfrüchte",
+      "color": "#FF7043",
+      "zone": "Fleisch & Fisch"
+    },
+    {
+      "name": "Wurst & Aufschnitt",
+      "color": "#AD1457",
+      "zone": "Fleisch & Fisch"
+    },
+    {
+      "name": "Milchprodukte",
+      "color": "#1E88E5",
+      "zone": "Gekühlt"
+    },
+    {
+      "name": "Käse",
+      "color": "#64B5F6",
+      "zone": "Gekühlt"
+    },
+    {
+      "name": "Eier",
+      "color": "#0D47A1",
+      "zone": "Gekühlt"
+    },
+    {
+      "name": "Brot & Gebäck",
+      "color": "#8D6E63",
+      "zone": "Brot & Frühstück"
+    },
+    {
+      "name": "Backzutaten",
+      "color": "#BCAAA4",
+      "zone": "Brot & Frühstück"
+    },
+    {
+      "name": "Frühstückscerealien",
+      "color": "#5D4037",
+      "zone": "Brot & Frühstück"
+    },
+    {
+      "name": "Nudeln & Reis",
+      "color": "#F9A825",
+      "zone": "Trocken"
+    },
+    {
+      "name": "Hülsenfrüchte",
+      "color": "#9E9D24",
+      "zone": "Trocken"
+    },
+    {
+      "name": "Nüsse & Samen",
+      "color": "#827717",
+      "zone": "Trocken"
+    },
+    {
+      "name": "Kräuter & Gewürze",
+      "color": "#EF6C00",
+      "zone": "Würzen"
+    },
+    {
+      "name": "Öl, Essig & Fett",
+      "color": "#FFB300",
+      "zone": "Würzen"
+    },
+    {
+      "name": "Saucen & Würzmittel",
+      "color": "#F4511E",
+      "zone": "Würzen"
+    },
+    {
+      "name": "Brühe & Geschmacksgeber",
+      "color": "#BF360C",
+      "zone": "Würzen"
+    },
+    {
+      "name": "Snacks",
+      "color": "#EC407A",
+      "zone": "Snacks & Süß"
+    },
+    {
+      "name": "Süßwaren & Aufstriche",
+      "color": "#C2185B",
+      "zone": "Snacks & Süß"
+    },
+    {
+      "name": "Getränke",
+      "color": "#00ACC1",
+      "zone": "Getränke"
+    },
+    {
+      "name": "Wein",
+      "color": "#8E24AA",
+      "zone": "Getränke"
+    },
+    {
+      "name": "Bier",
+      "color": "#26C6DA",
+      "zone": "Getränke"
+    },
+    {
+      "name": "Spirituosen & Liköre",
+      "color": "#6A1B9A",
+      "zone": "Getränke"
+    },
+    {
+      "name": "Kaffee & Tee",
+      "color": "#00838F",
+      "zone": "Getränke"
+    },
+    {
+      "name": "Sonstiges",
+      "color": "#757575",
+      "zone": "Rest"
+    }
+  ],
+  "shopOrder": [
+    "Gemüse",
+    "Obst",
+    "Frische Kräuter",
+    "Kartoffeln & Knollen",
+    "Brot & Gebäck",
+    "Milchprodukte",
+    "Käse",
+    "Eier",
+    "Fleisch",
+    "Geflügel",
+    "Wurst & Aufschnitt",
+    "Fisch & Meeresfrüchte",
+    "Nudeln & Reis",
+    "Hülsenfrüchte",
+    "Backzutaten",
+    "Frühstückscerealien",
+    "Nüsse & Samen",
+    "Kräuter & Gewürze",
+    "Öl, Essig & Fett",
+    "Saucen & Würzmittel",
+    "Brühe & Geschmacksgeber",
+    "Snacks",
+    "Süßwaren & Aufstriche",
+    "Kaffee & Tee",
+    "Getränke",
+    "Bier",
+    "Wein",
+    "Spirituosen & Liköre",
+    "Sonstiges"
+  ]
+}

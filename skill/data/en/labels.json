@@ -1,0 +1,181 @@
+{
+  "_source": "rules/en/03-labels-create-EN.md §4.2 and §5",
+  "labels": [
+    {
+      "name": "Vegetables",
+      "color": "#43A047",
+      "zone": "Fresh"
+    },
+    {
+      "name": "Fruit",
+      "color": "#7CB342",
+      "zone": "Fresh"
+    },
+    {
+      "name": "Fresh Herbs",
+      "color": "#1B5E20",
+      "zone": "Fresh"
+    },
+    {
+      "name": "Potatoes & Tubers",
+      "color": "#9CCC65",
+      "zone": "Fresh"
+    },
+    {
+      "name": "Meat",
+      "color": "#B71C1C",
+      "zone": "Meat & Fish"
+    },
+    {
+      "name": "Poultry",
+      "color": "#E53935",
+      "zone": "Meat & Fish"
+    },
+    {
+      "name": "Fish & Seafood",
+      "color": "#FF7043",
+      "zone": "Meat & Fish"
+    },
+    {
+      "name": "Cured & Deli Meats",
+      "color": "#AD1457",
+      "zone": "Meat & Fish"
+    },
+    {
+      "name": "Dairy",
+      "color": "#1E88E5",
+      "zone": "Chilled"
+    },
+    {
+      "name": "Cheese",
+      "color": "#64B5F6",
+      "zone": "Chilled"
+    },
+    {
+      "name": "Eggs",
+      "color": "#0D47A1",
+      "zone": "Chilled"
+    },
+    {
+      "name": "Bread & Pastry",
+      "color": "#8D6E63",
+      "zone": "Bread & Breakfast"
+    },
+    {
+      "name": "Baking Supplies",
+      "color": "#BCAAA4",
+      "zone": "Bread & Breakfast"
+    },
+    {
+      "name": "Breakfast Cereals",
+      "color": "#5D4037",
+      "zone": "Bread & Breakfast"
+    },
+    {
+      "name": "Pasta, Rice & Noodles",
+      "color": "#F9A825",
+      "zone": "Dry goods"
+    },
+    {
+      "name": "Legumes",
+      "color": "#9E9D24",
+      "zone": "Dry goods"
+    },
+    {
+      "name": "Nuts & Seeds",
+      "color": "#827717",
+      "zone": "Dry goods"
+    },
+    {
+      "name": "Herbs & Spices",
+      "color": "#EF6C00",
+      "zone": "Seasoning"
+    },
+    {
+      "name": "Oil, Vinegar & Fat",
+      "color": "#FFB300",
+      "zone": "Seasoning"
+    },
+    {
+      "name": "Sauces & Condiments",
+      "color": "#F4511E",
+      "zone": "Seasoning"
+    },
+    {
+      "name": "Stock & Flavourings",
+      "color": "#BF360C",
+      "zone": "Seasoning"
+    },
+    {
+      "name": "Snacks",
+      "color": "#EC407A",
+      "zone": "Snacks & Sweets"
+    },
+    {
+      "name": "Sweets & Spreads",
+      "color": "#C2185B",
+      "zone": "Snacks & Sweets"
+    },
+    {
+      "name": "Drinks",
+      "color": "#00ACC1",
+      "zone": "Drinks"
+    },
+    {
+      "name": "Wine",
+      "color": "#8E24AA",
+      "zone": "Drinks"
+    },
+    {
+      "name": "Beer",
+      "color": "#26C6DA",
+      "zone": "Drinks"
+    },
+    {
+      "name": "Spirits & Liqueurs",
+      "color": "#6A1B9A",
+      "zone": "Drinks"
+    },
+    {
+      "name": "Coffee & Tea",
+      "color": "#00838F",
+      "zone": "Drinks"
+    },
+    {
+      "name": "Other",
+      "color": "#757575",
+      "zone": "Remainder"
+    }
+  ],
+  "shopOrder": [
+    "Vegetables",
+    "Fruit",
+    "Fresh Herbs",
+    "Potatoes & Tubers",
+    "Bread & Pastry",
+    "Dairy",
+    "Cheese",
+    "Eggs",
+    "Meat",
+    "Poultry",
+    "Cured & Deli Meats",
+    "Fish & Seafood",
+    "Pasta, Rice & Noodles",
+    "Legumes",
+    "Baking Supplies",
+    "Breakfast Cereals",
+    "Nuts & Seeds",
+    "Herbs & Spices",
+    "Oil, Vinegar & Fat",
+    "Sauces & Condiments",
+    "Stock & Flavourings",
+    "Snacks",
+    "Sweets & Spreads",
+    "Coffee & Tea",
+    "Drinks",
+    "Beer",
+    "Wine",
+    "Spirits & Liqueurs",
+    "Other"
+  ]
+}

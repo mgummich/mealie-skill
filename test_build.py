@@ -529,6 +529,58 @@ with tempfile.TemporaryDirectory() as tmp:
     except SystemExit as e:
         assert "non-negotiable" in str(e), e
 
+# 12j. The seed packs are the fixed vocabularies of the rule set, and they
+#      have to survive the rule set's own lint.
+for lang, count in (("en", 25), ("de", 29)):
+    labels = mealie_ctx.load_data("labels.json", lang)
+    assert len(labels["labels"]) == 29, lang
+    assert len({x["color"] for x in labels["labels"]}) == 29, lang
+    assert sorted(labels["shopOrder"]) == sorted(
+        x["name"] for x in labels["labels"]), lang
+    assert len(mealie_ctx.load_data("units.json", lang)["units"]) == count
+
+    seeded, skipped = mealie_ctx.seed_actions("labels", lang)
+    assert len(seeded) == 29 and not skipped, lang
+    units, _ = mealie_ctx.seed_actions("units", lang)
+    problems = [(lvl, m) for lvl, m in
+                mealie_ctx.lint_actions(seeded + units, lang)
+                if lvl == "ERROR"]
+    assert not problems, problems
+    # exactly one warning survives, and it is the documented ambiguity
+    warns = [m for lvl, m in mealie_ctx.lint_actions(units, lang)
+             if lvl == "WARN"]
+    assert all("stick" in m.lower() for m in warns), warns
+
+# what the instance already holds is skipped, by name and by alias
+existing = [{"name": "Vegetables"}]
+seeded, skipped = mealie_ctx.seed_actions("labels", "en", existing)
+assert len(seeded) == 28 and skipped == ["Vegetables"], skipped
+seeded, skipped = mealie_ctx.seed_actions(
+    "units", "en", [{"name": "Gramme", "aliases": [{"name": "gr"}]}])
+assert any("gram" in s for s in skipped), skipped   # caught on the alias
+assert not any(x["payload"]["name"] == "gram" for x in seeded), seeded
+
+# 12k. House rules: a decision nobody wrote down is remade differently next
+#      month, so the file is the record and the tool never rewrites it.
+with tempfile.TemporaryDirectory() as tmp:
+    mealie_ctx.HOUSE_FILE = os.path.join(tmp, ".mealie.rules.json")
+    assert mealie_ctx.read_house() is None
+    assert mealie_ctx.house_line() is None
+    mealie_ctx.cmd_rules(types.SimpleNamespace(init=True, force=False,
+                                               lang="en"))
+    house = mealie_ctx.read_house()
+    assert house["locale"] == "en-GB" and house["categoryAxis"] == "dish type"
+    assert house["defaultResolutions"]["pepper"] == "black pepper [ground]"
+    assert "locale=en-GB" in mealie_ctx.house_line()
+    try:
+        mealie_ctx.cmd_rules(types.SimpleNamespace(init=True, force=False,
+                                                   lang="en"))
+        raise AssertionError("init overwrote an existing house file")
+    except SystemExit as e:
+        assert "--force" in str(e), e
+    de = mealie_ctx.load_data("house.json", "de")
+    assert de["defaultResolutions"]["Pfeffer"] == "schwarzer Pfeffer [gemahlen]"
+
 # 12i. The data the script reads ships with it: it resolves ../data from its
 #      own location, so the two stay siblings in every target layout.
 with tempfile.TemporaryDirectory() as tmp:

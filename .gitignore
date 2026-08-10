@@ -5,9 +5,13 @@ __pycache__/
 dist/
 .mealie_index.json
 .mealie.changelog.jsonl
+.mealie.rules.json
 .mealie.env
 .env
 .actions.json
+
+# stale build output of the agents-md target
+mealie/
 actions.json
 
 # Jekyll (GitHub Pages)

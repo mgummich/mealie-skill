@@ -58,8 +58,11 @@ differ per context.
 ## Data, not prose
 
 `skill/data/<lang>/` holds what the model must not retype or misread:
-`conversions.json` (density table, rounding, oven and tin sizes) and
-`lint.json` (note titles, caps, brand and casing vocabularies). The script
+`conversions.json` (density table, rounding, oven and tin sizes),
+`lint.json` (note titles, caps, brand and casing vocabularies),
+`labels.json` and `units.json` (the fixed vocabularies, emitted as actions
+by `seed`) and `house.json` (the template for `.mealie.rules.json`, the
+per-instance decisions the rule set wants recorded). The script
 reads it as `../data` relative to itself, so `build._copy_data` keeps the
 two directories siblings in every target layout. `en` is the fallback for
 any language without a pack.

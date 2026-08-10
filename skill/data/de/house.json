@@ -1,0 +1,38 @@
+{
+  "_source": "Vorlage für .mealie.rules.json. Das sind die Entscheidungen, die das Regelwerk einmal festgehalten sehen will — ohne sie driftet der Bestand binnen Monaten zurück ins Gemischte. Nach `rules --init` von Hand anpassen; das Werkzeug schreibt die Datei nie um.",
+  "locale": "de-DE",
+  "categoryAxis": "Gerichtart",
+  "timeFormat": "25 Min., 1 Std. 30 Min.",
+  "containerAssumptions": {
+    "Dose": "400 g",
+    "Packung": "",
+    "Glas": ""
+  },
+  "defaultResolutions": {
+    "Pfeffer": "schwarzer Pfeffer [gemahlen]",
+    "Salz": "Salz",
+    "Knoblauch": "Knoblauch [frisch]",
+    "Zwiebel": "Zwiebel [frisch]",
+    "Ingwer": "Ingwer [frisch]",
+    "Petersilie": "Petersilie [frisch]",
+    "Oregano": "Oregano [getrocknet]",
+    "Zimt": "Zimtpulver",
+    "Milch": "Vollmilch",
+    "Mehl": "Weizenmehl Type 405",
+    "Sahne": "Schlagsahne",
+    "Brühe": "review"
+  },
+  "unitVariants": {},
+  "tagFacets": {
+    "Küche": [],
+    "Ernährung": [],
+    "Anlass": [],
+    "Aufwand": [],
+    "Methode": [],
+    "Saison": [],
+    "Haltbarkeit": [],
+    "Publikum": [],
+    "Quelle": []
+  },
+  "extrasRegister": []
+}

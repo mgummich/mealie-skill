@@ -257,7 +257,9 @@
     "pint",
     "pint uk",
     "quart",
-    "gallon",
+    "gallon"
+  ],
+  "forbiddenAmbiguous": [
     "stick"
   ]
 }

@@ -7,12 +7,40 @@
   "maxCategories": 2,
   "maxTools": 4,
   "maxNotes": 5,
-  "noteTitles": ["Source", "Variation", "Get ahead", "Storage", "Serve with",
-                 "Experience"],
+  "noteTitles": [
+    "Source",
+    "Variation",
+    "Get ahead",
+    "Storage",
+    "Serve with",
+    "Experience"
+  ],
   "defaultLabelColor": "#959595",
-  "singleLetterAbbreviations": ["g", "l"],
-  "toolBrands": ["thermomix", "kitchenaid", "crockpot", "instant pot",
-                 "vitamix", "magimix"],
-  "negativeTagPrefixes": ["no ", "no-", "without "],
-  "conjunctions": [" and "]
+  "singleLetterAbbreviations": [
+    "g",
+    "l"
+  ],
+  "toolBrands": [
+    "thermomix",
+    "kitchenaid",
+    "crockpot",
+    "instant pot",
+    "vitamix",
+    "magimix"
+  ],
+  "negativeTagPrefixes": [
+    "no ",
+    "no-",
+    "without "
+  ],
+  "conjunctions": [
+    " and "
+  ],
+  "symbolAbbreviations": [
+    "mg",
+    "g",
+    "kg",
+    "ml",
+    "l"
+  ]
 }

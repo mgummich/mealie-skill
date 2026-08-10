@@ -7,12 +7,40 @@
   "maxCategories": 2,
   "maxTools": 4,
   "maxNotes": 5,
-  "noteTitles": ["Quelle", "Variante", "Vorbereitung", "Aufbewahrung",
-                 "Dazu passt", "Erfahrung"],
+  "noteTitles": [
+    "Quelle",
+    "Variante",
+    "Vorbereitung",
+    "Aufbewahrung",
+    "Dazu passt",
+    "Erfahrung"
+  ],
   "defaultLabelColor": "#959595",
-  "singleLetterAbbreviations": ["g", "l"],
-  "toolBrands": ["thermomix", "kitchenaid", "crockpot", "instant pot",
-                 "vitamix", "magimix"],
-  "negativeTagPrefixes": ["ohne ", "kein ", "keine "],
-  "conjunctions": [" und "]
+  "singleLetterAbbreviations": [
+    "g",
+    "l"
+  ],
+  "toolBrands": [
+    "thermomix",
+    "kitchenaid",
+    "crockpot",
+    "instant pot",
+    "vitamix",
+    "magimix"
+  ],
+  "negativeTagPrefixes": [
+    "ohne ",
+    "kein ",
+    "keine "
+  ],
+  "conjunctions": [
+    " und "
+  ],
+  "symbolAbbreviations": [
+    "mg",
+    "g",
+    "kg",
+    "ml",
+    "l"
+  ]
 }
