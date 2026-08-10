@@ -1,0 +1,54 @@
+# Navigation for the documentation pages. Static on purpose: the order is
+# editorial - guides run in the dependency order the rule set prescribes -
+# and no plugin is needed to read it.
+- title: Start here
+  slug: start
+  items:
+    - { url: /docs/, title: Overview }
+    - { url: /docs/guides/first-run.html, title: First run }
+    - { url: /docs/best-practices.html, title: Mealie best practices }
+
+- title: Guides
+  slug: guides
+  note: in dependency order
+  items:
+    - { url: /docs/guides/foods-and-units.html, title: Foods and units }
+    - { url: /docs/guides/organizers.html, title: Organizers }
+    - { url: /docs/guides/recipes.html, title: Recipes }
+    - { url: /docs/guides/cookbooks.html, title: Cookbooks }
+    - { url: /docs/guides/recovering-a-run.html, title: Recovering a run }
+
+- title: Reference
+  slug: reference
+  items:
+    - { url: /docs/reference/cli.html, title: CLI }
+    - { url: /docs/reference/actions.html, title: Actions format }
+    - { url: /docs/reference/state-files.html, title: State files }
+    - { url: /docs/reference/data-packs.html, title: Data packs }
+    - { url: /docs/reference/mealie-api.html, title: Mealie API }
+    - { url: /docs/reference/build-and-install.html, title: Build and install }
+    - { url: /docs/reference/standalone.html, title: Standalone }
+
+- title: Examples
+  slug: examples
+  items:
+    - { url: /docs/examples/, title: Actions files }
+
+- title: Decisions
+  slug: decisions
+  note: why it is shaped this way
+  items:
+    - { url: /docs/decisions/, title: All decisions }
+    - { url: /docs/decisions/0001-three-phases.html, title: "0001 Three phases" }
+    - { url: /docs/decisions/0002-no-recipe-deletion.html, title: "0002 No recipe deletion" }
+    - { url: /docs/decisions/0003-one-source-many-frontends.html, title: "0003 One source, many frontends" }
+    - { url: /docs/decisions/0004-index-first.html, title: "0004 Index, not a loop" }
+    - { url: /docs/decisions/0005-guards-refuse-not-warn.html, title: "0005 Guards refuse" }
+    - { url: /docs/decisions/0006-data-not-prose.html, title: "0006 Data, not prose" }
+    - { url: /docs/decisions/0007-changelog-before-write.html, title: "0007 Log before the write" }
+    - { url: /docs/decisions/0008-target-current-mealie.html, title: "0008 Current Mealie" }
+
+- title: Contributing
+  slug: contributing
+  items:
+    - { url: /docs/development.html, title: Development }

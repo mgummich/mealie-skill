@@ -10,11 +10,54 @@ makes the judgement calls — is `Tomate` and `Tomaten` the same food, does
 this tag carry two concepts — and a script does every write, in a fixed
 order, with a record of what it overwrote.
 
+<div class="gate">
+  <b>Analysis</b>
+  <span class="arrow">——▸</span>
+  <b>Plan</b>
+  <span class="stop">your approval</span>
+  <span class="arrow">——▸</span>
+  <span class="last">Execution</span>
+</div>
+
+Every run goes left to right and stops in the middle. Nothing reaches your
+database that you have not read first.
+
 These pages cover **using and extending the tool**. What a well-kept Mealie
 database looks like is a separate body of work: the
 [rule set]({{ site.baseurl }}/rules/), in German and English. Nothing here
 restates it — where a question is about the data rather than the tool, the
 answer links there.
+
+<div class="cards">
+  <div class="card">
+    <span class="label">Guides</span>
+    <h3><a href="guides/first-run.html">Start with one run</a></h3>
+    <p>Install, token, backup, first audit, first plan — then the passes in
+    the order the rule set prescribes.</p>
+    <span class="meta">6 guides</span>
+  </div>
+  <div class="card">
+    <span class="label">Reference</span>
+    <h3><a href="reference/cli.html">Look something up</a></h3>
+    <p>Every command and flag, the actions format, the state files, and the
+    Mealie endpoints with the versions that serve them.</p>
+    <span class="meta">7 pages</span>
+  </div>
+  <div class="card">
+    <span class="label">Decisions</span>
+    <h3><a href="decisions/">Why it works this way</a></h3>
+    <p>Three phases, no recipe deletion, guards that refuse rather than
+    warn. Each with the alternative it rejected.</p>
+    <span class="meta">8 records</span>
+  </div>
+  <div class="card">
+    <span class="label">Examples</span>
+    <h3><a href="examples/">Copy a plan</a></h3>
+    <p>Complete actions files for the common passes, each one checked
+    against the dry run.</p>
+    <span class="meta">5 files</span>
+  </div>
+</div>
 
 ## Where to start
 
