@@ -66,10 +66,23 @@ Those four fields, never `display`. Mealie composes the displayed line out
 of them itself and puts the amount in front of whatever `display` holds, so
 a `display` of "500 g flour" shows up as "500 500 g flour".
 
-Metric. Convert imperial and show it in the report: cup flour 125 g, cup
-sugar 200 g, cup liquid 240 ml, stick butter 113 g, oz 28 g, lb 454 g,
-°C = (°F-32)*5/9 rounded to 5. Mind densities, do not convert by a single
-factor.
+Metric. Do not convert by hand - a cup of flour and a cup of honey differ by
+almost a factor of three, and the density table lives in the script:
+
+    convert "1 cup plain flour" "8 oz" "350 F"
+    120 g plain flour   [note: Original: 1 cup plain flour]
+
+Write both parts: the converted amount **and** the `Original: …` note on that
+ingredient line. The note is the evidence for a human and the marker that
+stops a later pass converting the same line twice. Keep an existing
+preparation note and append with `; ` - `finely chopped; Original: 1 cup`.
+
+`REVIEW` means the food is not in the density table: leave the line as it is
+and list it under QUESTIONS. Never estimate. `KEEP` means the unit is
+metrically defined already (1 tbsp = 15 ml) and the line stays.
+
+Temperatures in the steps come along - `175 °C (Original: 350 °F)`. A recipe
+with metric ingredients and °F in the text is half converted.
 
 Units from the existing list; new ones only with `name`, `pluralName`,
 `abbreviation`. For multi-part recipes, group ingredient sections via

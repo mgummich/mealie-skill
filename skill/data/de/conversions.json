@@ -1,0 +1,263 @@
+{
+  "_source": "rules/de/02-einheiten-anlegen-DE.md §3. Die praktischen Werte werden geschrieben, die exakten bleiben stehen, damit die 2-%-Grenze prüfbar ist.",
+  "cupMl": 240,
+  "direct": {
+    "ounce": {
+      "exact": 28.35,
+      "practical": 28,
+      "unit": "g"
+    },
+    "pound": {
+      "exact": 453.6,
+      "practical": 450,
+      "unit": "g"
+    },
+    "fluid ounce": {
+      "exact": 29.57,
+      "practical": 30,
+      "unit": "ml"
+    },
+    "pint": {
+      "exact": 473,
+      "practical": 475,
+      "unit": "ml"
+    },
+    "pint uk": {
+      "exact": 568,
+      "practical": 570,
+      "unit": "ml"
+    },
+    "quart": {
+      "exact": 946,
+      "practical": 950,
+      "unit": "ml"
+    },
+    "gallon": {
+      "exact": 3785,
+      "practical": 3800,
+      "unit": "ml"
+    },
+    "stick": {
+      "exact": 113.4,
+      "practical": 115,
+      "unit": "g"
+    },
+    "inch": {
+      "exact": 2.54,
+      "practical": 2.5,
+      "unit": "cm"
+    }
+  },
+  "liquidMl": {
+    "cup": 240,
+    "cup uk": 250,
+    "tablespoon": 15,
+    "teaspoon": 5
+  },
+  "densityPerCup": {
+    "Weizenmehl": 120,
+    "Vollkornmehl": 130,
+    "Zucker": 200,
+    "brauner Zucker": 220,
+    "Puderzucker": 120,
+    "Butter": 227,
+    "Öl": 218,
+    "Milch": 240,
+    "Wasser": 240,
+    "Naturjoghurt": 245,
+    "Honig": 340,
+    "Sirup": 340,
+    "Haferflocken": 90,
+    "Reis": 185,
+    "Kakaopulver": 85,
+    "gehackte Nüsse": 120,
+    "Semmelbrösel": 108,
+    "Schokotropfen": 170,
+    "geriebener Käse": 100
+  },
+  "liquidFoods": [
+    "Wasser",
+    "Milch",
+    "Naturjoghurt"
+  ],
+  "densityAliases": {
+    "Mehl": "Weizenmehl",
+    "Dinkelmehl": "Weizenmehl",
+    "Weizenvollkornmehl": "Vollkornmehl",
+    "weißer Zucker": "Zucker",
+    "Kristallzucker": "Zucker",
+    "Rohrzucker": "brauner Zucker",
+    "Olivenöl": "Öl",
+    "Sonnenblumenöl": "Öl",
+    "Rapsöl": "Öl",
+    "Vollmilch": "Milch",
+    "Joghurt": "Naturjoghurt",
+    "griechischer Joghurt": "Naturjoghurt",
+    "Ahornsirup": "Sirup",
+    "Nüsse": "gehackte Nüsse",
+    "Walnüsse": "gehackte Nüsse",
+    "Mandeln": "gehackte Nüsse",
+    "Paniermehl": "Semmelbrösel",
+    "Käse": "geriebener Käse",
+    "Parmesan": "geriebener Käse"
+  },
+  "spoonGrams": {
+    "tablespoon": {
+      "Weizenmehl": 8,
+      "Zucker": 12,
+      "Butter": 14,
+      "Honig": 21,
+      "Sirup": 21
+    },
+    "teaspoon": {
+      "Salz": 6
+    }
+  },
+  "oven": {
+    "300": {
+      "conventional": 150,
+      "fan": 130
+    },
+    "325": {
+      "conventional": 160,
+      "fan": 140
+    },
+    "350": {
+      "conventional": 175,
+      "fan": 155
+    },
+    "375": {
+      "conventional": 190,
+      "fan": 170
+    },
+    "400": {
+      "conventional": 200,
+      "fan": 180
+    },
+    "425": {
+      "conventional": 220,
+      "fan": 200
+    },
+    "450": {
+      "conventional": 230,
+      "fan": 210
+    }
+  },
+  "tinSizes": {
+    "8": 20,
+    "9": 23,
+    "10": 26
+  },
+  "rounding": [
+    [
+      20,
+      1
+    ],
+    [
+      100,
+      5
+    ],
+    [
+      1000,
+      10
+    ],
+    [
+      null,
+      50
+    ]
+  ],
+  "roundingLimit": 0.02,
+  "unitVariants": {
+    "cup": [
+      "cup",
+      "cups",
+      "Cup",
+      "Tasse",
+      "Tassen"
+    ],
+    "cup uk": [
+      "UK cup",
+      "metrische Tasse"
+    ],
+    "ounce": [
+      "oz",
+      "ounce",
+      "ounces",
+      "Unze",
+      "Unzen"
+    ],
+    "_note_pfund": "Pfund steht bewusst nicht bei pound: im deutschen Sprachgebrauch sind das 500 g, nicht 453,6 g.",
+    "pound": [
+      "lb",
+      "lbs",
+      "pound",
+      "pounds"
+    ],
+    "fluid ounce": [
+      "fl oz",
+      "fl. oz",
+      "fluid ounce",
+      "Flüssigunze"
+    ],
+    "pint": [
+      "pint",
+      "pints",
+      "pt",
+      "Pint"
+    ],
+    "pint uk": [
+      "UK pint",
+      "imperial pint"
+    ],
+    "quart": [
+      "quart",
+      "quarts",
+      "qt",
+      "Quart"
+    ],
+    "gallon": [
+      "gallon",
+      "gallons",
+      "gal",
+      "Gallone"
+    ],
+    "stick": [
+      "stick",
+      "sticks",
+      "Stick",
+      "Sticks"
+    ],
+    "inch": [
+      "inch",
+      "inches",
+      "in",
+      "Zoll",
+      "\""
+    ],
+    "tablespoon": [
+      "tbsp",
+      "tbs",
+      "tablespoon",
+      "tablespoons",
+      "T"
+    ],
+    "teaspoon": [
+      "tsp",
+      "teaspoon",
+      "teaspoons",
+      "t"
+    ]
+  },
+  "forbidden": [
+    "cup",
+    "cup uk",
+    "ounce",
+    "pound",
+    "fluid ounce",
+    "pint",
+    "pint uk",
+    "quart",
+    "gallon",
+    "stick"
+  ]
+}

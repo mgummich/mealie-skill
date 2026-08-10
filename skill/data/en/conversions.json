@@ -1,0 +1,263 @@
+{
+  "_source": "rules/en/02-units-create-EN.md §3. Practical values are what gets written; exact values are kept so the 2 % rounding limit can be checked.",
+  "cupMl": 240,
+  "direct": {
+    "ounce": {
+      "exact": 28.35,
+      "practical": 28,
+      "unit": "g"
+    },
+    "pound": {
+      "exact": 453.6,
+      "practical": 450,
+      "unit": "g"
+    },
+    "fluid ounce": {
+      "exact": 29.57,
+      "practical": 30,
+      "unit": "ml"
+    },
+    "pint": {
+      "exact": 473,
+      "practical": 475,
+      "unit": "ml"
+    },
+    "pint uk": {
+      "exact": 568,
+      "practical": 570,
+      "unit": "ml"
+    },
+    "quart": {
+      "exact": 946,
+      "practical": 950,
+      "unit": "ml"
+    },
+    "gallon": {
+      "exact": 3785,
+      "practical": 3800,
+      "unit": "ml"
+    },
+    "stick": {
+      "exact": 113.4,
+      "practical": 115,
+      "unit": "g"
+    },
+    "inch": {
+      "exact": 2.54,
+      "practical": 2.5,
+      "unit": "cm"
+    }
+  },
+  "liquidMl": {
+    "cup": 240,
+    "cup uk": 250,
+    "tablespoon": 15,
+    "teaspoon": 5
+  },
+  "densityPerCup": {
+    "plain flour": 120,
+    "wholemeal flour": 130,
+    "white sugar": 200,
+    "brown sugar": 220,
+    "icing sugar": 120,
+    "butter": 227,
+    "oil": 218,
+    "milk": 240,
+    "water": 240,
+    "plain yoghurt": 245,
+    "honey": 340,
+    "syrup": 340,
+    "rolled oats": 90,
+    "rice": 185,
+    "cocoa powder": 85,
+    "chopped nuts": 120,
+    "breadcrumbs": 108,
+    "chocolate chips": 170,
+    "grated cheese": 100
+  },
+  "liquidFoods": [
+    "water",
+    "milk",
+    "plain yoghurt"
+  ],
+  "densityAliases": {
+    "flour": "plain flour",
+    "all purpose flour": "plain flour",
+    "all-purpose flour": "plain flour",
+    "wholewheat flour": "wholemeal flour",
+    "whole wheat flour": "wholemeal flour",
+    "sugar": "white sugar",
+    "caster sugar": "white sugar",
+    "granulated sugar": "white sugar",
+    "light brown sugar": "brown sugar",
+    "dark brown sugar": "brown sugar",
+    "powdered sugar": "icing sugar",
+    "confectioners sugar": "icing sugar",
+    "olive oil": "oil",
+    "vegetable oil": "oil",
+    "sunflower oil": "oil",
+    "whole milk": "milk",
+    "yoghurt": "plain yoghurt",
+    "yogurt": "plain yoghurt",
+    "greek yoghurt": "plain yoghurt",
+    "maple syrup": "syrup",
+    "golden syrup": "syrup",
+    "oats": "rolled oats",
+    "porridge oats": "rolled oats",
+    "nuts": "chopped nuts",
+    "walnuts": "chopped nuts",
+    "almonds": "chopped nuts",
+    "pecans": "chopped nuts",
+    "cheese": "grated cheese",
+    "cheddar": "grated cheese",
+    "parmesan": "grated cheese"
+  },
+  "spoonGrams": {
+    "tablespoon": {
+      "plain flour": 8,
+      "white sugar": 12,
+      "butter": 14,
+      "honey": 21,
+      "syrup": 21
+    },
+    "teaspoon": {
+      "salt": 6
+    }
+  },
+  "oven": {
+    "300": {
+      "conventional": 150,
+      "fan": 130
+    },
+    "325": {
+      "conventional": 160,
+      "fan": 140
+    },
+    "350": {
+      "conventional": 175,
+      "fan": 155
+    },
+    "375": {
+      "conventional": 190,
+      "fan": 170
+    },
+    "400": {
+      "conventional": 200,
+      "fan": 180
+    },
+    "425": {
+      "conventional": 220,
+      "fan": 200
+    },
+    "450": {
+      "conventional": 230,
+      "fan": 210
+    }
+  },
+  "tinSizes": {
+    "8": 20,
+    "9": 23,
+    "10": 26
+  },
+  "rounding": [
+    [
+      20,
+      1
+    ],
+    [
+      100,
+      5
+    ],
+    [
+      1000,
+      10
+    ],
+    [
+      null,
+      50
+    ]
+  ],
+  "roundingLimit": 0.02,
+  "unitVariants": {
+    "cup": [
+      "cup",
+      "cups",
+      "c"
+    ],
+    "cup uk": [
+      "uk cup",
+      "metric cup"
+    ],
+    "ounce": [
+      "oz",
+      "ounce",
+      "ounces"
+    ],
+    "pound": [
+      "lb",
+      "lbs",
+      "pound",
+      "pounds"
+    ],
+    "fluid ounce": [
+      "fl oz",
+      "fl. oz",
+      "fluid ounce",
+      "fluid ounces"
+    ],
+    "pint": [
+      "pint",
+      "pints",
+      "pt"
+    ],
+    "pint uk": [
+      "uk pint",
+      "imperial pint"
+    ],
+    "quart": [
+      "quart",
+      "quarts",
+      "qt"
+    ],
+    "gallon": [
+      "gallon",
+      "gallons",
+      "gal"
+    ],
+    "stick": [
+      "stick",
+      "sticks"
+    ],
+    "inch": [
+      "inch",
+      "inches",
+      "in",
+      "\""
+    ],
+    "tablespoon": [
+      "tbsp",
+      "tbs",
+      "tablespoon",
+      "tablespoons",
+      "T"
+    ],
+    "teaspoon": [
+      "tsp",
+      "teaspoon",
+      "teaspoons",
+      "t"
+    ]
+  },
+  "forbidden": [
+    "cup",
+    "cup uk",
+    "ounce",
+    "pound",
+    "fluid ounce",
+    "pint",
+    "pint uk",
+    "quart",
+    "gallon",
+    "stick"
+  ]
+}

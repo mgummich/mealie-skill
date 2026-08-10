@@ -1,0 +1,18 @@
+{
+  "_source": "Mechanically checkable items from rules/en/. Everything needing judgement stays in the references.",
+  "foodNameCase": "lower",
+  "tagNameCase": "lower",
+  "foodDescriptionMax": 100,
+  "maxTags": 8,
+  "maxCategories": 2,
+  "maxTools": 4,
+  "maxNotes": 5,
+  "noteTitles": ["Source", "Variation", "Get ahead", "Storage", "Serve with",
+                 "Experience"],
+  "defaultLabelColor": "#959595",
+  "singleLetterAbbreviations": ["g", "l"],
+  "toolBrands": ["thermomix", "kitchenaid", "crockpot", "instant pot",
+                 "vitamix", "magimix"],
+  "negativeTagPrefixes": ["no ", "no-", "without "],
+  "conjunctions": [" and "]
+}

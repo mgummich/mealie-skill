@@ -868,6 +868,452 @@ def taken(kind, oid, payload):
     return None
 
 
+# ---------- conversion ----------
+FRACTIONS = {"¼": 0.25, "½": 0.5, "¾": 0.75, "⅐": 1 / 7, "⅑": 1 / 9,
+             "⅒": 0.1, "⅓": 1 / 3, "⅔": 2 / 3, "⅕": 0.2, "⅖": 0.4,
+             "⅗": 0.6, "⅘": 0.8, "⅙": 1 / 6, "⅚": 5 / 6, "⅛": 0.125,
+             "⅜": 0.375, "⅝": 0.625, "⅞": 0.875}
+RE_TEMP = re.compile(r"^\s*(-?\d+(?:[.,]\d+)?)\s*°?\s*(f|fahrenheit)\b",
+                     re.IGNORECASE)
+
+
+def data_dir():
+    """Locate the data directory that ships beside this script.
+
+    Returns:
+        Absolute path to skill/data, which the build copies next to the
+        script for every target.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.normpath(os.path.join(here, "..", "data"))
+
+
+def load_data(name, lang=None):
+    """Read one data file for a content language, falling back to English.
+
+    Args:
+        name: File name below the language directory, e.g.
+            "conversions.json".
+        lang: Language directory; defaults to $MEALIE_LANG, then "en".
+
+    Returns:
+        The decoded file.
+
+    Raises:
+        SystemExit: If neither the language file nor the English one is
+            readable.
+    """
+    lang = (lang or os.environ.get("MEALIE_LANG") or "en").lower()[:2]
+    for candidate in dict.fromkeys((lang, "en")):
+        path = os.path.join(data_dir(), candidate, name)
+        if os.path.exists(path):
+            if candidate != lang:
+                print(f"(no {name} for {lang}, using {candidate})",
+                      file=sys.stderr)
+            with open(path, encoding="utf-8") as fh:
+                return json.load(fh)
+    sys.exit(f"{name} not found under {data_dir()}")
+
+
+def parse_amount(text):
+    """Split a leading quantity off an ingredient string.
+
+    Understands integers, decimals with a full stop or comma, ASCII
+    fractions, unicode fractions and mixed forms ("1 1/2", "1½"). A range
+    ("2-3") yields its lower figure, which is what the rules ask for.
+
+    Args:
+        text: The raw string, e.g. "1 1/2 cups plain flour".
+
+    Returns:
+        A (quantity, rest) tuple; quantity is None when the string does not
+        start with one.
+    """
+    s = text.strip()
+    total, matched = 0.0, False
+    while s:
+        m = re.match(r"^(\d+(?:[.,]\d+)?)\s*/\s*(\d+)", s)
+        if m:
+            total += float(m.group(1).replace(",", ".")) / float(m.group(2))
+            s, matched = s[m.end():].lstrip(), True
+            continue
+        m = re.match(r"^(\d+(?:[.,]\d+)?)", s)
+        if m and not matched:
+            total += float(m.group(1).replace(",", "."))
+            s, matched = s[m.end():].lstrip(), True
+            # a range takes its lower figure; the upper one is dropped here
+            s = re.sub(r"^[-–—]\s*\d+(?:[.,]\d+)?\s*", "", s)
+            continue
+        if s[0] in FRACTIONS:
+            total += FRACTIONS[s[0]]
+            s, matched = s[1:].lstrip(), True
+            continue
+        break
+    return (total if matched else None), s
+
+
+def match_unit(text, variants):
+    """Find a known unit at the start of a string, longest variant first.
+
+    Args:
+        text: String with the quantity already removed.
+        variants: Mapping of canonical unit to its spellings.
+
+    Returns:
+        A (canonical unit, rest) tuple, or (None, text) when nothing
+        matches.
+    """
+    pairs = sorted(((v, canon) for canon, vs in variants.items()
+                    if not canon.startswith("_") for v in vs),
+                   key=lambda p: -len(p[0]))
+    low = text.lower()
+    for spelling, canon in pairs:
+        s = spelling.lower()
+        if not low.startswith(s):
+            continue
+        rest = text[len(spelling):]
+        # a unit ends at a word boundary: "instant yeast" is not "in"
+        if rest[:1].isalnum():
+            continue
+        return canon, rest.lstrip(" .,")
+    return None, text
+
+
+def round_metric(value, table, limit):
+    """Round to the step for the magnitude, finer if the step overshoots.
+
+    Args:
+        value: The exact converted figure.
+        table: Pairs of (upper bound or None, step).
+        limit: Largest relative deviation the rounding may introduce.
+
+    Returns:
+        The rounded figure as an int where it is whole.
+    """
+    step = table[-1][1]
+    for bound, candidate in table:
+        if bound is None or value < bound:
+            step = candidate
+            break
+    out = round(value / step) * step
+    if value and abs(out - value) / value > limit:
+        out = round(value)
+    return int(out) if float(out).is_integer() else round(out, 1)
+
+
+def density_key(food, data):
+    """Resolve a food string to a key of the density table.
+
+    Args:
+        food: The food part of the line, free text.
+        data: The conversions data.
+
+    Returns:
+        The matching key, or None when the table does not know the food.
+    """
+    probe = re.split(r"[,;(]", food)[0].strip().strip(".").casefold()
+    if not probe:
+        return None
+    aliases = {k.casefold(): v for k, v in data["densityAliases"].items()}
+    table = {k.casefold(): k for k in data["densityPerCup"]}
+    if probe in aliases:
+        probe = aliases[probe].casefold()
+    return table.get(probe)
+
+
+def convert_line(line, data, fan=False):
+    """Convert one non-metric amount, or say why it cannot be converted.
+
+    Follows rules/*/02-units-create §3: the type decides the route, dry
+    volumes go through the density table rather than through millilitres,
+    and anything the table does not know is left for review instead of
+    being estimated.
+
+    Args:
+        line: A raw amount, e.g. "1 cup plain flour" or "350 F".
+        data: The conversions data for the content language.
+        fan: Report the fan oven figure as well.
+
+    Returns:
+        A dict with "text" (the line to write) and "note" (the Original:
+        note), or with "review" naming what is missing.
+    """
+    m = RE_TEMP.match(line)
+    if m:
+        raw = float(m.group(1).replace(",", "."))
+        entry = data["oven"].get(str(int(raw)))
+        if entry:
+            celsius, fan_c = entry["conventional"], entry["fan"]
+        else:
+            celsius = round((raw - 32) * 5 / 9 / 5) * 5
+            fan_c = celsius - 20
+        text = f"{celsius} °C" + (f" ({fan_c} °C fan)" if fan else "")
+        return {"text": text, "note": f"Original: {line.strip()}"}
+
+    qty, rest = parse_amount(line)
+    unit, food = match_unit(rest, data["unitVariants"])
+    if unit is None:
+        return {"review": "no non-metric unit recognised - nothing to convert"}
+    if qty is None:
+        return {"review": f"no quantity in front of {unit!r}"}
+    note = f"Original: {line.strip()}"
+
+    if unit == "inch":
+        cm = data["tinSizes"].get(str(int(qty)))
+        cm = cm if cm and not food.strip() else qty * data["direct"]["inch"]["exact"]
+        return {"text": f"{round_metric(cm, [[100, 0.5]], 0.05)} cm",
+                "note": note}
+
+    if unit in data["direct"]:
+        d = data["direct"][unit]
+        value = round_metric(qty * d["exact"], data["rounding"],
+                             data["roundingLimit"])
+        # the practical figure from the rules wins for a single unit
+        if qty == 1:
+            value = d["practical"]
+        return {"text": f'{value} {d["unit"]} {food}'.rstrip(), "note": note}
+
+    key = density_key(food, data)
+    spoon = data["spoonGrams"].get(unit, {})
+    spoon_key = None
+    if key and key in spoon:
+        spoon_key = key
+    elif food.strip().casefold() in {k.casefold() for k in spoon}:
+        spoon_key = next(k for k in spoon
+                         if k.casefold() == food.strip().casefold())
+    if spoon_key:
+        grams = round_metric(qty * spoon[spoon_key], data["rounding"],
+                             data["roundingLimit"])
+        return {"text": f"{grams} g {food}".rstrip(), "note": note}
+
+    if unit in ("tablespoon", "teaspoon"):
+        # 1 tbsp = 15 ml, 1 tsp = 5 ml: metrically defined, so the line
+        # stays as it is unless the density table can make it grams.
+        return {"keep": f"{unit} is a permitted unit - no conversion needed"}
+
+    liquids = {k.casefold() for k in data.get("liquidFoods", [])}
+    if key and key.casefold() in liquids:
+        ml = round_metric(qty * data["liquidMl"].get(unit, data["cupMl"]),
+                          data["rounding"], data["roundingLimit"])
+        return {"text": f"{ml} ml {food}".rstrip(), "note": note}
+
+    if key:
+        cups = qty * (data["liquidMl"].get(unit, data["cupMl"])
+                      / data["cupMl"])
+        grams = round_metric(cups * data["densityPerCup"][key],
+                             data["rounding"], data["roundingLimit"])
+        return {"text": f"{grams} g {food}".rstrip(), "note": note}
+    return {"review": f"{food.strip() or 'this food'} is not in the density "
+                      "table - leave the line and review it"}
+
+
+def cmd_convert(a):
+    """Convert non-metric amounts and print what to write into the line.
+
+    Deterministic on purpose: the density table decides, not an estimate,
+    and every converted line comes back with the Original: note the rules
+    require.
+
+    Args:
+        a: Parsed arguments with lines (one or more raw amounts), lang and
+            the fan flag.
+
+    Raises:
+        SystemExit: If the conversions data is missing.
+    """
+    data = load_data("conversions.json", a.lang)
+    for line in a.lines:
+        out = convert_line(line, data, a.fan)
+        if "review" in out:
+            print(f"REVIEW  {line}  –  {out['review']}")
+        elif "keep" in out:
+            print(f"KEEP    {line}  –  {out['keep']}")
+        else:
+            print(f'{out["text"]}   [note: {out["note"]}]')
+
+
+# ---------- plan lint ----------
+RE_EMOJI = re.compile("[\U0001f300-\U0001faff☀-➿]")
+
+
+def _finding(out, level, *parts):
+    """Append one lint finding, joining the message fragments as they stand.
+
+    Args:
+        out: List the finding is appended to.
+        level: "ERROR" or "WARN".
+        *parts: Message fragments.
+    """
+    out.append((level, "".join(parts)))
+
+
+def _lint_unit(payload, conv, lint, out):
+    """Check one create_unit payload against the unit rules.
+
+    Args:
+        payload: The action payload.
+        conv: Conversions data, for the forbidden units.
+        lint: Lint data for the content language.
+        out: List the findings are appended to as (level, message).
+    """
+    forbidden = {v.casefold() for canon in conv["forbidden"]
+                 for v in conv["unitVariants"].get(canon, [canon])}
+    forbidden |= {c.casefold() for c in conv["forbidden"]}
+    names = [payload.get(k) or "" for k in ("name", "pluralName",
+                                            "abbreviation")]
+    hit = next((n for n in names if n.casefold() in forbidden), None)
+    if hit:
+        _finding(out, "ERROR", f'create_unit "{hit}" is not metric. The rules '
+                 "convert these amounts instead of storing the "
+                 "unit - see convert.")
+    abbr = payload.get("abbreviation") or ""
+    if (len(abbr) == 1
+            and abbr not in lint["singleLetterAbbreviations"]):
+        _finding(out, "WARN", f'create_unit "{payload.get("name")}": '
+                 f'single-letter abbreviation "{abbr}" is '
+                 "ambiguous - T/t have ruined recipes before")
+    plural_abbr = payload.get("pluralAbbreviation")
+    if abbr and plural_abbr and plural_abbr != abbr:
+        _finding(out, "WARN", f'create_unit "{payload.get("name")}": '
+                 "abbreviations are not pluralised, so "
+                 "pluralAbbreviation should equal abbreviation")
+
+
+def _lint_food(payload, lint, out):
+    """Check one create_food payload against the food rules.
+
+    Args:
+        payload: The action payload.
+        lint: Lint data for the content language.
+        out: List the findings are appended to as (level, message).
+    """
+    name = payload.get("name") or ""
+    if lint["foodNameCase"] == "lower" and name != name.lower():
+        _finding(out, "WARN", f'create_food "{name}": names are lowercase')
+    if not payload.get("labelId"):
+        _finding(out, "WARN", f'create_food "{name}": no label - it lands '
+                 "unsorted at the end of every shopping list")
+    if not payload.get("aliases"):
+        _finding(out, "WARN", f'create_food "{name}": no aliases - the next '
+                 "import phrasing it differently will not match")
+    limit = lint["foodDescriptionMax"]
+    if len(payload.get("description") or "") > limit:
+        _finding(out, "WARN", f'create_food "{name}": description over '
+                 f"{limit} characters")
+
+
+def _lint_organizer(op, payload, lint, out):
+    """Check one create_tag, create_category or create_tool payload.
+
+    Args:
+        op: The operation name.
+        payload: The action payload.
+        lint: Lint data for the content language.
+        out: List the findings are appended to as (level, message).
+    """
+    name = payload.get("name") or ""
+    low = f" {name.casefold()} "
+    if RE_EMOJI.search(name) or "#" in name:
+        _finding(out, "WARN", f'{op} "{name}": no emoji, no hash')
+    if op == "create_tag":
+        if lint["tagNameCase"] == "lower" and name != name.lower():
+            _finding(out, "WARN", f'create_tag "{name}": tags are lowercase')
+        if any(c in low for c in lint["conjunctions"]):
+            _finding(out, "WARN", f'create_tag "{name}": two concepts in one '
+                     "tag - that is two tags")
+        if any(name.casefold().startswith(p)
+               for p in lint["negativeTagPrefixes"]):
+            _finding(out, "WARN", f'create_tag "{name}": a negative tag reads '
+                     "as an allergen guarantee and is not one")
+    if op == "create_tool":
+        brand = next((b for b in lint["toolBrands"] if b in low), None)
+        if brand:
+            _finding(out, "WARN", f'create_tool "{name}": brand - use the '
+                     "generic term")
+        if re.search(r'\d\s*(inch|in\b|")', name, re.IGNORECASE):
+            _finding(out, "WARN", f'create_tool "{name}": sizes are metric '
+                     "(8 inch -> 20 cm, 9 -> 23, 10 -> 26)")
+
+
+def _lint_recipe(payload, lint, out):
+    """Check one patch_recipe payload against the recipe rules.
+
+    Args:
+        payload: The action payload.
+        lint: Lint data for the content language.
+        out: List the findings are appended to as (level, message).
+    """
+    slug = payload.get("slug", "<--slug>")
+    for field, key, what in (("tags", "maxTags", "tags"),
+                             ("recipeCategory", "maxCategories", "categories"),
+                             ("tools", "maxTools", "tools")):
+        if field in payload and len(payload[field] or []) > lint[key]:
+            _finding(out, "WARN", f"patch_recipe {slug}: "
+                     f"{len(payload[field])} {what}, the rules "
+                     f"cap it at {lint[key]}")
+    notes = payload.get("notes")
+    if notes is None:
+        return
+    if len(notes) > lint["maxNotes"]:
+        _finding(out, "WARN", f"patch_recipe {slug}: {len(notes)} notes, the "
+                 f"rules cap it at {lint['maxNotes']}")
+    titles = [(n.get("title") or "") for n in notes if isinstance(n, dict)]
+    unknown = [t for t in titles if t not in lint["noteTitles"]]
+    if unknown:
+        _finding(out, "WARN", f"patch_recipe {slug}: note titles outside the "
+                 f"vocabulary: {', '.join(unknown or ['(none)'])} "
+                 f"- allowed: {', '.join(lint['noteTitles'])}")
+
+
+def lint_actions(actions, lang=None):
+    """Check a plan against the rules that can be checked mechanically.
+
+    Judgement calls stay with the model; this catches the slips the rule
+    set calls out by name. Only a non-metric unit is fatal - that one the
+    rules forbid outright, in every language version.
+
+    Args:
+        actions: The parsed action list.
+        lang: Content language for the vocabularies.
+
+    Returns:
+        A list of (level, message) findings, "ERROR" or "WARN".
+    """
+    conv, lint = load_data("conversions.json", lang), load_data("lint.json", lang)
+    out: list = []
+    for x in actions:
+        op, payload = x["op"], x.get("payload", {})
+        if op == "create_unit":
+            _lint_unit(payload, conv, lint, out)
+        elif op == "create_food":
+            _lint_food(payload, lint, out)
+        elif op in ("create_tag", "create_category", "create_tool"):
+            _lint_organizer(op, payload, lint, out)
+        elif op == "patch_recipe":
+            _lint_recipe(payload, lint, out)
+        elif op == "create_label":
+            color = payload.get("color") or ""
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                _finding(out, "WARN", f'create_label "{payload.get("name")}": '
+                         "color must be a six-digit hex")
+            elif color.casefold() == lint["defaultLabelColor"].casefold():
+                _finding(out, "WARN", f'create_label "{payload.get("name")}": '
+                         "left on Mealie's default colour")
+        elif op in ("update_food", "update_unit") and payload.get("name"):
+            kind = "foods" if op == "update_food" else "units"
+            old = next((o.get("name") for o in _TAKEN.get(kind, [])
+                        if o.get("id") == payload.get("id")), None)
+            aliases = {(al.get("name") or "").casefold()
+                       for al in payload.get("aliases") or []}
+            if old and old.casefold() != (payload["name"] or "").casefold() \
+                    and old.casefold() not in aliases:
+                _finding(out, "WARN", f'{op} {payload.get("id")}: renaming '
+                         f'"{old}" -> "{payload["name"]}" without '
+                         "keeping the old name as an alias breaks "
+                         "every future import using it")
+    return out
+
+
 def log_change(run, op, target, before, payload, result=None):
     """Append one applied action and the state it overwrote to CHANGELOG.
 
@@ -1072,6 +1518,13 @@ def cmd_apply(a):
                          "instead of renaming one into the other's name.")
         if guarded:
             _guard_recipe_lists(actions, a.slug, cache)
+        # after taken(), so a rename can be checked against the stored name
+        findings = lint_actions(actions, getattr(a, "lang", None))
+        for level, msg in findings:
+            print(f"{level:<5} {msg}")
+        if any(level == "ERROR" for level, _ in findings):
+            sys.exit("plan violates a rule the rule set calls non-negotiable "
+                     "- nothing was written")
     except requests.RequestException as e:
         if not a.dry_run:
             raise
@@ -1363,9 +1816,18 @@ def main():
     u.add_argument("id")
     u.set_defaults(func=cmd_usage)
 
+    cv = sub.add_parser("convert", help="non-metric amount -> metric + note")
+    cv.add_argument("lines", nargs="+",
+                    help='e.g. "1 cup plain flour", "8 oz", "350 F"')
+    cv.add_argument("--lang", help="content language of the food names")
+    cv.add_argument("--fan", action="store_true",
+                    help="temperatures: also give the fan oven figure")
+    cv.set_defaults(func=cmd_convert)
+
     ap = sub.add_parser("apply", help="execute ACTIONS")
     ap.add_argument("file")
     ap.add_argument("--slug")
+    ap.add_argument("--lang", help="content language for the plan lint")
     ap.add_argument("--dry-run", action="store_true")
     ap.set_defaults(func=cmd_apply)
 

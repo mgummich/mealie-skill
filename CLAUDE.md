@@ -55,6 +55,20 @@ output style) is hand-maintained. Several places in the references carry
 `<!-- agent-only -->`/`<!-- standalone: … -->` markers for text that has to
 differ per context.
 
+## Data, not prose
+
+`skill/data/<lang>/` holds what the model must not retype or misread:
+`conversions.json` (density table, rounding, oven and tin sizes) and
+`lint.json` (note titles, caps, brand and casing vocabularies). The script
+reads it as `../data` relative to itself, so `build._copy_data` keeps the
+two directories siblings in every target layout. `en` is the fallback for
+any language without a pack.
+
+A rule that can be checked mechanically belongs in `lint.json` and
+`lint_actions`, not in a reference: a checklist in the prompt costs tokens
+every session and is advisory, the same rule in the dry run is free and
+enforced. A rule needing judgement stays in `skill/references/`.
+
 ## Conventions
 
 English everywhere: output, prompts, comments, docstrings. Docstrings are
@@ -70,8 +84,9 @@ Line length 88, no external dependencies except `requests`. `ruff check .`
 enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
 runtime dependency.
 
-New operations need: an entry in `ORDER`, a branch in `cmd_apply`, a row in
-the table in `references/actions.md`, a test in the dry run.
+New operations need: an entry in `ORDER`, a branch in `cmd_apply` that logs
+its before-state, a row in the table in `references/actions.md`, a test in
+the dry run.
 
 New audits write nothing and read from the index instead of fetching one by
 one.

@@ -464,6 +464,83 @@ with tempfile.TemporaryDirectory() as tmp:
               open(mealie_ctx.CHANGELOG, encoding="utf-8")]
     assert [r["target"]["slug"] for r in logged] == ["curry"], logged
 
+# 12g. convert: the density table decides, and nothing is estimated.
+assert mealie_ctx.parse_amount("1 1/2 cups flour")[0] == 1.5
+assert mealie_ctx.parse_amount("½ cup sugar")[0] == 0.5
+assert mealie_ctx.parse_amount("2-3 cups rice")[0] == 2      # a range: the lower
+assert mealie_ctx.parse_amount("a pinch of salt")[0] is None
+assert mealie_ctx.match_unit("cups flour", {"cup": ["cup", "cups"]}) == (
+    "cup", "flour")
+assert mealie_ctx.match_unit("instant yeast", {"inch": ["in"]})[0] is None
+
+conv = mealie_ctx.load_data("conversions.json", "en")
+# 8 oz: step 10 stays inside the 2 % limit, 1 oz takes the rules' own figure
+assert mealie_ctx.convert_line("8 oz", conv)["text"] == "230 g"
+assert mealie_ctx.convert_line("1 oz", conv)["text"] == "28 g"
+assert mealie_ctx.convert_line("1 cup plain flour", conv)["text"] == \
+    "120 g plain flour"
+assert mealie_ctx.convert_line("1 cup honey", conv)["text"] == "340 g honey"
+assert mealie_ctx.convert_line("1 cup water", conv)["text"] == "240 ml water"
+assert mealie_ctx.convert_line("9 inch", conv)["text"] == "23 cm"
+assert mealie_ctx.convert_line("350 F", conv)["text"] == "175 °C"
+assert mealie_ctx.convert_line("350 F", conv, fan=True)["text"] == \
+    "175 °C (155 °C fan)"
+# every conversion carries the note that makes it checkable and stops a
+# second pass converting it again
+assert mealie_ctx.convert_line("1 cup plain flour", conv)["note"] == \
+    "Original: 1 cup plain flour"
+# a food the table does not know is left alone, never estimated
+assert "review" in mealie_ctx.convert_line("1 cup quinoa", conv)
+# tbsp and tsp are metrically defined, so they are not converted at all
+assert "keep" in mealie_ctx.convert_line("2 tbsp olive oil", conv)
+# the German pack converts German food names
+de = mealie_ctx.load_data("conversions.json", "de")
+assert mealie_ctx.convert_line("1 Tasse Mehl", de)["text"] == "120 g Mehl"
+
+# 12h. The plan lint catches the slips the rule set names, and only a
+#      non-metric unit is fatal.
+found = mealie_ctx.lint_actions([
+    {"op": "create_unit", "payload": {"name": "cup", "abbreviation": "c"}},
+    {"op": "create_food", "payload": {"name": "Cumin"}},
+    {"op": "create_tag", "payload": {"name": "quick and easy"}},
+    {"op": "create_label", "payload": {"name": "Spices", "color": "#959595"}},
+    {"op": "patch_recipe",
+     "payload": {"slug": "curry", "notes": [{"title": "Info", "text": "x"}]}},
+], "en")
+levels = {level for level, _ in found}
+assert levels == {"ERROR", "WARN"}, found
+assert sum(1 for level, _ in found if level == "ERROR") == 1, found
+assert any("not metric" in m for _, m in found), found
+assert any("no label" in m for _, m in found), found
+assert any("two concepts" in m for _, m in found), found
+assert any("default colour" in m for _, m in found), found
+assert any("vocabulary" in m for _, m in found), found
+assert mealie_ctx.lint_actions(
+    [{"op": "create_food",
+      "payload": {"name": "cumin", "labelId": "l1", "description": "Seed.",
+                  "aliases": [{"name": "jeera"}]}}], "en") == []
+
+# a plan that creates a non-metric unit is refused outright
+with tempfile.TemporaryDirectory() as tmp:
+    try:
+        run_apply([{"op": "create_unit", "payload": {"name": "cup"}}],
+                  fake_mreq, tmp, dry_run=True)
+        raise AssertionError("a non-metric unit did not abort the plan")
+    except SystemExit as e:
+        assert "non-negotiable" in str(e), e
+
+# 12i. The data the script reads ships with it: it resolves ../data from its
+#      own location, so the two stay siblings in every target layout.
+with tempfile.TemporaryDirectory() as tmp:
+    for target, script in (
+            ("claude-code", ".claude/skills/mealie/scripts/mealie_ctx.py"),
+            ("cursor", "mealie/scripts/mealie_ctx.py"),
+            ("agents-md", "mealie/scripts/mealie_ctx.py")):
+        built = build.build_target(target, tmp)
+        beside = os.path.join(os.path.dirname(os.path.join(built, script)),
+                              "..", "data", "en", "conversions.json")
+        assert os.path.exists(os.path.normpath(beside)), target
+
 # 13. AGENTS.md carries a pointer, not the router: the block is what every
 #     session pays for, so it stays small and names the file to read.
 block = build.agents_md_block("X")

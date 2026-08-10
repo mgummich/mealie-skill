@@ -81,43 +81,35 @@ change.
 Exception: list fields are **replaced**, not extended. For `aliases` always
 include the existing entries as well.
 
-## `patch_recipe` replaces list fields
+The same holds for a recipe, where it costs more: `recipeIngredient`,
+`recipeInstructions`, `notes`, `tags`, `recipeCategory` and `tools` are
+replaced, so a `patch_recipe` carrying three ingredient lines leaves the
+recipe with three. **Send list fields back whole.** Scalars (`name`,
+`description`, times, yield) can be patched on their own.
 
-The same applies to a recipe, and it costs more there. A `patch_recipe`
-carrying `recipeIngredient` does not add lines, it leaves the recipe with
-exactly the lines in the payload - the rest are gone. That holds for
-`recipeIngredient`, `recipeInstructions`, `notes`, `tags`, `recipeCategory`,
-`tools`, `assets` and `extras`.
-
-So: **read the recipe, change what needs changing, send the whole list
-back.** Scalar fields (`name`, `description`, times, yield) are unaffected
-and may be patched on their own.
-
-The script refuses a patch whose list is shorter than what the recipe holds
-and names the field, both counts and the difference. When the removal is
-intended - two lines merged into one, a note dropped - say so on the action
-itself:
+A patch whose list is shorter than the recipe's is refused. When the removal
+is meant - two lines merged, a note dropped - say so on the action, next to
+`"op"`:
 
 ```json
 {"op": "patch_recipe", "replace": true,
  "payload": {"slug": "lentil-curry", "notes": []}}
 ```
 
-`"replace": true` belongs next to `"op"`, not in the payload, and applies to
-that action only. Use it deliberately: it switches off the one guard that
-stands between a short list and a silent deletion.
+## What the dry run checks, what a run leaves behind
 
-## What a run leaves behind
+`--dry-run` also lints the plan and prints `WARN` per finding: new food
+without label or aliases, over-long description, tag with two concepts or a
+`no X` phrasing, tool with a brand or an inch size, label on the default
+colour, over eight tags, note title outside the vocabulary, rename dropping
+the old name. One finding is fatal: a non-metric unit. Cup, ounce, pound,
+pint and stick are converted with `convert`, never stored.
 
 Every applied action is appended to `.mealie.changelog.jsonl` with the state
-it overwrote, before the next action runs. Merges and deletions record the
-whole object, updates record just the fields they touch. Mealie has no undo
-and this tool has no rollback, so that file is the way back - do not delete
-it while a cleanup is still in progress.
-
-A merge is verified afterwards: the script reads the recipes the index said
-used the source and stops the run if any still points at it. A replaced
-image is the one thing the log cannot restore.
+it overwrote - whole object for merges and deletions, touched fields for
+updates. That file is the only way back; do not delete it mid-cleanup. A
+merge is verified afterwards against the recipes that used the source. A
+replaced image is the one thing the log cannot restore.
 
 <!-- agent-only -->
 ## Invocation
