@@ -76,6 +76,12 @@ as everywhere else.
 that takes a while and puts load on other people's servers. Run it once,
 note the result, do not repeat it routinely.
 
+The result comes in two blocks. `DEAD SOURCE URLS` is 404, 410, 451 and a
+refused connection - the page is gone. `UNVERIFIED` is everything else,
+403 and 429 above all: recipe sites block bots and rate-limit, and those
+pages open fine in a browser. **Never treat an unverified URL as dead.**
+Present that block as a list to check by hand, and change nothing on it.
+
 For a dead source URL:
 
 1. Check whether the page moved (search for the domain plus the recipe

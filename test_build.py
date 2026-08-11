@@ -236,6 +236,8 @@ assert "slug" not in mealie_ctx.slim(recipe)
 
 # 12. apply: per-action slugs, and a rename carries the new slug forward.
 calls: list = []
+# set_image verifies the stored file over HTTP; the fake instance has none.
+mealie_ctx.image_stored = lambda recipe_id: True
 
 
 def fake_mreq(method, path, **kw):
@@ -652,6 +654,76 @@ with tempfile.TemporaryDirectory() as tmp:
     logged = run_apply(idempotent, differs, tmp)
     assert [m for m, _ in calls if m in ("PUT", "PATCH")], calls
     assert len(logged) == 2, logged
+
+# a tag the recipe already carries is such a value: no PATCH, no log, and
+# the counts name the tags that actually moved
+with tempfile.TemporaryDirectory() as tmp:
+    def tagged(method, path, **kw):
+        """Serve a recipe that already carries the tag the plan adds."""
+        calls.append((method, path))
+        return {"id": "r-1", "slug": "curry",
+                "tags": [{"id": "t-1", "name": "quick"}]}
+
+    calls = []
+    retag = [{"op": "retag_recipe",
+              "payload": {"slug": "curry", "kind": "tags", "add": ["t-1"]}}]
+    logged = run_apply(retag, tagged, tmp)
+    assert not [m for m, _ in calls if m == "PATCH"], calls
+    assert logged == [], logged
+
+    calls = []
+    logged = run_apply([{"op": "retag_recipe",
+                         "payload": {"slug": "curry", "kind": "tags",
+                                     "remove": ["t-1"]}}], tagged, tmp)
+    assert [m for m, _ in calls if m == "PATCH"], calls
+    assert len(logged) == 1, logged
+
+# 12p. Aliases are objects in Mealie; a list of strings is the obvious way
+#      to write them and would be dropped silently, so it is converted.
+with tempfile.TemporaryDirectory() as tmp:
+    def creating(method, path, **kw):
+        """Record the payload every write carries."""
+        calls.append((method, path, kw.get("json")))
+        return {"id": "f-1", "name": "salt"}
+
+    calls = []
+    run_apply([{"op": "create_food",
+                "payload": {"name": "salt", "aliases": ["sea salt"]}}],
+              creating, tmp)
+    assert calls[0][2]["aliases"] == [{"name": "sea salt"}], calls
+
+# 12q. A reference that points nowhere is caught by the dry run, before the
+#      first write - not halfway through the real one.
+with tempfile.TemporaryDirectory() as tmp:
+    try:
+        run_apply([{"op": "create_food",
+                    "payload": {"name": "salt", "labelId": "$ref:missing"}}],
+                  creating, tmp, dry_run=True)
+        raise AssertionError("a dangling $ref passed the dry run")
+    except SystemExit as e:
+        assert "$ref:missing" in str(e), e
+
+# 12r. Mealie answers a failed image download with 200 and sets the token
+#      anyway, so the stored file decides whether set_image worked.
+with tempfile.TemporaryDirectory() as tmp:
+    def imaged(method, path, **kw):
+        """Answer the recipe read and the image POST."""
+        calls.append((method, path))
+        return {"id": "r-1", "slug": "curry"}
+
+    calls = []
+    image = [{"op": "set_image",
+              "payload": {"slug": "curry", "url": "https://e.example/1.jpg"}}]
+    mealie_ctx.image_stored = lambda recipe_id: False
+    try:
+        run_apply(image, imaged, tmp)
+        raise AssertionError("set_image did not abort on a failed download")
+    except SystemExit as e:
+        assert "stored no image" in str(e), e
+
+    mealie_ctx.image_stored = lambda recipe_id: True
+    logged = run_apply(image, imaged, tmp)
+    assert logged[-1]["op"] == "set_image", logged
 
 # 12m. delete_food is not a merge: it strips the food from every recipe that
 #      used it, so it is refused while anything still references it.
