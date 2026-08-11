@@ -83,12 +83,29 @@ lists — without them `tags`, `categories` and `tools` merge into what the
 recipe already carries. `tags=[]` with `replace_tags=True` empties the
 field. Tools have no bulk form at all.
 
-Keep `actions.json` and `apply` for what the batch form cannot do: **order**
-(a label must exist before the food referencing it), **a dry run over the
-whole plan**, the **plan lint**, the **changelog** that records what each
-write overwrote, and any run the user wants as a reviewable file. Nothing
-here has an undo, and the MCP path leaves no changelog — that alone decides
-most destructive plans in favour of `apply`.
+Keep `actions.json` and `apply` for what the batch form cannot do, and for
+what it does not check. Nothing here has an undo, and the MCP path leaves no
+changelog — that alone decides most destructive plans in favour of `apply`.
+
+| Checked before a write by `apply` | On this path |
+|---|---|
+| `ORDER` — a label exists before the food referencing it | not checked |
+| A dry run over the whole plan | none |
+| The plan lint — note titles, caps, brands, casing; **a non-metric unit is fatal** | not checked |
+| A value already stored is not written (`UNCHANGED`) | every call writes |
+| `.mealie.changelog.jsonl`, the only way back | not written |
+| A rename into a name another food or unit holds | not checked |
+| A list field arriving shorter than the stored one | not checked — `update_recipe` replaces it |
+
+So the rules the script enforces are yours to keep here. `Cup` can be
+created through `manage_taxonomy`, an `update_recipe` carrying three
+ingredient lines leaves a recipe with three, and neither is refused or
+recorded. Read `units.md` and `recipes.md` before the write, not after.
+
+Three checks do have an equivalent, and need no plan: an ingredient `food`
+or `unit` without an id folds into the note rather than being stored as
+null, a `delete` on a referenced food comes back as a 409 naming `merge`,
+and `create_cookbook` builds the filter string itself.
 
 ## Meal plan
 
