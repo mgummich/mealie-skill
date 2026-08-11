@@ -78,7 +78,23 @@ singular/plural/spelling variant -> the ${CONTENT_LANG} equivalent of a
 foreign-language term. Only then create something new; the full cascade is
 in `references/foods.md`.
 
-Structure: `quantity` (number), `unit`, `food`, `note`.
+Structure: `quantity` (number), `unit`, `food`, `note`. `unit` and `food`
+are **objects with an id**, not names and not `foodId`/`unitId` — Mealie
+takes those off the line and stores null, and the line then renders as
+"80 heated" instead of "80 ml milk heated":
+
+```json
+{"quantity": 80,
+ "unit": {"id": "9c35d9e9-…", "name": "Milliliter"},
+ "food": {"id": "d77f8eb4-…", "name": "Milk"},
+ "note": "heated", "originalText": "80 ml milk, heated",
+ "referenceId": "0e2b1c7a-…"}
+```
+
+Keep the `referenceId` a line already has; Mealie mints it client-side and
+a null one fails validation. A line without a unit — `2 eggs` — omits the
+key rather than sending an empty object.
+
 `food` is the plain ingredient without preparation hints; `note` takes
 "finely diced", "at room temperature", "drained", "to taste".
 "1 can (400 g) tomatoes" becomes `400 | g | tomato | canned`.

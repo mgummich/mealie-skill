@@ -433,6 +433,45 @@ with tempfile.TemporaryDirectory() as tmp:
         assert "queryFilterString" in str(e) and "tags" in str(e), e
     assert not [m for m, _ in calls if m != "GET"], calls   # nothing was written
 
+# 12d-2b. Same class of failure on an ingredient line: Mealie answers 200 to
+#         a flat foodId, stores null, and the line loses its middle.
+def one_line_recipe(method, path, **kw):
+    """Answer every GET with a recipe of one ingredient line."""
+    calls.append((method, path))
+    return {"slug": "curry", "recipeIngredient": [{"a": 1}]}
+
+
+for ing, expect in (
+        ({"quantity": 80, "foodId": "f-1"}, "foodId"),
+        ({"quantity": 80, "unitId": "u-1"}, "unitId"),
+        ({"quantity": 80, "food": "Milk"}, "str"),
+        ({"quantity": 80, "food": {"name": "Milk"}}, "without an id")):
+    with tempfile.TemporaryDirectory() as tmp:
+        calls = []
+        try:
+            run_apply([{"op": "patch_recipe",
+                        "payload": {"slug": "curry",
+                                    "recipeIngredient": [ing]}}],
+                      one_line_recipe, tmp, dry_run=True)
+            raise AssertionError(f"a dropped ingredient shape did not abort: {ing}")
+        except SystemExit as e:
+            assert expect in str(e), (ing, e)
+        assert not [m for m, _ in calls if m != "GET"], calls  # nothing written
+
+# ... and the documented shape passes, unit omitted where there is none.
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    good = [{"quantity": 80, "note": "heated",
+             "unit": {"id": "u-1", "name": "Milliliter"},
+             "food": {"id": "f-1", "name": "Milk"}},
+            {"quantity": 2, "food": {"id": "f-2", "name": "Egg"}}]
+    logged = run_apply([{"op": "patch_recipe", "replace": True,
+                         "payload": {"slug": "curry",
+                                     "recipeIngredient": good}}],
+                       one_line_recipe, tmp)
+    assert ("PATCH", "/recipes/curry") in calls, calls
+    assert logged[0]["payload"]["recipeIngredient"] == good, logged
+
 # 12d-3. The current shape writes, and to the household path - cookbooks
 #        moved off the group in Mealie 2.0.
 filtered = [{"op": "create_cookbook",

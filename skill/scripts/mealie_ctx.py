@@ -2276,6 +2276,54 @@ def _guard_cookbooks(actions):
                      'tags.name IN ["Quick"] AND rating > 3')
 
 
+def _guard_ingredients(actions):
+    """Refuse an ingredient line whose food or unit Mealie would drop.
+
+    Mealie takes `food` and `unit` as objects and ignores anything else on
+    the line, so a flat "foodId" is answered with 200 and stored as null.
+    The line then renders without its middle: "80 heated" where "80 ml milk
+    heated" was meant, and the food never reaches a shopping list.
+
+    Args:
+        actions: The parsed action list.
+
+    Raises:
+        SystemExit: On the first line carrying a shape that would be
+            dropped.
+    """
+    shape = ('"food": {"id": "...", "name": "..."} and '
+             '"unit": {"id": "...", "name": "..."}')
+    for x in actions:
+        if x["op"] != "patch_recipe":
+            continue
+        for n, line in enumerate(x.get("payload", {}).get("recipeIngredient")
+                                 or [], 1):
+            if not isinstance(line, dict):
+                continue        # not addressed here; Mealie refuses it loudly
+            for flat, key in (("foodId", "food"), ("unitId", "unit")):
+                if flat in line:
+                    sys.exit(f"patch_recipe: ingredient line {n} carries "
+                             f'"{flat}", which Mealie ignores instead of '
+                             f'refusing - "{key}" would end up null. Write '
+                             f"{shape}.")
+            for key in ("food", "unit"):
+                val = line.get(key)
+                if val is None:
+                    continue    # no unit is a valid line: "2 eggs"
+                if not isinstance(val, dict):
+                    sys.exit(f"patch_recipe: ingredient line {n} has "
+                             f'"{key}" as {type(val).__name__}, not an '
+                             f"object - Mealie drops it and stores null. "
+                             f"Write {shape}.")
+                if not val.get("id"):
+                    sys.exit(f"patch_recipe: ingredient line {n} has a "
+                             f'"{key}" without an id. Mealie resolves the '
+                             "object by id, not by name, and stores null "
+                             "for the rest. Take the id from the audit, or "
+                             "create the object first and reference it with "
+                             '"$ref:".')
+
+
 def _merge_users(idx, kind, oid):
     """List the slugs of the recipes that use one food or unit.
 
@@ -2357,7 +2405,8 @@ def cmd_apply(a):
     Raises:
         SystemExit: On unknown operations, violated order, a rename into a
             name another food or unit already holds, a patch_recipe that
-            would shorten a list field, a merge that left references
+            would shorten a list field or carry an ingredient shape Mealie
+            drops, a merge that left references
             behind, a patch_recipe/set_image without any slug, or a failed
             write, or a "$ref:" that cannot be resolved. Actions already
             applied stay applied; there is no rollback beyond CHANGELOG.
@@ -2429,6 +2478,7 @@ def cmd_apply(a):
             sys.exit(f'{x["op"]}: unknown kind {kind!r} - one of '
                      f"{', '.join(ORG_KINDS)}")
     _guard_cookbooks(actions)
+    _guard_ingredients(actions)
     _guard_deletes(actions, idx)
 
     if any(x["op"] in ("merge_food", "merge_unit", "delete_organizer",
