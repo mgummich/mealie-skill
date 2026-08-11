@@ -17,7 +17,7 @@ The only hand-maintained prompt file is `standalone/prompts/common.txt`
     python3 test_build.py        # plain asserts, no framework
     python3 build.py             # renders all four targets into dist/
     ruff check .                 # config in ruff.toml, or: uvx ruff check .
-    mypy                         # config in mypy.ini, needs types-requests
+    mypy                         # config in mypy.ini
 
 All four have to pass. CI runs the same commands plus a dry run of the
 ACTIONS guard.
@@ -35,7 +35,7 @@ text. All of it is dev-only; nothing is added to the runtime dependencies.
 - English everywhere: output, prompts, comments, docstrings.
 - Docstrings in Google style (`Args:`/`Returns:`/`Raises:`).
 - Line length 88.
-- No dependencies beyond `requests`.
+- No dependencies at all: the standard library, on Python 3.9.
 - Never hardcode a content language. Use the `${CONTENT_LANG}` placeholder;
   it is substituted from `--lang` or `$MEALIE_LANG`.
 

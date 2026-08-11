@@ -10,7 +10,6 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests]
         pass_filenames: false          # the file list lives in mypy.ini
 
   - repo: https://github.com/pre-commit/pre-commit-hooks

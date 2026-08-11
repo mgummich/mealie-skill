@@ -25,15 +25,180 @@ import getpass
 import json
 import os
 import re
+import socket
 import sys
 import time
-
-import requests
+import urllib.error
+import urllib.parse
+import urllib.request
+from http.client import HTTPException
 
 # Stamped by build.py --version when a release is rendered; a copy built
 # from a clone stays "dev". An installed skill has no other way to say
 # which release it is.
 VERSION = "dev"
+
+# An installed skill is a copied directory, not a package: whatever Python
+# the agent happens to run it with is the one it gets, and there is no
+# install step that could add a dependency. So the HTTP client is the
+# standard library, wrapped in the slice of the requests interface this
+# tool uses - status_code, headers, text, json(), ok, raise_for_status.
+UA = f"mealie-skill/{VERSION}"
+
+
+class RequestError(Exception):
+    """Any failure that kept a request from producing an answer."""
+
+
+class ConnectError(RequestError):
+    """The host was not reachable at all: DNS, refused, TLS, bad URL."""
+
+
+class Timeout(RequestError):
+    """The host took the connection but did not answer in time."""
+
+
+class HTTPError(RequestError):
+    """A 4xx or 5xx answer, raised by Response.raise_for_status.
+
+    Attributes:
+        response: The Response that carries the status and the body.
+    """
+
+    def __init__(self, *args, response=None):
+        """Store the response alongside the message.
+
+        Args:
+            *args: Passed to Exception.
+            response: The Response the status came from.
+        """
+        super().__init__(*args)
+        self.response = response
+
+
+class Response:
+    """One HTTP answer: status, headers and body.
+
+    Attributes:
+        status_code: HTTP status.
+        headers: The header block, looked up case-insensitively via get().
+        content: Raw body, empty for a streamed request.
+        url: The URL that was requested, query string included.
+    """
+
+    def __init__(self, status_code, headers, content, url):
+        """Bind the parts of the answer.
+
+        Args:
+            status_code: HTTP status.
+            headers: email.message.Message from the connection.
+            content: Body bytes.
+            url: Requested URL.
+        """
+        self.status_code = status_code
+        self.headers = headers
+        self.content = content
+        self.url = url
+
+    @property
+    def ok(self):
+        """Whether the status is below 400.
+
+        Returns:
+            True for 1xx-3xx.
+        """
+        return self.status_code < 400
+
+    @property
+    def text(self):
+        """The body decoded with the charset the server named.
+
+        Returns:
+            The decoded body; undecodable bytes are replaced, never raised.
+        """
+        charset = self.headers.get_content_charset() or "utf-8"
+        return self.content.decode(charset, "replace")
+
+    def json(self):
+        """Parse the body as JSON.
+
+        Returns:
+            The parsed body.
+
+        Raises:
+            ValueError: If the body is not JSON.
+        """
+        return json.loads(self.text)
+
+    def raise_for_status(self):
+        """Turn a 4xx or 5xx answer into an exception.
+
+        Raises:
+            HTTPError: If the status is 400 or above.
+        """
+        if not self.ok:
+            raise HTTPError(f"HTTP {self.status_code} for {self.url}",
+                            response=self)
+
+
+def fetch(method, url, headers=None, params=None, data=None, timeout=45,
+          stream=False):
+    """Send one HTTP request and return the answer.
+
+    A 4xx or 5xx is an answer, not an exception - the caller decides, the
+    same way requests does. Redirects are followed for every method the
+    standard library follows them for (GET and HEAD).
+
+    Args:
+        method: HTTP method.
+        url: Full URL, without the query string.
+        headers: Extra request headers.
+        params: Query parameters; None values are dropped.
+        data: Request body as bytes; sent as JSON.
+        timeout: Seconds to wait for the connection and for each read.
+        stream: Skip reading the body - for a status-only check on a
+            response that would otherwise be downloaded in full.
+
+    Returns:
+        A Response.
+
+    Raises:
+        ConnectError: If the host could not be reached or the URL is
+            unusable.
+        Timeout: If the host did not answer in time.
+    """
+    try:
+        if params:
+            query = urllib.parse.urlencode(
+                {k: v for k, v in params.items() if v is not None}, doseq=True)
+            url = f"{url}?{query}"
+        head = {"User-Agent": UA, **(headers or {})}
+        if data is not None:
+            head.setdefault("Content-Type", "application/json")
+        req = urllib.request.Request(url, data=data, headers=head,
+                                     method=method.upper())
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return Response(r.status, r.headers,
+                            b"" if stream else r.read(), url)
+    except urllib.error.HTTPError as e:
+        with e:
+            return Response(e.code, e.headers,
+                            b"" if stream else e.read(), url)
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, socket.timeout):
+            raise Timeout(str(e.reason)) from e
+        raise ConnectError(str(e.reason)) from e
+    except socket.timeout as e:
+        # A read that runs out of time is raised straight through, only a
+        # connect timeout arrives wrapped in URLError. socket.timeout is
+        # TimeoutError from 3.10 on and its own class before that.
+        raise Timeout(str(e) or "timed out") from e
+    except (HTTPException, OSError) as e:
+        raise ConnectError(f"{e.__class__.__name__}: {e}") from e
+    except ValueError as e:
+        # A source URL out of the recipe data, not from this tool: no
+        # scheme, a scheme urllib has no handler for, control characters.
+        raise ConnectError(str(e)) from e
 
 INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
 # Raised whenever build_index learns a field an audit reads. An older index
@@ -239,7 +404,7 @@ def mreq(method, path, **kw):
     Args:
         method: HTTP method, e.g. "GET" or "PATCH".
         path: Path below /api, starting with a slash.
-        **kw: Passed through to requests.request (json, params, ...).
+        **kw: json (the request body) and params (query parameters).
 
     A 429 is retried up to RETRIES times, waiting for Retry-After or an
     exponential backoff. Every other status is left to the caller. This is
@@ -250,15 +415,17 @@ def mreq(method, path, **kw):
         The parsed JSON body, or an empty dict for an empty response.
 
     Raises:
-        requests.HTTPError: If the response status is 4xx or 5xx, 429
-            included once the retries are used up.
+        HTTPError: If the response status is 4xx or 5xx, 429 included once
+            the retries are used up.
     """
     base, headers = conn()
     if method in ("POST", "PUT", "PATCH") and "json" in kw:
         kw["json"] = sanitize(kw["json"])
+    body = kw.get("json")
+    data = None if body is None else json.dumps(body).encode()
     for attempt in range(RETRIES):
-        r = requests.request(method, f"{base}/api{path}", headers=headers,
-                             timeout=45, **kw)
+        r = fetch(method, f"{base}/api{path}", headers=headers, data=data,
+                  params=kw.get("params"), timeout=45)
         if r.status_code != 429 or attempt == RETRIES - 1:
             break
         try:
@@ -281,7 +448,7 @@ def mget(path, **params):
         The "items" list for paginated endpoints, otherwise the body itself.
 
     Raises:
-        requests.HTTPError: If the response status is 4xx or 5xx.
+        HTTPError: If the response status is 4xx or 5xx.
     """
     # Only collections paginate. A single object answers under its own path,
     # and pagination parameters on that path are at best ignored.
@@ -320,7 +487,7 @@ def cookbook_hits(cid):
     """
     try:
         d = mreq("GET", EP["recipes"], params={"cookbook": cid, "perPage": 1})
-    except requests.HTTPError:
+    except HTTPError:
         return "?"
     return d.get("total", "?") if isinstance(d, dict) else "?"
 
@@ -431,7 +598,7 @@ def build_index():
         counts, image flag, source URL and a description flag.
 
     Raises:
-        requests.HTTPError: If a recipe *list* request fails; failures on a
+        HTTPError: If a recipe *list* request fails; failures on a
             single recipe are collected instead.
         OSError: If the index file cannot be written.
     """
@@ -443,7 +610,7 @@ def build_index():
         for r in items:
             try:
                 f = mget(f"{EP['recipes']}/{r['slug']}")
-            except requests.HTTPError as e:
+            except HTTPError as e:
                 failed.append(r["slug"])
                 print(f"skipped {r['slug']}: "
                       f"{e.response.status_code} from the instance",
@@ -712,7 +879,7 @@ def cmd_audit(a):
 
     Raises:
         SystemExit: If "what" is unknown.
-        requests.HTTPError: If a Mealie request fails. Unreachable source
+        HTTPError: If a Mealie request fails. Unreachable source
             URLs under --check-urls are reported, not raised.
     """
     what = a.what
@@ -989,13 +1156,13 @@ def cmd_audit(a):
             if not r["orgURL"]:
                 continue
             try:
-                resp = requests.head(r["orgURL"], timeout=10, allow_redirects=True)
+                resp = fetch("HEAD", r["orgURL"], timeout=10, stream=True)
                 if resp.status_code >= 400:
                     (dead if resp.status_code in URL_GONE
                      else unverified).append(
                         (r["slug"], resp.status_code, r["orgURL"]))
-            except requests.RequestException as e:
-                (dead if isinstance(e, requests.ConnectionError)
+            except RequestError as e:
+                (dead if isinstance(e, ConnectError)
                  else unverified).append(
                     (r["slug"], type(e).__name__, r["orgURL"]))
         print(f"\nDEAD SOURCE URLS: {len(dead)}")
@@ -1025,7 +1192,7 @@ def cmd_ctx(a):
 
     Raises:
         SystemExit: If "what" is unknown.
-        requests.HTTPError: If a Mealie request fails. Failing food
+        HTTPError: If a Mealie request fails. Failing food
             searches for single terms are skipped.
     """
     what = a.what
@@ -1047,7 +1214,7 @@ def cmd_ctx(a):
             try:
                 for f in mget(EP["foods"], search=t, perPage=5):
                     hits[f["id"]] = f
-            except requests.HTTPError:
+            except HTTPError:
                 continue
         print("RECIPE:")
         print(json.dumps(slim(recipe, keep_slug=True) if not a.full else recipe,
@@ -1227,7 +1394,7 @@ def taken(kind, oid, payload, ignore=()):
         The first colliding string, or None when the payload is free.
 
     Raises:
-        requests.HTTPError: If the list request fails.
+        HTTPError: If the list request fails.
     """
     if kind not in _TAKEN:
         _TAKEN[kind] = mget(EP[kind])
@@ -1675,7 +1842,7 @@ def cmd_seed(a):
 
     Raises:
         SystemExit: If "what" is unknown or the pack is missing.
-        requests.HTTPError: If the instance cannot be read; --all skips
+        HTTPError: If the instance cannot be read; --all skips
             that call.
     """
     kinds = SEEDABLE if a.what == "all" else (a.what,)
@@ -1983,7 +2150,7 @@ def _recipe_before(slug, cache):
         The recipe as the instance currently holds it.
 
     Raises:
-        requests.HTTPError: If the recipe cannot be read.
+        HTTPError: If the recipe cannot be read.
     """
     if slug not in cache:
         cache[slug] = mreq("GET", f'{EP["recipes"]}/{slug}')
@@ -2005,13 +2172,12 @@ def image_stored(recipe_id):
     base, headers = conn()
     try:
         # Mealie serves media from a GET-only route - a HEAD answers 404
-        # even for a file that is there. So the response is streamed and
-        # closed again instead of downloaded.
-        with requests.get(f"{base}/api/media/recipes/{recipe_id}"
-                          "/images/original.webp", headers=headers,
-                          timeout=30, stream=True) as r:
-            return r.ok
-    except requests.RequestException:
+        # even for a file that is there. So the connection is opened and
+        # closed again without reading the image.
+        return fetch("GET", f"{base}/api/media/recipes/{recipe_id}"
+                     "/images/original.webp", headers=headers,
+                     timeout=30, stream=True).ok
+    except RequestError:
         return False
 
 
@@ -2029,7 +2195,7 @@ def _guard_recipe_lists(actions, default_slug, cache):
 
     Raises:
         SystemExit: On the first shortening list field without "replace".
-        requests.HTTPError: If a recipe cannot be read.
+        HTTPError: If a recipe cannot be read.
     """
     for x in actions:
         if x["op"] != "patch_recipe":
@@ -2143,7 +2309,7 @@ def _verify_merge(kind, src, dst, slugs, limit=25):
 
     Raises:
         SystemExit: If a recipe still references the source.
-        requests.HTTPError: If a recipe cannot be read.
+        HTTPError: If a recipe cannot be read.
     """
     if slugs is None:
         print("!! merge not verified: no index. Run an audit first so the "
@@ -2249,7 +2415,7 @@ def cmd_apply(a):
         if any(level == "ERROR" for level, _ in findings):
             sys.exit("plan violates a rule the rule set calls non-negotiable "
                      "- nothing was written")
-    except requests.RequestException as e:
+    except RequestError as e:
         if not a.dry_run:
             raise
         print(f"[dry-run] instance not reachable ({e.__class__.__name__}): "
@@ -2439,7 +2605,7 @@ def cmd_apply(a):
                            {"hadImage": bool((cache.get(slug) or {}).get("image"))},
                            payload)
             done += 1
-    except requests.RequestException as e:
+    except RequestError as e:
         print(f"\n!! ABORTED after {done}/{len(actions)} actions: {e}")
         print(f"applied actions and what they overwrote: {CHANGELOG}")
         rest = [y["op"] for y in actions[done:]]
@@ -2463,9 +2629,9 @@ def probe(url, token):
         A (ok, message) tuple; the message names the cause on failure.
     """
     try:
-        r = requests.get(f"{url}/api/users/self", timeout=15,
-                         headers={"Authorization": f"Bearer {token}"})
-    except requests.RequestException as e:
+        r = fetch("GET", f"{url}/api/users/self", timeout=15,
+                  headers={"Authorization": f"Bearer {token}"})
+    except RequestError as e:
         return False, f"no connection to {url} ({e.__class__.__name__})"
     if r.status_code in (401, 403):
         return False, (f"token rejected (HTTP {r.status_code}) – expired, or "

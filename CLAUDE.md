@@ -96,12 +96,16 @@ comes from `${CONTENT_LANG}`, substituted by `build.set_language` from
 language into a prompt; the placeholder belongs in `skill/` and
 `prompts/common.txt`.
 
-Line length 88, no external dependencies except `requests`. `ruff check .`
+Line length 88, no external dependencies at all: an installed skill is a
+copied directory with no install step, so HTTP goes through `fetch()` in
+`mealie_ctx.py` — a urllib wrapper with the slice of the requests interface
+the tool uses. Adding an import outside the standard library breaks every
+install. `ruff check .`
 enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
 runtime dependency. CI also runs `mypy` on 3.12 — run it before pushing,
 `ruff` passing says nothing about it:
 
-    pip install mypy types-requests && mypy
+    pip install mypy && mypy
 
 New operations need: an entry in `ORDER`, a branch in `cmd_apply` that logs
 its before-state, a row in the table in `references/actions.md`, a test in

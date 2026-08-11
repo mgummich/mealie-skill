@@ -32,7 +32,7 @@ You need three things:
 |---|---|
 | A Mealie instance | reachable over HTTP from where you run the tool |
 | An API token | Mealie → Profile → API Tokens → Create |
-| Python 3.9+ | plus `requests` for the standalone frontend |
+| Python 3.9+ | standard library only, nothing to install |
 
 ```bash
 export MEALIE_URL=https://mealie.example.org
@@ -304,7 +304,6 @@ Same rules, same `actions` format, but the model call is a script and it
 batches. Good for "do this to 200 recipes overnight".
 
 ```bash
-pip install requests
 export ANTHROPIC_API_KEY=sk-ant-…
 
 python standalone/optimize.py recipe tomato-soup --dry-run

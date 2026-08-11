@@ -109,8 +109,9 @@ what you meant. [Decision 0008](decisions/0008-target-current-mealie.md).
 ## Style
 
 English everywhere — output, prompts, comments, docstrings. Google-style
-docstrings. Line length 88. No dependencies beyond `requests`; `ruff` and
-`mypy` are dev-only. The content language of recipe data is never hardcoded:
+docstrings. Line length 88. No dependencies at all — the skill is a
+copied directory with no install step, so `requests` is not available to it
+and the standard library is; `ruff` and `mypy` are dev-only. The content language of recipe data is never hardcoded:
 that is `${CONTENT_LANG}`, substituted at build time.
 
 Comments explain why, not what. Most of the comments in `mealie_ctx.py` are

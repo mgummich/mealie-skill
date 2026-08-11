@@ -1,43 +1,23 @@
 #!/usr/bin/env python3
 """Tests for build.py — plain asserts, run with: python3 test_build.py."""
+import http.server
 import json
 import os
 import re
 import sys
 import tempfile
+import threading
 import types
 
 import build
 
 
-class FakeRequestException(Exception):
-    """Stand-in for requests.RequestException, the base of every HTTP error."""
-
-
-class FakeHTTPError(FakeRequestException):
-    """Stand-in for requests.HTTPError, which carries the response."""
-
-    def __init__(self, *args, response=None):
-        """Store the response the way requests does.
-
-        Args:
-            *args: Passed to Exception.
-            response: The object with the status_code.
-        """
-        super().__init__(*args)
-        self.response = response
-
-
 def load_ctx():
-    """Import mealie_ctx from skill/scripts without requests installed.
+    """Import mealie_ctx from skill/scripts.
 
     Returns:
         The imported module; its HTTP calls are never exercised here.
     """
-    stub = types.ModuleType("requests")
-    stub.HTTPError = FakeHTTPError    # type: ignore[attr-defined]
-    stub.RequestException = FakeRequestException  # type: ignore[attr-defined]
-    sys.modules.setdefault("requests", stub)
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "skill", "scripts"))
     import mealie_ctx
@@ -432,8 +412,8 @@ with tempfile.TemporaryDirectory() as tmp:
 # 12d. The same guards run under --dry-run. Without a connection the
 #      structural checks still pass and what could not be checked is named.
 def offline(method, path, **kw):
-    """Fail the way requests does when the instance is unreachable."""
-    raise mealie_ctx.requests.RequestException("connection refused")
+    """Fail the way fetch() does when the instance is unreachable."""
+    raise mealie_ctx.RequestError("connection refused")
 
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -506,7 +486,7 @@ with tempfile.TemporaryDirectory() as tmp:
         """Answer the first recipe, fail on the second."""
         calls.append((method, path))
         if path.endswith("/pumpkin-soup"):
-            raise mealie_ctx.requests.HTTPError("500", response=None)
+            raise mealie_ctx.HTTPError("500", response=None)
         return {"slug": "curry"}
 
     calls = []
@@ -952,7 +932,7 @@ def fake_mget(path, **params):
         The recipe list for the collection, a recipe for a detail path.
 
     Raises:
-        requests.HTTPError: 500 for the recipe that fails to serialize.
+        HTTPError: 500 for the recipe that fails to serialize.
     """
     if path == mealie_ctx.EP["recipes"]:
         broken["pages"] += 1
@@ -961,7 +941,7 @@ def fake_mget(path, **params):
         return [{"slug": "good"}, {"slug": "bad"}]
     if path.endswith("/bad"):
         response = types.SimpleNamespace(status_code=500)
-        raise mealie_ctx.requests.HTTPError("500", response=response)
+        raise mealie_ctx.HTTPError("500", response=response)
     return {"slug": "good", "name": "Good", "recipeIngredient": [],
             "recipeInstructions": [], "description": "x"}
 
@@ -973,5 +953,87 @@ with tempfile.TemporaryDirectory() as tmp:
 
 assert [r["slug"] for r in idx["recipes"]] == ["good"], idx["recipes"]
 assert idx["failed"] == ["bad"], idx["failed"]
+
+
+# 16. fetch(): the HTTP client the skill ships with. Against a real socket,
+#     because the parts worth testing are the ones urllib decides - a 4xx
+#     answer, a query string, a body, an unreachable host.
+class _Handler(http.server.BaseHTTPRequestHandler):
+    """Answer the handful of shapes the test asks for."""
+
+    def log_message(self, fmt, *a):
+        """Keep the test output clean.
+
+        Args:
+            fmt: Format string.
+            *a: Format arguments.
+        """
+
+    def _answer(self):
+        """Reply according to the path, echoing query and body."""
+        if self.path.startswith("/gone"):
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b'{"detail":"nope"}')
+            return
+        n = int(self.headers.get("Content-Length") or 0)
+        body = json.dumps({"path": self.path,
+                           "method": self.command,
+                           "agent": self.headers.get("User-Agent"),
+                           "body": self.rfile.read(n).decode()}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    do_GET = do_HEAD = do_POST = do_PATCH = _answer
+
+
+srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+root = f"http://127.0.0.1:{srv.server_address[1]}"
+
+r = mealie_ctx.fetch("GET", f"{root}/x", params={"perPage": 200, "q": None})
+assert r.ok and r.status_code == 200, r.status_code
+# None-valued parameters are dropped, the rest are encoded.
+assert r.json()["path"] == "/x?perPage=200", r.json()
+assert r.json()["agent"].startswith("mealie-skill/"), r.json()
+
+r = mealie_ctx.fetch("PATCH", f"{root}/x", data=json.dumps({"a": 1}).encode())
+assert r.json()["body"] == '{"a": 1}', r.json()
+
+# A 4xx is an answer, not an exception - the caller decides when to raise.
+r = mealie_ctx.fetch("GET", f"{root}/gone")
+assert not r.ok and r.status_code == 404, r.status_code
+assert r.json()["detail"] == "nope", r.text
+try:
+    r.raise_for_status()
+    raise AssertionError("raise_for_status stayed quiet on a 404")
+except mealie_ctx.HTTPError as e:
+    assert e.response.status_code == 404, e
+
+# stream: the status without the body, for the image check.
+r = mealie_ctx.fetch("GET", f"{root}/x", stream=True)
+assert r.ok and r.content == b"", r.content
+
+srv.shutdown()
+srv.server_close()
+
+# An unreachable host and an unusable URL both arrive as ConnectError, which
+# is what the link audit counts as dead.
+for bad in (f"{root}/x", "not-a-url", "gopher://example.invalid"):
+    try:
+        mealie_ctx.fetch("GET", bad, timeout=5)
+        raise AssertionError(f"no error for {bad}")
+    except mealie_ctx.ConnectError:
+        pass
+
+# The skill runs wherever the agent puts it, with no install step: a
+# third-party import would be a crash on someone else's machine.
+for py in ("skill/scripts/mealie_ctx.py", "standalone/optimize.py"):
+    src = open(py, encoding="utf-8").read()
+    assert not re.search(r"^import requests", src, re.MULTILINE), py
 
 print("ok")
