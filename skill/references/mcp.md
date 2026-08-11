@@ -7,6 +7,11 @@ covers everything the modes need.
 When it is connected it is the primary path: same instance, same API, but
 the survey questions are answered server-side.
 
+Every tool name, argument and response key below was checked against
+`mcp-mealie` v0.3.0 plus the fixes on `main` up to 2026-08-11. A server
+older or newer than that can have moved; where a call answers differently
+than described here, the server is right and this file is stale.
+
 **Skip `index` and `audit` while it is connected.** Building the index is
 one request per recipe; `library_stats` is one call. An index that is never
 built also never goes stale.
@@ -92,9 +97,10 @@ Only the MCP has these; the script deliberately has none.
 1. `get_meal_plan(start_date, end_date)` for the target week **and the week
    before** — the previous week is what tells you which dinners would repeat.
 2. Candidates: `suggest_recipes(foods=[...])` when the user named
-   ingredients they have, `search_recipes(tags=["Quick"])` or a cookbook when
-   they described a style. Filter server-side, with `require_all` to switch
-   from any-of to all-of.
+   ingredients they have — it allows `max_missing_foods` gaps per recipe, 2
+   by default. `search_recipes(tags=["Quick"])` or a cookbook when they
+   described a style; that one takes `require_all` to switch from any-of to
+   all-of. Filter server-side either way.
 3. One `add_meal_plan_entry(date, entry_type, recipe_slug)` per slot — no
    batch endpoint. Free-text entries need no recipe:
    `add_meal_plan_entry(date, title="Leftovers")`.
@@ -207,7 +213,10 @@ value.
 workflow still does not delete recipes: duplicates are reported, the user
 removes them. Name the tool if asked, do not call it in a maintenance run.
 
-**Read-only mode.** The server can run with writes disabled; a write tool
-then fails with "server is in read-only mode". That is configuration, not a
-retryable error — fall back to `mealie_ctx.py` or stop and say so. Same for
-an auth error on every tool: `MEALIE_API_TOKEN` is wrong, do not retry.
+**Read-only mode.** With `MEALIE_READ_ONLY=true` the write tools are not
+registered at all — `update_recipe` and the rest are absent from the tool
+list rather than failing when called. `manage_taxonomy` stays, with `list`
+as its only action; a write action answers "server is in read-only mode".
+Either way that is configuration, not a retryable error — fall back to
+`mealie_ctx.py` or stop and say so. Same for an auth error on every tool:
+`MEALIE_API_TOKEN` is wrong, do not retry.
