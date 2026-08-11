@@ -112,6 +112,23 @@ is meant - two lines merged, a note dropped - say so on the action, next to
  "payload": {"slug": "lentil-curry", "notes": []}}
 ```
 
+An ingredient line carries `food` and `unit` as **objects with an id**:
+
+```json
+{"op": "patch_recipe",
+ "payload": {"slug": "lentil-curry", "recipeIngredient": [
+   {"quantity": 80,
+    "unit": {"id": "$ref:ml", "name": "Milliliter"},
+    "food": {"id": "d77f8eb4-…", "name": "Milk"},
+    "note": "heated", "originalText": "80 ml milk, heated",
+    "referenceId": "0e2b1c7a-…"}]}}
+```
+
+`foodId`/`unitId`, or a plain name in `food`, are dropped by Mealie without
+an error and leave the line with null where the food was - the run refuses
+them instead. Keep the `referenceId` a line already has, and omit `unit`
+entirely on a line that has none.
+
 ## What the dry run checks, what a run leaves behind
 
 `--dry-run` also lints the plan and prints `WARN` per finding: new food
