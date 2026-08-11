@@ -53,7 +53,8 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install requests
+      # No dependencies to install - the skill runs on the standard library
+      # alone, and the smoke test below proves it with -I.
 
       - name: Unit tests
         run: python3 test_build.py
@@ -100,10 +101,12 @@ jobs:
             # survived packing, not just rendering
             test -f "$(dirname "$script")/../data/en/conversions.json" \
               || { echo "$z ships no data pack"; exit 1; }
-            python3 "$script" --version | grep -qx "mealie-skill $TAG" \
+            # -I: no PYTHONPATH, no user site directory. What runs here is
+            # what an agent gets after unpacking the zip into a project.
+            python3 -I "$script" --version | grep -qx "mealie-skill $TAG" \
               || { echo "$z reports the wrong version"; exit 1; }
-            python3 "$script" apply "$RUNNER_TEMP/ok.json" --dry-run > /dev/null \
-              || { echo "$z fails a dry run"; exit 1; }
+            python3 -I "$script" apply "$RUNNER_TEMP/ok.json" --dry-run \
+              > /dev/null || { echo "$z fails a dry run"; exit 1; }
             echo "ok: $z"
           done
 

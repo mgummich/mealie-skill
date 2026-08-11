@@ -36,7 +36,10 @@ first person who finds it inconvenient.
   <li><span class="n">0008</span>
     <div><a href="0008-target-current-mealie.html">Target current Mealie, refuse outdated shapes</a>
     <p>Rejected: probe the version and fall back.</p></div></li>
+  <li><span class="n">0009</span>
+    <div><a href="0009-no-dependencies.html">No dependencies, because there is no install step</a>
+    <p>Rejected: guard the import and print an install hint.</p></div></li>
 </ol>
 
-All recorded 2026-08-10, describing decisions made over the life of the
-project rather than on that date.
+0001 to 0008 recorded 2026-08-10, describing decisions made over the life of
+the project rather than on that date.

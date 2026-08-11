@@ -10,7 +10,7 @@
   <a href="https://mgummich.github.io/mealie-skill/"><img alt="Docs" src="https://img.shields.io/badge/docs-github%20pages-blue.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-blue.svg">
-  <img alt="Dependencies: requests" src="https://img.shields.io/badge/dependencies-requests-lightgrey.svg">
+  <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-lightgrey.svg">
 </p>
 
 > [!WARNING]
@@ -213,7 +213,6 @@ sources plus `commons.wikimedia.org`, `pexels.com`, `unsplash.com`.
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-…
-pip install requests
 
 python standalone/optimize.py recipe my-recipe --dry-run
 python standalone/optimize.py recipe --batch --limit 20

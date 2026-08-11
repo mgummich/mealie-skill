@@ -7,7 +7,7 @@ description: Every command and flag of mealie_ctx.py, the only thing in the proj
 
 `skill/scripts/mealie_ctx.py` is the only place with HTTP access to Mealie.
 The agent calls it, `standalone/optimize.py` calls it as a subprocess, and
-you can call it directly. It has no dependencies beyond `requests`.
+you can call it directly. It has no dependencies at all.
 
 The installed path depends on the target — see
 [Build and install](build-and-install.md). Examples here shorten it to

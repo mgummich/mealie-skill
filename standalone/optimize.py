@@ -29,8 +29,8 @@ import re
 import subprocess
 import sys
 import time
-
-import requests
+import urllib.error
+import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
@@ -123,14 +123,23 @@ def ask(mode, user_msg):
         cache_read_input_tokens afterwards.
 
     Raises:
-        requests.HTTPError: If the API answers with an error status.
+        SystemExit: If the API answers with an error status.
+        urllib.error.URLError: If the API is unreachable.
     """
     body = {"model": MODEL, "max_tokens": 8000, "system": system_block(mode),
             "messages": [{"role": "user", "content": user_msg}]}
-    r = requests.post("https://api.anthropic.com/v1/messages",
-                      headers=AH, json=body, timeout=240)
-    r.raise_for_status()
-    d = r.json()
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages",
+                                 data=json.dumps(body).encode(), headers=AH,
+                                 method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=240) as r:
+            d = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        # The body carries the reason - a bad key, a rate limit, a model
+        # id that does not exist. Printing the status alone helps nobody.
+        with e:
+            sys.exit(f"Anthropic API: HTTP {e.code} – "
+                     f"{e.read().decode('utf-8', 'replace')[:500]}")
     return ("\n".join(b["text"] for b in d["content"] if b["type"] == "text"),
             d.get("usage", {}))
 
@@ -175,8 +184,7 @@ def run(mode, task, user_msg, args, slug=None):
         slug: Recipe slug, required for patch_recipe and set_image.
 
     Raises:
-        SystemExit: If mealie_ctx.py apply fails.
-        requests.HTTPError: If the API call fails.
+        SystemExit: If mealie_ctx.py apply fails, or the API call does.
     """
     print(f"\n{'=' * 62}\n{mode}: {task or slug}\n{'=' * 62}")
     text, usage = ask(mode, user_msg)

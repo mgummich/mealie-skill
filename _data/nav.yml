@@ -47,6 +47,7 @@
     - { url: /docs/decisions/0006-data-not-prose.html, title: "0006 Data, not prose" }
     - { url: /docs/decisions/0007-changelog-before-write.html, title: "0007 Log before the write" }
     - { url: /docs/decisions/0008-target-current-mealie.html, title: "0008 Current Mealie" }
+    - { url: /docs/decisions/0009-no-dependencies.html, title: "0009 No dependencies" }
 
 - title: Contributing
   slug: contributing
