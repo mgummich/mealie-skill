@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the Mealie skill for the target formats and install it.
 
-  build.py [--target TARGET] [--out dist] [--lang LANGUAGE]
+  build.py [--target TARGET] [--out dist] [--lang LANGUAGE] [--version NAME]
   build.py --install TARGET [--into PROJECT] [--force] [--lang LANGUAGE]
 
 Targets: claude-code, antigravity, cursor, agents-md
@@ -275,20 +275,47 @@ def _copy_refs(dst_dir, mapping, lang=None):
                rewrite(render_agent(_read("references", ref), lang), mapping))
 
 
-def _copy_script(root):
-    """Copy mealie_ctx.py to mealie/scripts/ below a target root.
+def script_text(version=None):
+    """Return mealie_ctx.py with its version constant stamped.
 
-    Copied verbatim: the script is identical for every target, only the
-    paths pointing at it differ.
+    The script is otherwise identical for every target; only the paths
+    pointing at it differ. Without a version it keeps the "dev" it carries
+    in the source, so a build from a clone is recognisable as one.
+
+    Args:
+        version: Release name for `mealie_ctx.py --version`, e.g. "v1.2.0".
+
+    Returns:
+        The source of the script.
+
+    Raises:
+        OSError: If the script cannot be read.
+        SystemExit: If the constant to stamp is not there any more.
+    """
+    text = _read("scripts", "mealie_ctx.py")
+    if not version:
+        return text
+    # a lambda as the replacement: a tag with a backslash would otherwise be
+    # read as an escape
+    stamped, n = re.subn(r'^VERSION = "dev"$', lambda _: f'VERSION = "{version}"',
+                         text, count=1, flags=re.MULTILINE)
+    if not n:
+        sys.exit('mealie_ctx.py: no VERSION = "dev" line to stamp')
+    return stamped
+
+
+def _copy_script(root, version=None):
+    """Copy mealie_ctx.py to mealie/scripts/ below a target root.
 
     Args:
         root: Root directory of the target.
+        version: Release name stamped into the script.
 
     Raises:
         OSError: If the script cannot be read or written.
     """
     _write(os.path.join(root, "mealie", "scripts", "mealie_ctx.py"),
-           _read("scripts", "mealie_ctx.py"))
+           script_text(version))
     _copy_data(os.path.join(root, "mealie"))
 
 
@@ -312,7 +339,7 @@ def _copy_data(parent):
                    _read("data", *rel.split(os.sep)))
 
 
-def build_target(target, out, lang=None):
+def build_target(target, out, lang=None, version=None):
     """Render one target into out/<target>/, replacing what is there.
 
     Layout per target: claude-code and antigravity get a skill directory
@@ -324,6 +351,7 @@ def build_target(target, out, lang=None):
         target: One of TARGETS.
         out: Output directory; out/<target> is deleted beforehand.
         lang: Content language baked into the rendered skill.
+        version: Release name stamped into mealie_ctx.py; "dev" without it.
 
     Returns:
         Path of the rendered target directory.
@@ -345,7 +373,7 @@ def build_target(target, out, lang=None):
                rewrite(render_agent(_read("SKILL.md"), lang), mapping))
         _copy_refs(os.path.join(skill_dir, "references"), mapping, lang)
         _write(os.path.join(skill_dir, "scripts", "mealie_ctx.py"),
-               _read("scripts", "mealie_ctx.py"))
+               script_text(version))
         _copy_data(skill_dir)
         wf = rewrite(render_agent(_read("workflow.md"), lang), mapping)
         wf_path = (os.path.join(root, ".claude", "commands", "mealie.md")
@@ -369,7 +397,7 @@ def build_target(target, out, lang=None):
         _, wf_body = _split_frontmatter(_read("workflow.md"))
         _write(os.path.join(root, ".cursor", "commands", "mealie.md"),
                rewrite(render_agent(wf_body, lang), mapping))
-        _copy_script(root)
+        _copy_script(root, version)
 
     elif target == "agents-md":
         _write(os.path.join(root, "AGENTS.md"),
@@ -378,7 +406,7 @@ def build_target(target, out, lang=None):
         _write(os.path.join(root, *ROUTER_FILE.split("/")),
                agents_md_router(lang))
         _copy_refs(os.path.join(root, "mealie", "references"), mapping, lang)
-        _copy_script(root)
+        _copy_script(root, version)
 
     else:
         sys.exit("unknown target: " + target)
@@ -606,13 +634,15 @@ def main():
     p.add_argument("--force", action="store_true")
     p.add_argument("--lang", default=DEFAULT_LANG,
                    help="language of the recipe content (default: %(default)s)")
+    p.add_argument("--version", metavar="NAME",
+                   help="release name stamped into mealie_ctx.py (default: dev)")
     a = p.parse_args()
 
     if a.install:
         install(a.install, a.into, a.force, a.lang)
         return
     for t in ([a.target] if a.target else TARGETS):
-        print("built:", build_target(t, a.out, a.lang))
+        print("built:", build_target(t, a.out, a.lang, a.version))
 
 
 if __name__ == "__main__":

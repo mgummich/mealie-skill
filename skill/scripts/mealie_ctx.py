@@ -30,6 +30,11 @@ import time
 
 import requests
 
+# Stamped by build.py --version when a release is rendered; a copy built
+# from a clone stays "dev". An installed skill has no other way to say
+# which release it is.
+VERSION = "dev"
+
 INDEX = os.environ.get("MEALIE_INDEX", ".mealie_index.json")
 # Raised whenever build_index learns a field an audit reads. An older index
 # is rebuilt rather than silently audited on fields it does not carry.
@@ -2559,6 +2564,8 @@ def main():
     """
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--version", action="version",
+                   version="mealie-skill " + VERSION)
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("setup", help="check the connection, store credentials")
