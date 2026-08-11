@@ -7,6 +7,11 @@ covers everything the modes need.
 When it is connected it is the primary path: same instance, same API, but
 the survey questions are answered server-side.
 
+Every tool name, argument and response key below was checked against
+`mcp-mealie` v0.3.0 plus the fixes on `main` up to 2026-08-11. A server
+older or newer than that can have moved; where a call answers differently
+than described here, the server is right and this file is stale.
+
 **Skip `index` and `audit` while it is connected.** Building the index is
 one request per recipe; `library_stats` is one call. An index that is never
 built also never goes stale.
