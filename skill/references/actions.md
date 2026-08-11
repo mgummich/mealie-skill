@@ -21,7 +21,12 @@ people who do not know this workflow.
 ```
 
 `"$ref:<id_as>"` is replaced at runtime with the id of the object created in
-the same run. Always reference existing objects by their real id.
+the same run. Always reference existing objects by their real id. A
+reference whose `id_as` is missing or created later is refused by the dry
+run, before the first write.
+
+Aliases are objects in Mealie: `"aliases": [{"name": "tomatoes"}]`. A plain
+list of strings is accepted as shorthand and converted.
 
 ## Order
 
@@ -117,7 +122,9 @@ the old name. One finding is fatal: a non-metric unit. Cup, ounce, pound,
 pint and stick are converted with `convert`, never stored.
 
 An update whose value is already there is not sent: the run prints
-`UNCHANGED` and logs nothing. So a plan applied twice - after a partial
+`UNCHANGED` and logs nothing. A `retag_recipe` counts as such an update -
+adding a tag the recipe already carries writes nothing, and the `+n -n` it
+prints are the tags that actually moved. So a plan applied twice - after a partial
 failure, or built from an audit that was already acted on - changes the
 instance once, and a second run over a clean corpus is provably a no-op.
 

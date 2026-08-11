@@ -108,10 +108,10 @@ Fields, all of them, at creation:
 - `description` - `definition; use.` Short, factual, no marketing, no
   amounts.
 - `labelId` - exactly one, from the fixed set; see `labels.md`.
-- `aliases` - **never empty.** Seed with the string that triggered
-  creation, the other locale, spelling variants, dropped diacritics,
-  space/hyphen variants, powder forms. This is what makes the next import
-  match, and the plan lint warns when it is missing.
+- `aliases` - objects, `[{"name": "tomatoes"}]`; **never empty.** Seed with
+  the string that triggered creation, the other locale, spelling variants,
+  dropped diacritics, space/hyphen variants, powder forms. This is what
+  makes the next import match, and the plan lint warns when it is missing.
 
 **Never an alias, always its own food:** varieties (`granny smith`),
 derived forms (`lemon [juice]`), different products (currants ≠ raisins,

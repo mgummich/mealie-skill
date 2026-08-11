@@ -210,6 +210,14 @@ usable image of the dish, preferably CC0/CC-BY (Wikimedia Commons, Pexels,
 Unsplash). Nothing suitable found or the license unclear: no image, note it
 in the report. Never the image of a different dish. Always name source and
 license.
+
+The instance downloads the URL itself, so it has to be reachable from there
+and servable to a bot: a hotlink-protected CDN, a page behind Cloudflare or
+a URL on the instance's own host fails. Mealie answers such a failure with
+200 and sets the recipe's image token anyway, which would leave a broken
+picture - `set_image` therefore checks the stored file and aborts the run
+when nothing landed. On that message pick a different image URL, do not
+retry the same one.
 <!-- standalone: Without browser access, do not look for an image: use `set_image` only if an image URL is already present in the context you were given. Otherwise no image, note it in the report. Never the image of a different dish. -->
 
 ## After an import

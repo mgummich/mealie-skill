@@ -69,8 +69,14 @@ Tagging many recipes has its own batch:
 
 Names are plain text and are created if they do not exist. It **only adds**,
 and it covers tags and categories only. Removing one, or setting a recipe's
-list exactly, is `update_recipe` with `replace_tags` / `replace_categories` /
-`replace_tools` — tools have no bulk form at all.
+list exactly, is `update_recipe` with the list plus its switch:
+
+    update_recipe(slug="dip", tags=["Quick"], replace_tags=True)
+
+`replace_tags`, `replace_categories` and `replace_tools` are booleans, not
+lists — without them `tags`, `categories` and `tools` merge into what the
+recipe already carries. `tags=[]` with `replace_tags=True` empties the
+field. Tools have no bulk form at all.
 
 Keep `actions.json` and `apply` for what the batch form cannot do: **order**
 (a label must exist before the food referencing it), **a dry run over the

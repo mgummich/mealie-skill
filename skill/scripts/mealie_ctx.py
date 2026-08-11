@@ -102,6 +102,11 @@ COOKBOOK_LEGACY = ("categories", "tags", "tools", "requireAllCategories",
 # retag_recipe deliberately does not take them, there is nothing to retag.
 ORG_KINDS = ("categories", "tags", "tools", "labels")
 
+# Status codes that mean the page is gone. Everything else a HEAD can
+# return - 403 and 429 above all - means the site refused this request,
+# not that the recipe moved: cooking sites block bots and rate-limit.
+URL_GONE = (404, 410, 451)
+
 # Duplicate matching is tuned for German and English recipe data: umlaut
 # folding, German plural endings (which cover the English "s" and "es") and
 # a stop word list holding both languages. Other languages still work, but
@@ -974,17 +979,29 @@ def cmd_audit(a):
             print("\n(pass --check-urls to check source URLs for reachability)")
             return
         dead: list = []
+        unverified: list = []
         for r in R:
             if not r["orgURL"]:
                 continue
             try:
                 resp = requests.head(r["orgURL"], timeout=10, allow_redirects=True)
                 if resp.status_code >= 400:
-                    dead.append((r["slug"], resp.status_code, r["orgURL"]))
+                    (dead if resp.status_code in URL_GONE
+                     else unverified).append(
+                        (r["slug"], resp.status_code, r["orgURL"]))
             except requests.RequestException as e:
-                dead.append((r["slug"], type(e).__name__, r["orgURL"]))
+                (dead if isinstance(e, requests.ConnectionError)
+                 else unverified).append(
+                    (r["slug"], type(e).__name__, r["orgURL"]))
         print(f"\nDEAD SOURCE URLS: {len(dead)}")
         for slug, code, url in dead[: a.limit]:
+            print(f"  {slug}  [{code}]  {url}")
+        # A site that blocks bots answers 403, 429 or 460 to this HEAD and
+        # opens fine in a browser. Removing those links loses a good source,
+        # so they are listed apart and checked by hand.
+        print(f"\nUNVERIFIED (blocked or slow, open one before acting): "
+              f"{len(unverified)}")
+        for slug, code, url in unverified[: a.limit]:
             print(f"  {slug}  [{code}]  {url}")
     else:
         sys.exit(f"unknown: {what}")
@@ -1154,6 +1171,27 @@ def resolve(value, refs):
     if isinstance(value, list):
         return [resolve(v, refs) for v in value]
     return value
+
+
+def resolve_or_exit(payload, refs, op):
+    """Resolve a payload's references, or abort with a readable message.
+
+    Args:
+        payload: The action's payload.
+        refs: Mapping of reference name to the id created earlier.
+        op: Operation name, for the message.
+
+    Returns:
+        The payload with every reference resolved.
+
+    Raises:
+        SystemExit: If a reference has no matching id.
+    """
+    try:
+        return resolve(payload, refs)
+    except KeyError as e:
+        sys.exit(f"{op}: {e.args[0]} – the action creating it has to come "
+                 "earlier in the same file, otherwise use the real id.")
 
 
 _TAKEN: dict = {}
@@ -1947,6 +1985,31 @@ def _recipe_before(slug, cache):
     return cache[slug]
 
 
+def image_stored(recipe_id):
+    """Check whether a recipe has an image file on the instance.
+
+    Args:
+        recipe_id: Id of the recipe, not its slug - the media path uses the
+            id.
+
+    Returns:
+        True if the instance serves the recipe's original image.
+    """
+    if not recipe_id:
+        return False
+    base, headers = conn()
+    try:
+        # Mealie serves media from a GET-only route - a HEAD answers 404
+        # even for a file that is there. So the response is streamed and
+        # closed again instead of downloaded.
+        with requests.get(f"{base}/api/media/recipes/{recipe_id}"
+                          "/images/original.webp", headers=headers,
+                          timeout=30, stream=True) as r:
+            return r.ok
+    except requests.RequestException:
+        return False
+
+
 def _guard_recipe_lists(actions, default_slug, cache):
     """Refuse a patch_recipe that would shorten a list field.
 
@@ -2125,14 +2188,21 @@ def cmd_apply(a):
             name another food or unit already holds, a patch_recipe that
             would shorten a list field, a merge that left references
             behind, a patch_recipe/set_image without any slug, or a failed
-            write. Actions already applied stay applied; there is no
-            rollback beyond CHANGELOG.
-        KeyError: If a "$ref:" cannot be resolved.
+            write, or a "$ref:" that cannot be resolved. Actions already
+            applied stay applied; there is no rollback beyond CHANGELOG.
     """
     actions = json.load(open(a.file, encoding="utf-8"))["actions"]
     bad = [x["op"] for x in actions if x["op"] not in ORDER]
     if bad:
         sys.exit(f"Unknown operations: {bad}")
+    # Mealie stores aliases as objects. A plain list of strings is the
+    # obvious way to write them and Mealie would drop it silently, so it is
+    # taken as the shorthand it looks like rather than refused.
+    for x in actions:
+        al = x.get("payload", {}).get("aliases")
+        if isinstance(al, list):
+            x["payload"]["aliases"] = [{"name": v} if isinstance(v, str)
+                                       else v for v in al]
     idxmap = {op: i for i, op in enumerate(ORDER)}
     seq = [idxmap[x["op"]] for x in actions]
     if seq != sorted(seq):
@@ -2204,12 +2274,16 @@ def cmd_apply(a):
         for x in actions:
             op, payload = x["op"], x.get("payload", {})
             if a.dry_run:
+                # Resolved here too: a reference that points nowhere would
+                # otherwise surface in the middle of the real run, after the
+                # actions before it have already been written.
+                payload = resolve_or_exit(payload, refs, op)
                 shown = json.dumps(payload, ensure_ascii=False)[:220]
                 print(f"[dry-run] {op}: {shown}")
                 if x.get("id_as"):
                     refs[x["id_as"]] = "<new-id>"
                 continue
-            payload = resolve(payload, refs)
+            payload = resolve_or_exit(payload, refs, op)
 
             if op in CREATE_EP:
                 res = mreq("POST", EP[CREATE_EP[op]], json=payload)
@@ -2263,16 +2337,26 @@ def cmd_apply(a):
                 cur = rec.get(field) or []
                 rm = set(payload.get("remove", []))
                 new = [c for c in cur if c["id"] not in rm]
+                dropped = len(cur) - len(new)
                 have = {c["id"] for c in new}
+                added = 0
                 for add_id in payload.get("add", []):
                     if add_id not in have:
-                        obj = mreq("GET", f"{EP[kind]}/{add_id}")
-                        new.append(obj)
-                mreq("PATCH", f'{EP["recipes"]}/{payload["slug"]}', json={field: new})
-                print(f'RETAGGED {payload["slug"]} {kind}: '
-                      f'+{len(payload.get("add", []))} -{len(rm)}')
-                log_change(run, op, {"slug": payload["slug"], "kind": kind},
-                           {field: cur}, payload)
+                        new.append(mreq("GET", f"{EP[kind]}/{add_id}"))
+                        have.add(add_id)
+                        added += 1
+                # A tag already on the recipe is not a change: without this
+                # a second run of the same plan rewrites the recipe and logs
+                # it, and the counts would report adds that never happened.
+                if not added and not dropped:
+                    print(f'UNCHANGED {payload["slug"]} {kind}')
+                else:
+                    mreq("PATCH", f'{EP["recipes"]}/{payload["slug"]}',
+                         json={field: new})
+                    print(f'RETAGGED {payload["slug"]} {kind}: '
+                          f"+{added} -{dropped}")
+                    log_change(run, op, {"slug": payload["slug"], "kind": kind},
+                               {field: cur}, payload)
             elif op == "delete_organizer":
                 kind = payload["kind"]
                 gone = mreq("GET", f'{EP[kind]}/{payload["id"]}')
@@ -2329,8 +2413,19 @@ def cmd_apply(a):
                 slug = renamed.get(slug, slug)
                 if not slug:
                     sys.exit("set_image needs --slug or a slug in the payload")
+                before = _recipe_before(slug, cache)
                 mreq("POST", f'{EP["recipes"]}/{slug}/image',
                      json={"url": payload["url"], "includeTags": False})
+                # Mealie answers 200 even when the download failed, and sets
+                # the recipe's image token anyway - the recipe then shows a
+                # broken picture. Only the stored file says it worked.
+                if not image_stored(before.get("id")):
+                    sys.exit(f'set_image {slug}: Mealie accepted the call but '
+                             f'stored no image from {payload["url"]} - the '
+                             "source refused the download (bot block, or a "
+                             "URL the instance cannot reach). The recipe now "
+                             "has no usable image; run the action again with "
+                             "a different URL.")
                 print(f'IMAGE {slug} – {payload["url"]}')
                 # The replaced image itself is not recoverable - Mealie serves it
                 # under a fixed path that the new one takes over. The log records
