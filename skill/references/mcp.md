@@ -16,7 +16,7 @@ built also never goes stale.
 | Question | Call |
 |---|---|
 | What exists, and how often is it used? | `library_stats(resource)` — `tags`, `categories`, `tools`, `foods`, `units`; each entry with its `recipe_count`, unused included |
-| Is this food safe to delete? | `library_stats("foods")` — `recipe_count: 0` |
+| Is this food safe to delete? | `library_stats("foods")` — `recipe_count: 0`, recipes only; a shopping list can still hold it |
 | Same recipe imported twice? | `find_duplicate_recipes()` |
 | Is this dish already in the library? | `search_recipes(query="lentil curry")` — before an import |
 | Which source links are dead? | `check_recipe_links()` — `broken_sources`, `unverified_sources`, plus recipes with no image |
@@ -186,6 +186,17 @@ recipes" is `retag_recipe`, not `update_recipe`.
 the loser. Tags and categories have no merge — retag first, then delete the
 leftover. Deleting a duplicate food instead of merging it strips it from
 those recipes.
+
+A `delete` on a food or unit still referenced anywhere fails with a 409, and
+the error names `merge` as the way out: Mealie removes the row itself, so a
+recipe ingredient or a shopping-list item pointing at it is a foreign key
+violation. Nothing here can repoint those rows; `manage_taxonomy(resource,
+"merge", item_id=<loser>, merge_into=<keeper>)` can. That is not a retryable
+error — do not call `delete` again.
+
+The reference that trips this is often invisible: `library_stats` counts
+**recipe** usage only, so a food at `recipe_count: 0` may still sit on
+somebody's shopping list. Treat a 409 as that, not as a stale count.
 
 `manage_taxonomy("...", "list")` is paged at 50 and reports the `total`. A
 partial first page is not the whole table — `library_stats` is cheaper and

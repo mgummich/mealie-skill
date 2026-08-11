@@ -174,5 +174,6 @@ needs approval like any other destructive step.
 Reach for `query_filter` - the same filter string as above - only for what
 the name lists cannot express; the two cannot be combined.
 
-Verify with `get_cookbook_recipes(cookbook_id)` afterwards - an overly narrow
+Verify with `get_cookbook_recipes(cookbook)` afterwards - that argument is
+named `cookbook`, not `cookbook_id`, and takes the id or the slug - an overly narrow
 filter matches nothing, which is easy to miss.
