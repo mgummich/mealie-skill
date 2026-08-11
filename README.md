@@ -178,6 +178,18 @@ only updated inside its marked block. That block is a pointer at
 on-demand loading, so everything in it is paid for in every session.
 
 Without `--install`, `python3 build.py` renders every target into `dist/`.
+Tagged releases carry those rendered targets as one zip each — unpack the
+archive over a project instead of cloning and building. Each archive is
+listed in the release's `SHA256SUMS` and carries a build provenance
+attestation (`gh attestation verify <zip> --repo <owner>/mealie-skill`).
+
+Which release is installed:
+
+```bash
+python3 .claude/skills/mealie/scripts/mealie_ctx.py --version   # mealie-skill v1.2.0
+```
+
+A build from a clone answers `dev`; only the release workflow stamps a tag.
 
 In Claude Code (global or project-scoped) and in Antigravity after a project
 install (`--into`):

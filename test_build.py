@@ -859,6 +859,20 @@ with tempfile.TemporaryDirectory() as tmp:
                               "..", "data", "en", "conversions.json")
         assert os.path.exists(os.path.normpath(beside)), target
 
+# 12j. The release stamp reaches the script in every layout, and a build
+#      without --version stays recognisable as one from a clone.
+assert 'VERSION = "dev"' in build.script_text()
+assert 'VERSION = "v1.2.3"' in build.script_text("v1.2.3")
+with tempfile.TemporaryDirectory() as tmp:
+    for target, script in (
+            ("claude-code", ".claude/skills/mealie/scripts/mealie_ctx.py"),
+            ("antigravity", ".agents/skills/mealie/scripts/mealie_ctx.py"),
+            ("cursor", "mealie/scripts/mealie_ctx.py"),
+            ("agents-md", "mealie/scripts/mealie_ctx.py")):
+        built = build.build_target(target, tmp, version="v1.2.3")
+        with open(os.path.join(built, script), encoding="utf-8") as f:
+            assert 'VERSION = "v1.2.3"' in f.read(), target
+
 # 12n. The standalone frontend: every mode has a prompt, every prompt a
 #      mode, and no rendered prompt tells the model to run a tool it has
 #      no access to.

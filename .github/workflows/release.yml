@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (must already exist)"
+        required: true
+
+permissions:
+  contents: write
+  id-token: write        # provenance attestation
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      # A tag is cheap to push and expensive to unpublish: everything that
+      # can disqualify this one is checked before a single file is built.
+      - name: Tag hygiene
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "not a semver tag: $TAG"; exit 1 ;;
+          esac
+          sha=$(git rev-list -n1 "$TAG")
+          git fetch --depth=100 origin main
+          git merge-base --is-ancestor "$sha" origin/main || {
+            echo "$TAG ($sha) is not on main"; exit 1; }
+          state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs" \
+                    --jq '[.check_runs[]
+                           | select(.name != "release")
+                           | .conclusion] | join(",")')
+          echo "check runs: ${state:-none}"
+          case "$state" in
+            "") echo "no CI ran for $sha"; exit 1 ;;
+            *failure*|*cancelled*|*timed_out*|*null*)
+              echo "CI is not green for $sha"; exit 1 ;;
+          esac
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+
+      - name: Unit tests
+        run: python3 test_build.py
+
+      - name: Render all targets
+        env:
+          # Stamped into mealie_ctx.py, so an installed skill can name its
+          # release: mealie_ctx.py --version.
+          VERSION: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 build.py --version "$VERSION"
+          ! grep -rq 'CONTENT_LANG' dist/
+          grep -rq "VERSION = \"$VERSION\"" dist/ || {
+            echo "no target carries the version"; exit 1; }
+
+      # One archive per target, unpacked straight into a project directory.
+      - name: Pack
+        run: |
+          mkdir -p out
+          for t in dist/*/; do
+            name=$(basename "$t")
+            (cd "$t" && zip -qr "$GITHUB_WORKSPACE/out/mealie-skill-$name-$TAG.zip" .)
+          done
+          (cd out && sha256sum ./*.zip > SHA256SUMS)
+          cat out/SHA256SUMS
+
+      # What ships is the zip, not dist/ - so the zip is what gets tried.
+      - name: Smoke-test the archives
+        env:
+          MEALIE_URL: http://localhost
+          MEALIE_TOKEN: dummy
+        run: |
+          echo '{"actions":[{"op":"create_label","id_as":"l",
+                             "payload":{"name":"Spices","color":"#8B5E3C"}},
+                            {"op":"create_food",
+                             "payload":{"name":"Cumin","labelId":"$ref:l"}}]}' \
+            > "$RUNNER_TEMP/ok.json"
+          for z in out/*.zip; do
+            d=$(mktemp -d)
+            unzip -q "$z" -d "$d"
+            script=$(find "$d" -name mealie_ctx.py)
+            test -n "$script" || { echo "$z has no script"; exit 1; }
+            # data resolves as ../data from the script: proves the layout
+            # survived packing, not just rendering
+            test -f "$(dirname "$script")/../data/en/conversions.json" \
+              || { echo "$z ships no data pack"; exit 1; }
+            python3 "$script" --version | grep -qx "mealie-skill $TAG" \
+              || { echo "$z reports the wrong version"; exit 1; }
+            python3 "$script" apply "$RUNNER_TEMP/ok.json" --dry-run > /dev/null \
+              || { echo "$z fails a dry run"; exit 1; }
+            echo "ok: $z"
+          done
+
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: out/*.zip
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* --clobber
+            exit 0
+          fi
+          # Notes from the previous tag onwards; on the first release there
+          # is none and --generate-notes takes the whole history.
+          prev=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          gh release create "$TAG" out/* --title "$TAG" --generate-notes \
+            ${prev:+--notes-start-tag "$prev"}
