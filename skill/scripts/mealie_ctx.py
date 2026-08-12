@@ -2004,6 +2004,30 @@ def _lint_organizer(op, payload, lint, out):
                      "(8 inch -> 20 cm, 9 -> 23, 10 -> 26)")
 
 
+def _lint_cookbook(op, payload, out):
+    """Check one cookbook payload against the filter rules.
+
+    Args:
+        op: The operation name.
+        payload: The action payload.
+        out: List the findings are appended to as (level, message).
+    """
+    name = payload.get("name") or payload.get("id") or ""
+    if "queryFilterString" not in payload:
+        return                  # an update touching only name or description
+    rule = payload["queryFilterString"] or ""
+    if not rule.strip():
+        _finding(out, "WARN", f'{op} "{name}": no filter - that is not a '
+                 "neutral default, a cookbook without one matches every "
+                 "recipe")
+        return
+    conditions = len(re.findall(r"\s(?:AND|OR)\s", rule)) + 1
+    if conditions > 3:
+        _finding(out, "WARN", f'{op} "{name}": {conditions} conditions - a '
+                 "filter that takes more than one sentence to explain will "
+                 "not be maintained. Build two cookbooks instead")
+
+
 def _lint_recipe(payload, lint, out):
     """Check one patch_recipe payload against the recipe rules.
 
@@ -2013,6 +2037,21 @@ def _lint_recipe(payload, lint, out):
         out: List the findings are appended to as (level, message).
     """
     slug = payload.get("slug", "<--slug>")
+    for n, line in enumerate(payload.get("recipeIngredient") or [], 1):
+        if not isinstance(line, dict):
+            continue
+        if line.get("display"):
+            _finding(out, "WARN", f"patch_recipe {slug}: ingredient line {n} "
+                     'sets "display" - Mealie composes the line from '
+                     "quantity, unit, food and note and puts the amount in "
+                     'front of whatever display holds ("500 500 g flour")')
+        # a food that is not an object at all is _guard_ingredients' finding
+        food = (line["food"].get("name") or ""
+                if isinstance(line.get("food"), dict) else "")
+        if any(c in f" {food.casefold()} " for c in lint["conjunctions"]):
+            _finding(out, "WARN", f"patch_recipe {slug}: ingredient line {n} "
+                     f'has two foods in "{food}" - that is two lines, and '
+                     "only separate lines reach the shopping list")
     for field, key, what in (("tags", "maxTags", "tags"),
                              ("recipeCategory", "maxCategories", "categories"),
                              ("tools", "maxTools", "tools")):
@@ -2068,6 +2107,8 @@ def lint_actions(actions, lang=None):
             elif color.casefold() == lint["defaultLabelColor"].casefold():
                 _finding(out, "WARN", f'create_label "{payload.get("name")}": '
                          "left on Mealie's default colour")
+        elif op in ("create_cookbook", "update_cookbook"):
+            _lint_cookbook(op, payload, out)
         elif op in ("update_food", "update_unit") and payload.get("name"):
             kind = "foods" if op == "update_food" else "units"
             old = next((o.get("name") for o in _TAKEN.get(kind, [])
@@ -2181,6 +2222,49 @@ def image_stored(recipe_id):
         return False
 
 
+def _guard_original_text(slug, cur, payload):
+    """Refuse a patch that overwrites an ingredient line's originalText.
+
+    originalText holds the raw imported line and is the only evidence that
+    a parse error can be proved against, so the rules keep it untouched.
+    Filling an empty one is the documented repair and passes.
+
+    Lines are matched by referenceId, and only by position when neither
+    side carries one and the lists are the same length - a reordered or
+    merged list must not read as an overwrite.
+
+    Args:
+        slug: The recipe being patched, for the message.
+        cur: The recipe as the instance holds it.
+        payload: The fields the action would set.
+
+    Raises:
+        SystemExit: On the first line whose stored originalText would be
+            replaced by a different one.
+    """
+    want = payload.get("recipeIngredient")
+    if not isinstance(want, list):
+        return
+    have = cur.get("recipeIngredient") or []
+    by_ref = {line["referenceId"]: line for line in have
+              if isinstance(line, dict) and line.get("referenceId")}
+    for n, line in enumerate(want):
+        if not isinstance(line, dict) or "originalText" not in line:
+            continue
+        old = by_ref.get(line.get("referenceId"))
+        if old is None:
+            if line.get("referenceId") or len(want) != len(have):
+                continue    # a new line, or a list this cannot align
+            old = have[n] if isinstance(have[n], dict) else {}
+        stored, new = old.get("originalText") or "", line["originalText"] or ""
+        if stored and new != stored:
+            sys.exit(f"patch_recipe {slug}: ingredient line {n + 1} would "
+                     f'overwrite originalText "{stored}" with "{new}". It '
+                     "holds the raw imported line and is the evidence a "
+                     "parse error is proved against - repair quantity, "
+                     "unit, food and note instead, and leave it standing.")
+
+
 def _guard_recipe_lists(actions, default_slug, cache):
     """Refuse a patch_recipe that would shorten a list field.
 
@@ -2206,6 +2290,7 @@ def _guard_recipe_lists(actions, default_slug, cache):
         if not fields or not slug:
             continue            # a missing slug is reported by the run itself
         cur = _recipe_before(slug, cache)
+        _guard_original_text(slug, cur, payload)
         for f in fields:
             have, want = len(cur.get(f) or []), len(payload[f] or [])
             if want < have and not x.get("replace"):

@@ -489,6 +489,79 @@ with tempfile.TemporaryDirectory() as tmp:
     assert ("POST", "/households/cookbooks") in calls, calls
     assert logged[0]["payload"]["queryFilterString"], logged
 
+# 12d-4. Rules that can be checked mechanically are checked, not left to the
+#        prompt: display, two foods on one line, a cookbook without a filter
+#        or with more conditions than anyone maintains.
+warned = mealie_ctx.lint_actions([
+    {"op": "patch_recipe",
+     "payload": {"slug": "curry", "recipeIngredient": [
+         {"quantity": 500, "display": "500 g flour",
+          "food": {"id": "f-1", "name": "flour"}},
+         {"quantity": 1, "food": {"id": "f-2", "name": "salt and pepper"}}]}},
+    {"op": "create_cookbook", "payload": {"name": "Everything",
+                                          "queryFilterString": ""}},
+    {"op": "create_cookbook",
+     "payload": {"name": "Narrow", "queryFilterString":
+                 'tags.name IN ["a"] AND rating > 3 OR tools.name IN ["b"] '
+                 'AND lastMade = null'}}])
+messages = " | ".join(m for _, m in warned)
+assert not [lvl for lvl, _ in warned if lvl != "WARN"], warned
+assert "display" in messages and "line 1" in messages, messages
+assert "two foods" in messages and "line 2" in messages, messages
+assert "matches every recipe" in messages, messages
+assert "4 conditions" in messages, messages
+
+# ... and a filter of three conditions, or an update leaving it alone, is fine.
+assert mealie_ctx.lint_actions([
+    {"op": "create_cookbook", "payload": {"name": "Fine", "queryFilterString":
+                                          'tags.name IN ["a"] AND rating > 3'}},
+    {"op": "update_cookbook", "payload": {"id": "cb-1", "name": "Renamed"}},
+    {"op": "patch_recipe", "payload": {"slug": "curry", "recipeIngredient": [
+        {"quantity": 1, "food": {"id": "f-1", "name": "andouille"}}]}},
+]) == [], "a clean plan warned"
+
+# 12d-5. originalText is the evidence a parse error is proved against, so a
+#        patch that would replace it aborts - by referenceId, not by position.
+def parsed_recipe(method, path, **kw):
+    """Answer every GET with a recipe whose lines carry their imported text."""
+    calls.append((method, path))
+    return {"slug": "curry", "recipeIngredient": [
+        {"referenceId": "r-1", "originalText": "500 g flour"},
+        {"referenceId": "r-2", "originalText": "2 eggs"}]}
+
+
+rewrite = [{"op": "patch_recipe", "payload": {"slug": "curry",
+            "recipeIngredient": [
+                {"referenceId": "r-1", "originalText": "flour, 500 g",
+                 "food": {"id": "f-1", "name": "flour"}},
+                {"referenceId": "r-2", "originalText": "2 eggs"}]}}]
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    try:
+        run_apply(rewrite, parsed_recipe, tmp)
+        raise AssertionError("an overwritten originalText did not abort")
+    except SystemExit as e:
+        assert "originalText" in str(e) and "line 1" in str(e), e
+    assert not [m for m, _ in calls if m != "GET"], calls   # nothing written
+
+# ... while filling an empty one, and reordering lines that keep theirs, pass.
+def half_parsed(method, path, **kw):
+    """Answer with one line whose originalText was never filled."""
+    calls.append((method, path))
+    return {"slug": "curry", "recipeIngredient": [
+        {"referenceId": "r-1", "originalText": ""},
+        {"referenceId": "r-2", "originalText": "2 eggs"}]}
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    calls = []
+    swapped = [{"op": "patch_recipe", "payload": {"slug": "curry",
+                "recipeIngredient": [
+                    {"referenceId": "r-2", "originalText": "2 eggs"},
+                    {"referenceId": "r-1", "originalText": "500 g flour"}]}}]
+    run_apply(swapped, half_parsed, tmp)
+    assert ("PATCH", "/recipes/curry") in calls, calls
+
 # 12e. A merge is verified by reading the affected recipes back: Mealie
 #      answers a merge that lost references exactly like one that worked.
 with tempfile.TemporaryDirectory() as tmp:
