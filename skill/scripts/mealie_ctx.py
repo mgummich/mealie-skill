@@ -1995,6 +1995,10 @@ def _lint_organizer(op, payload, lint, out):
             _finding(out, "WARN", f'create_tag "{name}": a negative tag reads '
                      "as an allergen guarantee and is not one")
     if op == "create_tool":
+        if name.casefold() in {e.casefold() for e in lint["everydayEquipment"]}:
+            _finding(out, "WARN", f'create_tool "{name}": everyday equipment '
+                     "fails the gating test - a tool worth filtering on is "
+                     "one not every kitchen has")
         brand = next((b for b in lint["toolBrands"] if b in low), None)
         if brand:
             _finding(out, "WARN", f'create_tool "{name}": brand - use the '
@@ -2004,12 +2008,13 @@ def _lint_organizer(op, payload, lint, out):
                      "(8 inch -> 20 cm, 9 -> 23, 10 -> 26)")
 
 
-def _lint_cookbook(op, payload, out):
+def _lint_cookbook(op, payload, lint, out):
     """Check one cookbook payload against the filter rules.
 
     Args:
         op: The operation name.
         payload: The action payload.
+        lint: Lint data for the content language.
         out: List the findings are appended to as (level, message).
     """
     name = payload.get("name") or payload.get("id") or ""
@@ -2022,7 +2027,7 @@ def _lint_cookbook(op, payload, out):
                  "recipe")
         return
     conditions = len(re.findall(r"\s(?:AND|OR)\s", rule)) + 1
-    if conditions > 3:
+    if conditions > lint["cookbookMaxConditions"]:
         _finding(out, "WARN", f'{op} "{name}": {conditions} conditions - a '
                  "filter that takes more than one sentence to explain will "
                  "not be maintained. Build two cookbooks instead")
@@ -2037,6 +2042,11 @@ def _lint_recipe(payload, lint, out):
         out: List the findings are appended to as (level, message).
     """
     slug = payload.get("slug", "<--slug>")
+    limit = lint["recipeNameMax"]
+    if len(payload.get("name") or "") > limit:
+        _finding(out, "WARN", f"patch_recipe {slug}: name over {limit} "
+                 "characters - the dish as you would say it, no superlative, "
+                 "no source, no time")
     for n, line in enumerate(payload.get("recipeIngredient") or [], 1):
         if not isinstance(line, dict):
             continue
@@ -2065,6 +2075,13 @@ def _lint_recipe(payload, lint, out):
     if len(notes) > lint["maxNotes"]:
         _finding(out, "WARN", f"patch_recipe {slug}: {len(notes)} notes, the "
                  f"rules cap it at {lint['maxNotes']}")
+    long = [(n.get("title") or "(untitled)") for n in notes
+            if isinstance(n, dict)
+            and len(n.get("text") or "") > lint["noteTextMax"]]
+    if long:
+        _finding(out, "WARN", f"patch_recipe {slug}: notes over "
+                 f"{lint['noteTextMax']} characters: {', '.join(long)} - a "
+                 "note nobody finishes reading is not a note")
     titles = [(n.get("title") or "") for n in notes if isinstance(n, dict)]
     unknown = [t for t in titles if t not in lint["noteTitles"]]
     if unknown:
@@ -2108,7 +2125,7 @@ def lint_actions(actions, lang=None):
                 _finding(out, "WARN", f'create_label "{payload.get("name")}": '
                          "left on Mealie's default colour")
         elif op in ("create_cookbook", "update_cookbook"):
-            _lint_cookbook(op, payload, out)
+            _lint_cookbook(op, payload, lint, out)
         elif op in ("update_food", "update_unit") and payload.get("name"):
             kind = "foods" if op == "update_food" else "units"
             old = next((o.get("name") for o in _TAKEN.get(kind, [])

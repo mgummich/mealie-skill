@@ -105,8 +105,8 @@ Fields, all of them, at creation:
   the name: `garlic powder`, not `garlic [ground]`.
 - `pluralName` - mass nouns and already-plural names repeat the name.
   Bracket variants pluralise the countable part: `cinnamon [sticks]`.
-- `description` - `definition; use.` Short, factual, no marketing, no
-  amounts.
+- `description` - `definition; use.` Short, factual, under 100 characters,
+  no marketing, no amounts.
 - `labelId` - exactly one, from the fixed set; see `labels.md`.
 - `aliases` - objects, `[{"name": "tomatoes"}]`; **never empty.** Seed with
   the string that triggered creation, the other locale, spelling variants,
