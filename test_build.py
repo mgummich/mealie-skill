@@ -520,6 +520,47 @@ assert mealie_ctx.lint_actions([
         {"quantity": 1, "food": {"id": "f-1", "name": "andouille"}}]}},
 ]) == [], "a clean plan warned"
 
+# 12d-4b. The caps the references state, checked where a plan can still be
+#         changed rather than in the audit after the fact.
+warned = mealie_ctx.lint_actions([
+    {"op": "patch_recipe",
+     "payload": {"slug": "curry", "name": "T" + "a" * 60,
+                 "notes": [{"title": "Storage", "text": "x" * 401}]}},
+    {"op": "create_tool", "payload": {"name": "Saucepan"}}])
+messages = " | ".join(m for _, m in warned)
+assert "name over 60" in messages, messages
+assert "notes over 400" in messages and "Storage" in messages, messages
+assert "gating test" in messages, messages
+
+# ... at the cap, nothing is said.
+assert mealie_ctx.lint_actions([
+    {"op": "patch_recipe",
+     "payload": {"slug": "curry", "name": "a" * 60,
+                 "notes": [{"title": "Storage", "text": "x" * 400}]}},
+    {"op": "create_tool", "payload": {"name": "Pasta Machine"}},
+]) == [], "a plan at the cap warned"
+
+# 12d-4c. The caps live in lint.json, the references state them in prose, and
+#         nothing but this test keeps the two from drifting apart.
+WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 8: "eight"}
+CAPS = (("maxTags", "organizers.md", "{} tags"),
+        ("maxCategories", "organizers.md", "{} categories"),
+        ("maxTools", "organizers.md", "{} tools"),
+        ("maxNotes", "recipes.md", "{} notes"),
+        ("noteTextMax", "recipes.md", "{} characters"),
+        ("recipeNameMax", "recipes.md", "{} characters"),
+        ("foodDescriptionMax", "foods.md", "{} characters"),
+        ("cookbookMaxConditions", "cookbooks.md", "{} conditions"))
+lint_en = json.load(open("skill/data/en/lint.json", encoding="utf-8"))
+for key, ref, phrase in CAPS:
+    value = lint_en[key]
+    # the references wrap at 76 columns, so the phrase can straddle a newline
+    prose = " ".join(open(f"skill/references/{ref}", encoding="utf-8").read().split())
+    wanted = {phrase.format(value), phrase.format(WORDS.get(value, value))}
+    assert any(w in prose for w in wanted), (
+        f"{key} is {value} in lint.json, and {ref} says none of {wanted}. "
+        "A cap the prompt and the dry run disagree on is worse than either.")
+
 # 12d-5. originalText is the evidence a parse error is proved against, so a
 #        patch that would replace it aborts - by referenceId, not by position.
 def parsed_recipe(method, path, **kw):

@@ -3,10 +3,13 @@
   "foodNameCase": "any",
   "tagNameCase": "any",
   "foodDescriptionMax": 100,
+  "recipeNameMax": 60,
+  "noteTextMax": 400,
   "maxTags": 8,
   "maxCategories": 2,
   "maxTools": 4,
   "maxNotes": 5,
+  "cookbookMaxConditions": 3,
   "noteTitles": [
     "Quelle",
     "Variante",
