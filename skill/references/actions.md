@@ -135,8 +135,15 @@ entirely on a line that has none.
 without label or aliases, over-long description, tag with two concepts or a
 `no X` phrasing, tool with a brand or an inch size, label on the default
 colour, over eight tags, note title outside the vocabulary, rename dropping
-the old name. One finding is fatal: a non-metric unit. Cup, ounce, pound,
-pint and stick are converted with `convert`, never stored.
+the old name, an ingredient line setting `display` or naming two foods, a
+cookbook with no filter or with more than three conditions. One finding is
+fatal: a non-metric unit. Cup, ounce, pound, pint and stick are converted
+with `convert`, never stored.
+
+Overwriting an ingredient line's `originalText` is refused outright, like a
+shortening list field - it is the raw imported line and the evidence a
+parse error is proved against. Filling an empty one is the documented
+repair and passes.
 
 An update whose value is already there is not sent: the run prints
 `UNCHANGED` and logs nothing. A `retag_recipe` counts as such an update -
