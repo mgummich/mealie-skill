@@ -8,7 +8,7 @@ When it is connected it is the primary path: same instance, same API, but
 the survey questions are answered server-side.
 
 Every tool name, argument and response key below was checked against
-`mcp-mealie` v0.3.0 plus the fixes on `main` up to 2026-08-11. A server
+`mcp-mealie` v0.5.0. A server
 older or newer than that can have moved; where a call answers differently
 than described here, the server is right and this file is stale.
 
@@ -26,6 +26,7 @@ built also never goes stale.
 | Is this dish already in the library? | `search_recipes(query="lentil curry")` — before an import |
 | Which source links are dead? | `check_recipe_links()` — `broken_sources`, `unverified_sources`, plus recipes with no image |
 | Which recipes use this food/tag/tool? | `search_recipes(foods=[...])`, `tags=[...]`, `categories=[...]`, `tools=[...]` |
+| What is done in 30 minutes? | `search_recipes(max_total_minutes=30)` — quickest first; Mealie 3.29+ |
 | What does one recipe look like? | `get_recipe(slug, fields=[...])`, `full=True` for everything |
 | Survey a field across the library | `search_recipes(fields=["slug", "tags", "rating"], limit=100)` |
 | What exists in a taxonomy right now? | `manage_taxonomy(resource, "list", search=...)` |
@@ -34,7 +35,8 @@ built also never goes stale.
 `foods` and `units` are the slow rollups — they need each recipe's
 ingredients, so that sweep is one request per recipe and honors
 `max_recipes`. Tags, categories and tools come off the recipe list in a
-handful of requests.
+handful of requests. On Mealie 3.30+ foods and tools use Mealie's own
+counts instead, so only `units` still sweeps.
 
 `library_stats` lists at most `top` used and `top` unused entries, 50 each by
 default, and the totals are in `used` and `unused`. A library with more than
@@ -118,16 +120,25 @@ Only the MCP has these; the script deliberately has none.
    by default. `search_recipes(tags=["Quick"])` or a cookbook when they
    described a style; that one takes `require_all` to switch from any-of to
    all-of. Filter server-side either way.
-3. One `add_meal_plan_entry(date, entry_type, recipe_slug)` per slot — no
-   batch endpoint. Free-text entries need no recipe:
-   `add_meal_plan_entry(date, title="Leftovers")`.
+3. The whole week is one `add_meal_plan_entry(items=[...])`: per-entry
+   dicts with `date`, `entry_type`, `recipe_slug` or `title`, `note`,
+   `scale`, `end_date`. Free-text entries need no recipe:
+   `{"date": ..., "title": "Leftovers"}`. Like `manage_taxonomy`, the reply
+   splits `results` from `errors`. `end_date` makes an entry "sometime
+   between" (Mealie 3.30+), `scale` multiplies servings (3.29+); older
+   versions ignore both.
 4. `random_meal_plan(start_date, end_date)` fills a range in one call and
    honors Mealie's own rules. It **adds to** existing entries rather than
    replacing them, so read the plan first. Capped at 14 days.
 
 `get_todays_meals` answers "what are we cooking today". A wrong entry is
-removed with `delete_meal_plan_entry(entry_id)`; there is no update. That
-delete is a write like any other: it belongs in the plan.
+changed with `update_meal_plan_entry(entry_id, ...)` — unmentioned fields
+keep their value — or removed with `delete_meal_plan_entry(entry_id)`. Both
+are writes like any other: they belong in the plan.
+
+Shopping for the week is one `add_recipe_to_shopping_list(list_id,
+recipe_slug=[...])`; Mealie merges matching ingredients across the recipes.
+`add_shopping_item` and `delete_shopping_item` take a list as well.
 
 ## Import a recipe from a URL
 
@@ -205,9 +216,9 @@ right only after the user has removed the damaged recipe.
 in `actions.json` works on ids and removes explicitly. "Remove tag X from 9
 recipes" is `retag_recipe`, not `update_recipe`.
 
-`merge` exists for foods and units only and repoints every recipe that used
-the loser. Tags and categories have no merge — retag first, then delete the
-leftover. Deleting a duplicate food instead of merging it strips it from
+`merge` exists for foods and units, and for tools and labels on Mealie
+3.30+, and repoints every recipe that used the loser. Tags and categories
+have no merge — retag first, then delete the leftover. Deleting a duplicate food instead of merging it strips it from
 those recipes.
 
 A `delete` on a food or unit still referenced anywhere fails with a 409, and
