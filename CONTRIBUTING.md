@@ -35,7 +35,7 @@ text. All of it is dev-only; nothing is added to the runtime dependencies.
 - English everywhere: output, prompts, comments, docstrings.
 - Docstrings in Google style (`Args:`/`Returns:`/`Raises:`).
 - Line length 88.
-- No dependencies at all: the standard library, on Python 3.9.
+- No dependencies at all: the standard library, on the newest Python (3.15).
 - Never hardcode a content language. Use the `${CONTENT_LANG}` placeholder;
   it is substituted from `--lang` or `$MEALIE_LANG`.
 

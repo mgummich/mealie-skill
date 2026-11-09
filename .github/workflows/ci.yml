@@ -10,10 +10,10 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04   # last image with a Python 3.9 build
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.15"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -27,7 +27,6 @@ jobs:
         uses: astral-sh/ruff-action@v3
 
       - name: Types
-        if: matrix.python-version == '3.12'   # current mypy needs 3.10+
         run: |
           pip install mypy
           mypy

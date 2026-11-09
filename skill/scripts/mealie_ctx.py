@@ -25,7 +25,6 @@ import getpass
 import json
 import os
 import re
-import socket
 import sys
 import time
 import urllib.error
@@ -185,13 +184,12 @@ def fetch(method, url, headers=None, params=None, data=None, timeout=45,
             return Response(e.code, e.headers,
                             b"" if stream else e.read(), url)
     except urllib.error.URLError as e:
-        if isinstance(e.reason, socket.timeout):
+        if isinstance(e.reason, TimeoutError):
             raise Timeout(str(e.reason)) from e
         raise ConnectError(str(e.reason)) from e
-    except socket.timeout as e:
+    except TimeoutError as e:
         # A read that runs out of time is raised straight through, only a
-        # connect timeout arrives wrapped in URLError. socket.timeout is
-        # TimeoutError from 3.10 on and its own class before that.
+        # connect timeout arrives wrapped in URLError.
         raise Timeout(str(e) or "timed out") from e
     except (HTTPException, OSError) as e:
         raise ConnectError(f"{e.__class__.__name__}: {e}") from e
