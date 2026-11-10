@@ -102,7 +102,7 @@ copied directory with no install step, so HTTP goes through `fetch()` in
 the tool uses. Adding an import outside the standard library breaks every
 install. `ruff check .`
 enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
-runtime dependency. CI also runs `mypy` on 3.12 — run it before pushing,
+runtime dependency. CI also runs `mypy` on 3.15 — run it before pushing,
 `ruff` passing says nothing about it:
 
     pip install mypy && mypy

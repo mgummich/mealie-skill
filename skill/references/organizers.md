@@ -4,6 +4,10 @@ Unlike foods, there is **no merge endpoint**. Resolving a duplicate means:
 retag every affected recipe (`retag_recipe`), then delete the object that
 has become empty (`delete_organizer`). The ACTIONS order enforces that
 sequence.
+<!-- agent-only -->
+Tools are the exception on Mealie 3.30+, and only through the `mcp-mealie`
+server: `manage_taxonomy("tools", "merge", ...)`, see `mcp.md`.
+<!-- standalone:  -->
 
 - **Categories** are the shelf: what kind of dish is this? Closed set,
   10-20, one per recipe and at most two.

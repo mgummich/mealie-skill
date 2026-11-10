@@ -9,7 +9,7 @@
   <a href="https://github.com/mgummich/mealie-skill/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/mgummich/mealie-skill/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://mgummich.github.io/mealie-skill/"><img alt="Docs" src="https://img.shields.io/badge/docs-github%20pages-blue.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-  <img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-blue.svg">
+  <img alt="Python 3.15+" src="https://img.shields.io/badge/python-3.15%2B-blue.svg">
   <img alt="Dependencies: none" src="https://img.shields.io/badge/dependencies-none-lightgrey.svg">
 </p>
 

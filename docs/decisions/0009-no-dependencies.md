@@ -43,7 +43,7 @@ supplied it fails there instead of on a user's install.
 
 ## Consequences
 
-- Any Python 3.9 runs the skill. Nothing to install, nothing to explain in
+- Any Python 3.15 runs the skill. Nothing to install, nothing to explain in
   the setup instructions.
 - `fetch()` is about a hundred lines this project now maintains, including
   the parts `requests` gets right for free: the charset of a response body,
