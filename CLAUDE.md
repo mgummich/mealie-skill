@@ -103,9 +103,11 @@ the tool uses. Adding an import outside the standard library breaks every
 install. `ruff check .`
 enforces it (config in `ruff.toml`, CI runs it); ruff is dev-only, not a
 runtime dependency. CI also runs `mypy` on 3.15 — run it before pushing,
-`ruff` passing says nothing about it:
+`ruff` passing says nothing about it. CI runs both through pre-commit, so
+the versions pinned in `.pre-commit-config.yaml` are the only ones; run
+them the same way:
 
-    pip install mypy && mypy
+    pre-commit run --all-files ruff-check && pre-commit run --all-files mypy
 
 New operations need: an entry in `ORDER`, a branch in `cmd_apply` that logs
 its before-state, a row in the table in `references/actions.md`, a test in

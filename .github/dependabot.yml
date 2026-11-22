@@ -1,0 +1,19 @@
+# Keeps action and hook pins fresh. CI takes ruff and mypy from
+# .pre-commit-config.yaml, so one bump there moves both.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      hooks:
+        patterns: ["*"]
