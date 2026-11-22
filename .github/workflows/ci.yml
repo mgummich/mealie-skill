@@ -23,13 +23,13 @@ jobs:
       # never pip-installed, so every step below runs against the same bare
       # interpreter a user's agent would reach for.
 
-      - name: Lint
-        uses: astral-sh/ruff-action@v3
-
-      - name: Types
+      # ruff and mypy run through pre-commit, so CI uses the versions pinned
+      # in .pre-commit-config.yaml and cannot drift from the local hook.
+      - name: Lint and types
         run: |
-          pip install mypy
-          mypy
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure ruff-check
+          pre-commit run --all-files mypy
 
       - name: Unit tests
         run: python3 test_build.py
